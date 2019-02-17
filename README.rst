@@ -9,9 +9,6 @@
 .. .. image:: https://readthedocs.org/projects/quickerumls/badge/?version=latest
    :target: https://quickerumls.readthedocs.io/en/latest/?badge=latest
    :alt: Documentation Status
-.. image:: https://readthedocs.org/projects/quickerumls/badge/?version=latest
-   :target: index.html
-   :alt: Documentation Status
 
 .. image:: https://img.shields.io/badge/license-MIT-blue.svg
    :target: https://github.com/edponce/smarttimers/blob/master/LICENSE
