@@ -1,0 +1,3 @@
+Sphinx>=1.7 [reST]
+sphinx_rtd_theme>=0.1.9 [reST]
+flake8>=3.5 [lint]
