@@ -11,7 +11,7 @@ import src as pkg
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-needs_sphinx='1.7'
+needs_sphinx = '1.7'
 try:
     with open('../extras_requirements.txt') as fd:
         regex = re.compile(r'^Sphinx[<>=]+(\d+[\.?\d*]*).*[\r\n]')
@@ -82,8 +82,8 @@ exclude_patterns = []
 autodoc_member_order = 'bysource'
 
 # Special members are any methods or attributes that start with and end with a
-# double underscore. Any special member with a docstring will be included in the
-# output, if 'napoleon_include_special_with_doc' is set to True.
+# double underscore. Any special member with a docstring will be included in
+# the output, if 'napoleon_include_special_with_doc' is set to True.
 napoleon_include_special_with_doc = True
 
 # The name of the Pygments (syntax highlighting) style to use.

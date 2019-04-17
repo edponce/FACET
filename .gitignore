@@ -106,6 +106,7 @@ test.py
 **/*.bak
 **/*.log
 TODO.txt
+docs/html
 
 # IDE settings folders
 .vscode

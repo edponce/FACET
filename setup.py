@@ -1,6 +1,6 @@
-from setuptools import setup, find_packages
 import re
 import src as pkg
+from setuptools import setup, find_packages
 
 
 # Load long description from files
@@ -83,16 +83,14 @@ setup(
         "Intended Audience :: Science/Research",
         "Operating System :: OS Independent",
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.4",
-        "Programming Language :: Python :: 3.5",
-        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
         "Topic :: Documentation :: Sphinx",
         "Topic :: Utilities",
         "Topic :: Software Development :: Libraries"
     ],
     platforms=["Linux"],
     zip_safe=False,
-    python_requires=">=3.4",
+    python_requires=">=3.7",
     include_package_data=True,
     packages=find_packages(),
     install_requires=install_requirements,

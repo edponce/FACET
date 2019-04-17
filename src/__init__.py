@@ -13,8 +13,8 @@ Todo:
 __title__ = "QuickerUMLS"
 # __name__ = "QuickerUMLS"
 __version__ = "0.0.1"
-__description__ = "High-performance tool for concept extraction" \
-                  " from medical narratives."
+__description__ = """ High-performance tool for concept extraction
+                      from medical narratives. """
 __keywords__ = (
     "information extraction",
     "UMLS",
@@ -26,7 +26,8 @@ __url__ = "code.ornl.gov:reachvet-nlp/quicker-umls.git"
 __author__ = "Kris Brown, Oak Ridge National Laboratory, Oak Ridge, TN"
 __author_email__ = "brownka@ornl.gov"
 __license__ = "MIT"
-__copyright__ = "2019 Kris Brown"
+__copyright__ = """ 2019 Kris Brown and Eduardo Ponce,
+                    Oak Ridge National Laboratory """
 
 
 __all__ = ()
