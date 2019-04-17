@@ -22,11 +22,55 @@ QuickerUMLS
 QuickerUMLS is an extension of `QuickUMLS`_ tool providing faster, scalable,
 and flexible concept extraction from medical narratives.
 
-Before Starting
----------------
+Before Starting and System Initialize
+-------------------------------------
 
 1. Python installation should include C headers (python3-dev).
+1. Run all the setup scripts in 'setup' directory.
+   * setup_simstring.sh
+   * setup_spacy.sh
+   * setup_umls.sh: download UMLS and initialize the system
+     (see 'Initialize System')
 1. Install package, pip install -e .
+
+Description of the NLM UMLS files is available at https://www.ncbi.nlm.nih.gov/books/NBK9685.
+
+
+API and Usage
+-------------
+
+QuickUMLS(quickumls_fp, overlapping_criteria, threshold, similarity_name, window,
+          accepted_semtypes)
+* quickumls_fp is the directory for the UMLS installation
+
+* overlapping_criteria (optional, default="score") is the criteria used to deal
+  with overlapping concepts; choose "score" if the matching score of the concepts
+  should be consider first, "length" if the longest should be considered first
+  instead.
+* threshold (optional, default: 0.7) is the minimum similarity value between strings.
+* similarity_name (optional, default: "jaccard") is the name of similarity to use.
+  Choose between "dice", "jaccard", "cosine", or "overlap".
+* window (optional, default: 5) is the maximum number of tokens to consider for
+  matching.
+* accepted_semtypes (optional, default: see constants.py) is the set of UMLS
+  semantic types concepts should belong to. Semantic types are identified by the
+  letter "T" followed by three numbers (e.g., "T131", which identifies the
+  type of `Hazardous or Poisonous Substance`_).
+
+Instantiate a QuickUMLS object:
+    >>> matcher = QuickUMLS('path/to/UMLS/installation')
+NOTE: this command will invoke NLTK which in turn downloads a package of stopwords
+which are placed in the home directory. For English language there 179 stopwords.
+
+Use the QuickUMLS object:
+    >>> text = "The ulna has dislocated posteriorly from the trochlea of the humerus."
+    >>> matches = matcher.match(text, best_match=True, ignore_syntax=False)
+    >>> matches
+    >>> [[{'start': 61, 'end':68, 'ngram': 'humerus', 'term': 'humerus', 'cui': 'C0020164', 'similarity': 1.0, 'semtypes': {'T023'}, 'preferred': 1}], [...]]
+
+Set 'best_match' to 'False' if you want to return overlapping candidates.
+Set 'ignore_syntax' to 'True' to disable all heuristics introduced in Soldaini
+and Goharian 2016.
 
 
 QuickUMLS
@@ -63,9 +107,12 @@ Initialize system
    * -E, --language: Specify the language to consider for UMLS concepts (defuault
      is English). For a complete list of languages, see `NLM language table`_.
 
+
+
 .. _QuickUMLS: https://github.com/Georgetown-IR-Lab/QuickUMLS
 .. _UMLS license: https://uts.nlm.nih.gov/license.html
 .. _UMLS files: https://www.nlm.nih.gov/research/umls/licensedcontent/umlsknowledgesources.html
 .. _MetamorphoSys: https://www.nlm.nih.gov/research/umls/implementation_resources/metamorphosys/help.html
 .. _Simstring: http://www.chokkan.org/software/simstring
 .. _NLM language table: https://www.nlm.nih.gov/research/umls/knowledge_sources/metathesaurus/release/abbreviations.html#LAT
+.. _Hazardous or Poisonous Substance: https://metamap.nlm.nih.gov/Docs/SemanticTypes_2018AB.txt
