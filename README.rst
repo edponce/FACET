@@ -163,3 +163,18 @@ Pickling objects may reduce their storage use when writing to a database or tran
 >>> d = {'a': 1, 'b': 2}
 >>> sys.getsizeof(d)  # 240 bytes
 >>> sys.getsizeof(pickle.dumps(d))  # 61 bytes
+
+
+spaCy
+=====
+
+>>> import spacy
+>>> nlp = spacy.load('en')
+>>> doc = nlp('very long text ...')
+>>> ValueError: [E088] Text of length 1639120 exceeds maximum of 1000000. The v2.x parser and NER models require roughly 1GB of temporary memory per 100,000 characters in the input. This means long texts may cause memory allocation errors. If you're not using the parser or NER, it's probably safe to increase the `nlp.max_length` limit. The limit is in number of characters, so you can check whether your inputs are too long by checking `len(text)`.
+
+
+Are Python lists thread-safe?
+=============================
+
+Lists themselves are thread-safe. In CPython the GIL protects against concurrent accesses to them, and other implementations take care to use a fine-grained lock or a synchronized datatype for their list implementations. However, while lists themselves can't go corrupt by attempts to concurrently access, the lists's data is not protected.

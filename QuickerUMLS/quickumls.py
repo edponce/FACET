@@ -22,6 +22,9 @@ except ImportError:
     from . import constants
 
 
+import concurrent.futures
+
+
 class QuickUMLS(object):
     def __init__(
             self, quickumls_fp,
@@ -180,12 +183,22 @@ class QuickUMLS(object):
         sent_length = len(sent)
 
         # do not include teterminers inside a span
-        skip_in_span = {token.i for token in sent if token.pos_ == 'DET'}
+        # skip_in_span = {token.i for token in sent if token.pos_ == 'DET'}
 
         # invalidate a span if it includes any on these  symbols
-        invalid_mid_tokens = {
-            token.i for token in sent if not self._is_valid_middle_token(token)
-        }
+        # invalid_mid_tokens = {
+        #     token.i for token in sent if not self._is_valid_middle_token(token)
+        # }
+
+        # Merge previous statements into a single loop
+        skip_in_span = set()
+        invalid_mid_tokens = set()
+        for token in sent:
+            if token.pos_ == 'DET':
+                skip_in_span.add(token.i)
+            if not self._is_valid_middle_token(token):
+                invalid_mid_tokens.add(token.i)
+
 
         for i in xrange(sent_length):
             tok = sent[i]
@@ -232,6 +245,87 @@ class QuickUMLS(object):
                     ''.join(token.text_with_ws for token in span
                             if token.i not in skip_in_span).strip()
                 )
+
+
+    def _get_single_match(self, *args):
+        start, end, ngram = args
+
+        ngram_normalized = ngram
+
+        if self.normalize_unicode_flag:
+            ngram_normalized = unidecode(ngram_normalized)
+
+        # make it lowercase
+        if self.to_lowercase_flag:
+            ngram_normalized = ngram_normalized.lower()
+
+        # if the term is all uppercase, it might be the case that
+        # no match is found; so we convert to lowercase;
+        # however, this is never needed if the string is lowercased
+        # in the step above
+        if not self.to_lowercase_flag and ngram_normalized.isupper():
+            ngram_normalized = ngram_normalized.lower()
+
+        prev_cui = None
+        ngram_cands = list(self.ss_db.get(ngram_normalized))
+
+        ngram_matches = []
+
+        for match in ngram_cands:
+            cuisem_match = sorted(self.cuisem_db.get(match))
+
+            for cui, semtypes, preferred in cuisem_match:
+                match_similarity = toolbox.get_similarity(
+                    x=ngram_normalized,
+                    y=match,
+                    n=self.ngram_length,
+                    similarity_name=self.similarity_name
+                )
+                if match_similarity == 0:
+                    continue
+
+                if not self._is_ok_semtype(semtypes):
+                    continue
+
+                if prev_cui is not None and prev_cui == cui:
+                    if match_similarity > ngram_matches[-1]['similarity']:
+                        ngram_matches.pop(-1)
+                    else:
+                        continue
+
+                prev_cui = cui
+
+                ngram_matches.append(
+                    {
+                        'start': start,
+                        'end': end,
+                        'ngram': ngram,
+                        'term': toolbox.safe_unicode(match),
+                        'cui': cui,
+                        'similarity': match_similarity,
+                        'semtypes': semtypes,
+                        'preferred': preferred
+                    }
+                )
+
+        if len(ngram_matches) > 0:
+            return  sorted(
+                    ngram_matches,
+                    key=lambda m: m['similarity'] + m['preferred'],
+                    reverse=True
+                )
+
+
+    def _get_all_matches_par(self, ngrams):
+        matches = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            future_to_match = {executor.submit(self._get_single_match, *args): args for args in ngrams}
+            for future in concurrent.futures.as_completed(future_to_match):
+                data = future.result()
+                if data is not None:
+                    matches.append(data)
+        return matches
+
 
     def _get_all_matches(self, ngrams):
         matches = []
@@ -357,6 +451,7 @@ class QuickUMLS(object):
         return True
 
     def match(self, text, best_match=True, ignore_syntax=False):
+        # Creates a spaCy Doc object
         parsed = self.nlp(u'{}'.format(text))
 
         if ignore_syntax:
@@ -364,7 +459,8 @@ class QuickUMLS(object):
         else:
             ngrams = self._make_ngrams(parsed)
 
-        matches = self._get_all_matches(ngrams)
+        # matches = self._get_all_matches(ngrams)
+        matches = self._get_all_matches_par(ngrams)
 
         if best_match:
             matches = self._select_terms(matches)
