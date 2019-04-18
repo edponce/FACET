@@ -1,5 +1,5 @@
 import re
-import src as pkg
+import QuickerUMLS as pkg
 from setuptools import setup, find_packages
 
 

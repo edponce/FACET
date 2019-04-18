@@ -11,7 +11,7 @@ Todo:
 
 
 __title__ = "QuickerUMLS"
-# __name__ = "QuickerUMLS"
+__name__ = "QuickerUMLS"
 __version__ = "0.0.1"
 __description__ = """ High-performance tool for concept extraction
                       from medical narratives. """
@@ -30,7 +30,7 @@ __copyright__ = """ 2019 Kris Brown and Eduardo Ponce,
                     Oak Ridge National Laboratory """
 
 
-__all__ = ()
+# __all__ = ()
 
 
-# from .driver import QuickerUMLS
+from .quickumls import QuickUMLS

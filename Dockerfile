@@ -1,7 +1,4 @@
 FROM python:3.7
-
-COPY . /quickerumls
-
-WORKDIR /quickerumls
-
+COPY . /QuickerUMLS
+WORKDIR /QuickerUMLS
 RUN pip install -e .

@@ -5,7 +5,7 @@ import os
 import sys
 import re
 sys.path.append(os.path.abspath('..'))
-import src as pkg
+import QuickerUMLS as pkg
 
 
 # -- General configuration ------------------------------------------------

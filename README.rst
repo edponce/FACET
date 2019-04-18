@@ -151,3 +151,15 @@ Plyvel API:
 
     with db.write_batch() as b:
         b.put(b'key', b'value')
+
+
+Pickle
+======
+
+Pickling objects may reduce their storage use when writing to a database or transferring data.
+
+>>> import sys
+>>> import pickle
+>>> d = {'a': 1, 'b': 2}
+>>> sys.getsizeof(d)  # 240 bytes
+>>> sys.getsizeof(pickle.dumps(d))  # 61 bytes
