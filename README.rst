@@ -116,3 +116,38 @@ Initialize system
 .. _Simstring: http://www.chokkan.org/software/simstring
 .. _NLM language table: https://www.nlm.nih.gov/research/umls/knowledge_sources/metathesaurus/release/abbreviations.html#LAT
 .. _Hazardous or Poisonous Substance: https://metamap.nlm.nih.gov/Docs/SemanticTypes_2018AB.txt
+
+
+Plyvel and LevelDB
+==================
+
+Using plyvel (https://github.com/wbolster/plyvel) interface for LevelDB (https://github.com/google/leveldb).
+
+
+LevelDB Features:
+* Keys and values are arbitrary byte arrays.
+* Data is stored sorted by key.
+* Basic operations: Put(key, value), Get(key), Delete(key).
+* Multiple changes can be made in one atomic batch.
+* Forward and backward iteration is supported over the data.
+* Data is automatically compressed (Snappy compression library).
+
+
+LevelDB Limitations:
+* Only a single process (possibly multi-threaded) can access a particular database at a time.
+    - plyvel._plyvel.IOError: b'IO error: lock test.db/LOCK: Resource temporarily unavailable'
+
+
+Plyvel Info:
+* Uses Cython, can be installed manually on system (repo contains Dockerfile). This might be good to increase performance for the target architecture.
+
+
+Plyvel API:
+* close() - closing the database while other threads are busy accessing it may result in hard crashes. Applications should make sure not to close databases that are concurrently used from other threads.
+* write_batch(transaction=False, sync=False) - create a WriteBatch instance for this database.
+    - transaction - whether to enable transaction-like behaviour when used in 'with' block.
+    - sync - whether to use synchronous writes
+* class WriteBatch - batch put/delete operations. Instances of this class can be used as context managers, when the 'with' block terminates, the batch will be automatically written to the database without an explicit call to 'WriteBatch.write()'.
+
+    with db.write_batch() as b:
+        b.put(b'key', b'value')
