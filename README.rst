@@ -76,9 +76,6 @@ and Goharian 2016.
 Benchmarks
 ==========
 
-get_all_matches
----------------
-
 Tests were done using UMLS 2018-AA knowledge base.
 Number of workers is None (number of cores or more).
 Input text is processed as a single string passed to match().
@@ -92,10 +89,10 @@ gam_p2                                         0.8              0.02          1.
 gam_p2b                                        0.7              0.01          1.0
 gam_p3                                         1.2              0.03          1.4
 gam_p4b                                        0.66             0.008         0.9
-mn_2                              7e-06        
+mn_2                              7e-06
 mn_p1b                            0.1          0.43             0.008         0.75
 mn_p2b                            0.1          0.42             0.008         0.74
-merge_b                                        1.1              0.012         1.3
+merg_b                                         0.72             0.009         0.92
 orig     2248/8881   525/252      3e-06 (mts)  0.95             0.012         1.2
 mts_p1b                           0.1          1.0              0.012         1.3
 mts_p2b                           0.1          1.0              0.012         1.3
@@ -104,25 +101,26 @@ mts_p2b                           0.1          1.0              0.012         1.
 Real values represent time in seconds.
 
 Legend:
-orig - original code
-gam_pX - get_all_matches_parX
-gam_pXb - get_all_matches_parX_batch
-mn_X - make_ngramsX
-mn_pXb - make_ngrams_parX_batch
-mts - uses make_token_sequence instead of make_ngrams
-mts_pXb - make_token_sequence_par2_batch
+* orig - original code
+* gam_pX - get_all_matches_parX
+* gam_pXb - get_all_matches_parX_batch
+* mn_X - make_ngramsX
+* mn_pXb - make_ngrams_parX_batch
+* mts - uses make_token_sequence instead of make_ngrams
+* mts_pXb - make_token_sequence_par2_batch
+* merg_b - merge make_ngrams and get_all_matches using batches
 
 
-get_all_matches_par1 - uses concurrent.futures.ThreadPoolExecutor distributing one data at a time. Checks if partial results are None, then combines with the final result.
-get_all_matches_par2 - uses multiprocessing.pool.ThreadPool with single blocking map, then applies filter for ignoring Nones. Converts final results to a list.
-get_all_matches_par2_batch - uses multiprocessing.pool.ThreadPool with multiple apply_async that operate on batches (1024) of data. Partial results are combined into the final result.
-get_all_matches_par3 - uses multiprocessing.pool.ThreadPool with multiple apply_async that operate on single data at a time. Checks if partial results are None, then combines with the final result.
-get_all_matches_par4_batch - uses threading.Thread to spawn multiple threads that operate on batches (1024) of data. Each thread adds partial results to a shared final result.
-make_ngrams2 - removes lists used for identifying spans to ignore, etc. Performs those checks as data is processed.
-make_ngrams_par1_batch - uses multiprocessing.pool.ThreadPool with multiple apply_async that operate on batches (64) of data. Partial results from generators are combined into the final result.
-make_ngrams_par2_batch - uses multiprocessing.pool.ThreadPool with multiple apply_async that operate on batches (64) of data. Partial results from list are combined into the final result.
-make_token_sequences_par1_batch - uses multiprocessing.pool.ThreadPool with multiple apply_async that operate on batches (64) of data. Partial results from generators are combined into the final result.
-make_token_sequences_par2_batch - uses multiprocessing.pool.ThreadPool with multiple apply_async that operate on batches (64) of data. Partial results from list are combined into the final result.
+* get_all_matches_par1 - uses concurrent.futures.ThreadPoolExecutor distributing one data at a time. Checks if partial results are None, then combines with the final result.
+* get_all_matches_par2 - uses multiprocessing.pool.ThreadPool with single blocking map, then applies filter for ignoring Nones. Converts final results to a list.
+* get_all_matches_par2_batch - uses multiprocessing.pool.ThreadPool with multiple apply_async that operate on batches (1024) of data. Partial results are combined into the final result.
+* get_all_matches_par3 - uses multiprocessing.pool.ThreadPool with multiple apply_async that operate on single data at a time. Checks if partial results are None, then combines with the final result.
+* get_all_matches_par4_batch - uses threading.Thread to spawn multiple threads that operate on batches (1024) of data. Each thread adds partial results to a shared final result.
+* make_ngrams2 - removes lists used for identifying spans to ignore, etc. Performs those checks as data is processed.
+* make_ngrams_par1_batch - uses multiprocessing.pool.ThreadPool with multiple apply_async that operate on batches (64) of data. Partial results from generators are combined into the final result.
+* make_ngrams_par2_batch - uses multiprocessing.pool.ThreadPool with multiple apply_async that operate on batches (64) of data. Partial results from list are combined into the final result.
+* make_token_sequences_par1_batch - uses multiprocessing.pool.ThreadPool with multiple apply_async that operate on batches (64) of data. Partial results from generators are combined into the final result.
+* make_token_sequences_par2_batch - uses multiprocessing.pool.ThreadPool with multiple apply_async that operate on batches (64) of data. Partial results from list are combined into the final result.
 
 
 QuickUMLS

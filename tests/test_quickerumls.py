@@ -3,7 +3,7 @@ import time
 from QuickerUMLS import QuickUMLS
 
 
-matcher = QuickUMLS('umls-2018-AA')
+matcher = QuickUMLS('umls-2018-AA', window=5)
 # matcher = QuickUMLS('umls-2018-AA-fast')
 
 use_list = False
@@ -22,8 +22,12 @@ with open('data/test.txt', 'r') as fd:
     else:
         text = fd.read().replace(os.linesep, '')
         t0 = time.time()
-        matches = matcher.match(text, best_match=best_match, ignore_syntax=ignore_syntax)
+        # matches = matcher.match(text, best_match=best_match, ignore_syntax=ignore_syntax)
         # matches = matcher.match2(text, best_match=best_match, ignore_syntax=ignore_syntax)
+        # matches = matcher.match3(text, best_match=best_match, ignore_syntax=ignore_syntax)
+        # matches = matcher.match4(text, best_match=best_match, ignore_syntax=ignore_syntax)
+        # matches = matcher.match5(text, best_match=best_match, ignore_syntax=ignore_syntax)
+        matches = matcher.match6(text, best_match=best_match, ignore_syntax=ignore_syntax)
         t1 = time.time()
 # print(matches)
 print('Number of matches: ', len(matches))
