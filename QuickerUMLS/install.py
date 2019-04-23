@@ -10,7 +10,7 @@ import argparse
 from six.moves import input
 
 # project modules
-from toolbox import countlines, CuiSemTypesDB, SimstringDBWriter, mkdir
+from toolbox import CuiSemTypesDB, SimstringDBWriter, mkdir
 from constants import HEADERS_MRCONSO, HEADERS_MRSTY, LANGUAGES
 
 try:
@@ -20,19 +20,22 @@ except ImportError:
 
 
 def get_semantic_types(path, headers):
+    cui_idx = headers.index('cui')
+    sty_idx = headers.index('sty')
+
+    # Parse lines only until the fields we need, ignore remaining
+    max_split = max(cui_idx, sty_idx) + 1
     sem_types = {}
-    with codecs.open(path, encoding='utf-8') as f:
-        for i, ln in enumerate(f):
-            content = dict(zip(headers, ln.strip().split('|')))
-
-            sem_types.setdefault(content['cui'], []).append(content['sty'])
-
+    with open(path, 'r') as f:
+        for ln in f:
+            content = ln.strip().split('|', max_split)
+            sem_types.setdefault(content[cui_idx], set()).add(content[sty_idx].encode('utf-8'))
     return sem_types
 
 
 def get_mrconso_iterator(path, headers, lang='ENG'):
     with codecs.open(path, encoding='utf-8') as f:
-        for i, ln in enumerate(f):
+        for ln in f:
             content = dict(zip(headers, ln.strip().split('|')))
 
             if content['lat'] != lang:
@@ -45,57 +48,63 @@ def extract_from_mrconso(
         mrconso_path, mrsty_path, opts,
         mrconso_header=HEADERS_MRCONSO, mrsty_header=HEADERS_MRSTY):
 
-    start = time.time()
-    print('loading semantic types...', end=' ')
+    print('Loading semantic types...', end=' ')
     sys.stdout.flush()
-    sem_types = get_semantic_types(mrsty_path, mrsty_header)
-    print('done in {:.2f} s'.format(time.time() - start))
-
     start = time.time()
+    sem_types = get_semantic_types(mrsty_path, mrsty_header)
+    curr_time = time.time()
+    print(f'done in {curr_time - start} s')
 
-    mrconso_iterator = get_mrconso_iterator(
-        mrconso_path, mrconso_header, opts.language
-    )
+    print('Loading concepts...')
+    start = time.time()
+    prev_time = start
 
-    total = countlines(mrconso_path)
+    with open(mrconso_path, 'r') as f:
+        # Parse lines only until the fields we need, ignore remaining
+        str_idx = mrconso_header.index('str')
+        cui_idx = mrconso_header.index('cui')
+        pref_idx = mrconso_header.index('ispref')
+        lat_idx = mrconso_header.index('lat')
+        max_split = max(str_idx, cui_idx, pref_idx, lat_idx) + 1
 
-    processed = set()
-    i = 0
+        status_step = 100000
+        processed = set()
+        i = 0
+        for ln in f:
+            content = ln.strip().split('|', max_split)
 
-    for content in mrconso_iterator:
-        i += 1
+            if content[lat_idx] != opts.language:
+                continue
 
-        if i % 100000 == 0:
-            delta = time.time() - start
-            status = (
-                '{:,} in {:.2f} s ({:.2%}, {:.1e} s / term)'
-                ''.format(i, delta, i / total, delta / i if i > 0 else 0)
-            )
-            print(status)
+            cui = content[cui_idx]
+            text = content[str_idx].strip()
 
-        concept_text = content['str'].strip()
-        cui = content['cui']
-        preferred = 1 if content['ispref'] else 0
+            if (cui, text) in processed:
+                continue
 
-        if opts.lowercase:
-            concept_text = concept_text.lower()
+            processed.add((cui, text))
 
-        if opts.normalize_unicode:
-            concept_text = unidecode(concept_text)
+            if opts.lowercase:
+                text = text.lower()
 
-        if (cui, concept_text) in processed:
-            continue
-        else:
-            processed.add((cui, concept_text))
+            if opts.normalize_unicode:
+                text = unidecode(text)
 
-        yield (concept_text, cui, sem_types[cui], preferred)
+            preferred = 1 if content[pref_idx] else 0
 
-    delta = time.time() - start
-    status = (
-        '\nCOMPLETED: {:,} in {:.2f} s ({:.1e} s / term)'
-        ''.format(i, delta, i / total, delta / i if i > 0 else 0)
-    )
-    print(status)
+            yield (text, cui, sem_types[cui], preferred)
+            i += 1
+
+            # Print timing after 'continue' statements
+            if i % status_step == 0:
+                curr_time = time.time()
+                print(f'{i}: {curr_time - start} s, {(curr_time - prev_time) / status_step} s/term')
+                sys.stdout.flush()
+                prev_time = curr_time
+
+    curr_time = time.time()
+    print(f'COMPLETED: {curr_time - start} s')
+    print('Processed: ', len(processed))
 
 
 def parse_and_encode_ngrams(extracted_it, simstring_dir, cuisty_dir):
@@ -106,14 +115,32 @@ def parse_and_encode_ngrams(extracted_it, simstring_dir, cuisty_dir):
     ss_db = SimstringDBWriter(simstring_dir)
     cuisty_db = CuiSemTypesDB(cuisty_dir)
 
+    db_bulk = 500
     simstring_terms = set()
 
+    cui_bulk = []
+    sty_bulk = []
     for i, (term, cui, stys, preferred) in enumerate(extracted_it, start=1):
-        if term not in simstring_terms:
-            ss_db.insert(term)
-            simstring_terms.add(term)
+        simstring_terms.add(term)
 
-        cuisty_db.insert(term, cui, stys, preferred)
+        if i % db_bulk == 0:
+            cuisty_db.bulk_insert_cui(cui_bulk)
+            cuisty_db.bulk_insert_sty(sty_bulk)
+            cui_bulk = []
+            sty_bulk = []
+        else:
+            cui_bulk.append((term, cui, preferred))
+            sty_bulk.append((cui, stys))
+
+    # Flush remaining ones
+    if len(cui_bulk) > 0:
+        cuisty_db.bulk_insert_cui(cui_bulk)
+        cuisty_db.bulk_insert_sty(sty_bulk)
+        cui_bulk = []
+        sty_bulk = []
+
+    for term in simstring_terms:
+        ss_db.insert(term)
 
 
 def driver(opts):
