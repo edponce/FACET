@@ -263,20 +263,15 @@ class CuiSemTypesDB(object):
 
     def bulk_insert_cui(self, cui_bulk):
         with self.cui_db.write_batch(transaction=True) as wb:
-            terms = set()
             for term, cui, is_preferred in cui_bulk:
                 term = db_key_encode(safe_unicode(term))
                 cui = safe_unicode(cui)
 
                 # Some terms have multiple cuis associated with them,
                 # so store them all
-                # NOTE: does get() searches for data in both disk and write_batch?
+                # NOTE: get() searches for data in disk, not in write_batch.
                 cuis = self.cui_db.get(term)
                 if cuis is None:
-                    if term in terms:
-                        print('Found in batch but no in DB')
-                    else:
-                        terms.add(term)
                     cuis = set()
                 else:
                     cuis = pickle.loads(cuis)
