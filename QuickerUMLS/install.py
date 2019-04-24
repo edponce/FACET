@@ -206,11 +206,11 @@ def driver(opts):
 if __name__ == '__main__':
     args = argparse.ArgumentParser()
     args.add_argument(
-        '-U', '--umls_dir',
+        '-U', '--umls_dir', required=True,
         help='Directory of UMLS RRF files'
     )
     args.add_argument(
-        '-I', '--install_dir',
+        '-I', '--install_dir', required=True,
         help='Directory for installing QuickerUMLS files'
     )
     args.add_argument(
