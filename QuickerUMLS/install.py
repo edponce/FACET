@@ -81,9 +81,9 @@ def extract_mrconso(mrconso_path, sem_types, mrconso_header=HEADERS_MRCONSO,
         # Profile
         print(f'Num lines to process: {num_lines}')
         print(f'Num valid language: {num_valid_lang}')
-        print(f'Num repeated CUI/term: {num_repeated_cuitext}')
+        print(f'Num repeated CUI-term: {num_repeated_cuitext}')
         print(f'Num processed: {len(processed)}')
-        print(f'Size of processed CUI/term: {sys.getsizeof(processed)}')
+        print(f'Size of processed CUI-term: {sys.getsizeof(processed)}')
 
 
 def dump_conso_sty(extracted_it, cuisty_dir,
@@ -115,7 +115,6 @@ def dump_conso_sty(extracted_it, cuisty_dir,
         if i % status_step == 0:
             curr_time = time.time()
             print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / status_step} s/term')
-            sys.stdout.flush()
             prev_time = curr_time
 
     # Flush remaining ones
@@ -128,11 +127,10 @@ def dump_conso_sty(extracted_it, cuisty_dir,
         # Profile
         curr_time = time.time()
         print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / status_step} s/term')
-        sys.stdout.flush()
 
     # Profile
-    print(f'Number of terms: {num_terms}')
-    print(f'Number of unique terms: {len(terms)}')
+    print(f'Num terms: {num_terms}')
+    print(f'Num unique terms: {len(terms)}')
 
     return terms
 
@@ -150,7 +148,6 @@ def dump_terms(simstring_dir, simstring_terms,
         if i % status_step == 0:
             curr_time = time.time()
             print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / status_step} s/term')
-            sys.stdout.flush()
             prev_time = curr_time
 
 
@@ -166,16 +163,15 @@ def driver(opts):
     os.makedirs(cuisty_dir)
 
     print('Loading semantic types...')
-    sys.stdout.flush()
     start = time.time()
     cuisty_dict = extract_mrsty(mrsty_path)
     curr_time = time.time()
     print(f'Loading semantic types: {curr_time - start} s')
-    print(f'Number of unique CUIs: {len(cuisty_dict)}')
-    print(f'Size of CUI/STY dictionary: {sys.getsizeof(cuisty_dict)}')
+    print(f'Num unique CUIs: {len(cuisty_dict)}')
+    print(f'Num values in CUI-STY dictionary: {sum(len(v) for v in cuisty_dict.values())}')
+    print(f'Size of CUI-STY dictionary: {sys.getsizeof(cuisty_dict)}')
 
     print('Loading and parsing concepts...')
-    sys.stdout.flush()
     start = time.time()
     conso_cuisty_iter = extract_mrconso(
                             mrconso_path, cuisty_dict,
@@ -187,7 +183,6 @@ def driver(opts):
     print(f'Loading and parsing concepts: {curr_time - start} s')
 
     print('Writing Simstring database...')
-    sys.stdout.flush()
     start = time.time()
     dump_terms(simstring_dir, terms)
     curr_time = time.time()
@@ -256,4 +251,7 @@ if __name__ == '__main__':
     with open(flag_fp, 'w') as f:
         f.write(os.linesep.join(clargs.language))
 
+    start = time.time()
     driver(clargs)
+    curr_time = time.time()
+    print(f'Total runtime: {curr_time - start} s')
