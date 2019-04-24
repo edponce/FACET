@@ -20,7 +20,7 @@ PROFILE = 2
 
 
 def extract_mrsty(mrsty_file, mrsty_headers=HEADERS_MRSTY):
-    cuisty_dict = {}
+    cuisty = {}
     with open(mrsty_file, 'r') as f:
         # Parse lines only until the fields we need, ignore remaining
         cui_idx = mrsty_headers.index('cui')
@@ -30,18 +30,18 @@ def extract_mrsty(mrsty_file, mrsty_headers=HEADERS_MRSTY):
         for ln in f:
             content = ln.strip().split('|', max_split)
             sty = content[sty_idx].encode('utf-8')
-            cuisty_dict.setdefault(content[cui_idx], set()).add(sty)
+            cuisty.setdefault(content[cui_idx], set()).add(sty)
 
     # Profile
     if PROFILE > 1:
-        print(f'Num unique CUIs: {len(cuisty_dict)}')
-        print(f'Num values in CUI-STY dictionary: {sum(len(v) for v in cuisty_dict.values())}')
-        print(f'Size of CUI-STY dictionary: {sys.getsizeof(cuisty_dict)}')
+        print(f'Num unique CUIs: {len(cuisty)}')
+        print(f'Num values in CUI-STY dictionary: {sum(len(v) for v in cuisty.values())}')
+        print(f'Size of CUI-STY dictionary: {sys.getsizeof(cuisty)}')
 
-    return sem_types
+    return cuisty
 
 
-def extract_mrconso(mrconso_file, sem_types, mrconso_header=HEADERS_MRCONSO,
+def extract_mrconso(mrconso_file, cuisty, mrconso_header=HEADERS_MRCONSO,
                     lowercase=False,
                     normalize_unicode=False,
                     language=['ENG']):
@@ -90,7 +90,7 @@ def extract_mrconso(mrconso_file, sem_types, mrconso_header=HEADERS_MRCONSO,
 
             preferred = 1 if content[pref_idx] else 0
 
-            yield (text, cui, sem_types[cui], preferred)
+            yield (text, cui, cuisty[cui], preferred)
 
         # Profile
         if PROFILE > 1:
@@ -181,14 +181,14 @@ def driver(opts):
 
     print('Loading semantic types...')
     start = time.time()
-    cuisty_dict = extract_mrsty(mrsty_file)
+    cuisty = extract_mrsty(mrsty_file)
     curr_time = time.time()
     print(f'Loading semantic types: {curr_time - start} s')
 
     print('Loading and parsing concepts...')
     start = time.time()
     conso_cuisty_iter = extract_mrconso(
-                            mrconso_file, cuisty_dict,
+                            mrconso_file, cuisty,
                             lowercase=opts.lowercase,
                             normalize_unicode=opts.normalize_unicode,
                             language=opts.language)
