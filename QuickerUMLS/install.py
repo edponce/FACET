@@ -66,7 +66,7 @@ def extract_mrconso(mrconso_file, cuisty, mrconso_header=HEADERS_MRCONSO,
 
             content = ln.strip().split('|', max_split)
 
-            if content[lat_idx] in language:
+            if content[lat_idx] not in language:
                 continue
 
             # Profile

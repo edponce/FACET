@@ -18,6 +18,11 @@ try:
 except ImportError:
     pass
 
+# 0 = No status info
+# 1 = General status info
+# 2 = Detailed status info
+PROFILE = 2
+
 
 def get_semantic_types(path, headers):
     sem_types = {}
@@ -27,18 +32,38 @@ def get_semantic_types(path, headers):
 
             sem_types.setdefault(content['cui'], []).append(content['sty'])
 
+    # Profile
+    if PROFILE > 1:
+        print(f'Num unique CUIs: {len(sem_types)}')
+        print(f'Num values in CUI-STY dictionary: {sum(len(v) for v in sem_types.values())}')
+        print(f'Size of CUI-STY dictionary: {sys.getsizeof(sem_types)}')
+
     return sem_types
 
 
 def get_mrconso_iterator(path, headers, lang='ENG'):
     with codecs.open(path, encoding='utf-8') as f:
+        # Profile
+        num_lines = 0
+        num_valid_lang = 0
+
         for i, ln in enumerate(f):
+            # Profile
+            num_lines += 1
+
             content = dict(zip(headers, ln.strip().split('|')))
 
             if content['lat'] != lang:
                 continue
 
+            # Profile
+            num_valid_lang += 1
+
             yield content
+        # Profile
+        if PROFILE > 1:
+            print(f'Num lines to process: {num_lines}')
+            print(f'Num valid language: {num_valid_lang}')
 
 
 def extract_from_mrconso(
@@ -56,6 +81,9 @@ def extract_from_mrconso(
     mrconso_iterator = get_mrconso_iterator(
         mrconso_path, mrconso_header, opts.language
     )
+
+    # Profile
+    num_repeated_cuitext = 0
 
     total = countlines(mrconso_path)
 
@@ -84,6 +112,8 @@ def extract_from_mrconso(
             concept_text = unidecode(concept_text)
 
         if (cui, concept_text) in processed:
+            # Profile
+            num_repeated_cuitext += 1
             continue
         else:
             processed.add((cui, concept_text))
@@ -97,6 +127,12 @@ def extract_from_mrconso(
     )
     print(status)
 
+    # Profile
+    if PROFILE > 1:
+        print(f'Num repeated CUI-term: {num_repeated_cuitext}')
+        print(f'Num processed: {len(processed)}')
+        print(f'Size of processed CUI-term: {sys.getsizeof(processed)}')
+
 
 def parse_and_encode_ngrams(extracted_it, simstring_dir, cuisty_dir):
     # Create destination directories for the two databases
@@ -106,14 +142,25 @@ def parse_and_encode_ngrams(extracted_it, simstring_dir, cuisty_dir):
     ss_db = SimstringDBWriter(simstring_dir)
     cuisty_db = CuiSemTypesDB(cuisty_dir)
 
+    # Profile
+    num_terms = 0
+
     simstring_terms = set()
 
     for i, (term, cui, stys, preferred) in enumerate(extracted_it, start=1):
+        # Profile
+        num_terms += 1
+
         if term not in simstring_terms:
             ss_db.insert(term)
             simstring_terms.add(term)
 
         cuisty_db.insert(term, cui, stys, preferred)
+
+    # Profile
+    if PROFILE > 0:
+        print(f'Num terms: {num_terms}')
+        print(f'Num unique terms: {len(simstring_terms)}')
 
 
 def driver(opts):
@@ -196,4 +243,7 @@ if __name__ == '__main__':
     )
     opts = ap.parse_args()
 
-driver(opts)
+    start = time.time()
+    driver(opts)
+    curr_time = time.time()
+    print(f'Total runtime: {curr_time - start} s')
