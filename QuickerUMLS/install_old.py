@@ -10,7 +10,7 @@ import argparse
 from six.moves import input
 
 # project modules
-from toolbox import countlines, CuiSemTypesDB, SimstringDBWriter, mkdir
+from toolbox_old import countlines, CuiSemTypesDB, SimstringDBWriter, mkdir
 from constants import HEADERS_MRCONSO, HEADERS_MRSTY, LANGUAGES
 
 try:

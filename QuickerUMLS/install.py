@@ -1,8 +1,16 @@
 import os
+import io
+import re
 import sys
 import time
+import math
+import mmap
+import queue
 import shutil
 import argparse
+import threading
+import collections
+import multiprocessing
 from toolbox import CuiSemTypesDB, SimstringDBWriter
 from constants import HEADERS_MRCONSO, HEADERS_MRSTY, LANGUAGES
 
@@ -19,8 +27,521 @@ except ImportError:
 PROFILE = 2
 
 
-def extract_mrsty(mrsty_file, mrsty_headers=HEADERS_MRSTY):
-    cuisty = {}
+def get_file_content_mp(q,
+                        map_file,
+                        map_offsets,
+                        mrsty_headers,
+                        valid_cuis,
+                        valid_semtypes,
+                        field_delim=None,
+                        batch_delim='\n',
+                        batch_size=io.DEFAULT_BUFFER_SIZE):
+    """
+    Args:
+        filename (str): File to open/read.
+
+    Kwargs:
+        field_delim (str, optional): Delimiter to split text.
+            If a delimiter is provided, then a list of strings is returned.
+            If None, then no text is not split and a sring is returned.
+
+        max_split (int, optional): At most splits to occur.
+
+        batch_delim (str, optional): See 'delim' in 'get_file_content_batch'.
+
+        batch_size (str, optional): See 'batch_size' in 'get_file_content_batch'.
+    """
+    cuisty = collections.defaultdict(set)
+
+    # Parse lines only until the fields we need, ignore remaining
+    cui_idx = mrsty_headers.index('cui')
+    sty_idx = mrsty_headers.index('sty')
+    max_split = max(cui_idx, sty_idx) + 1
+
+    batch_iterator = get_mmap_content_batch_mp(map_file,
+                                               map_offsets,
+                                               delim=batch_delim,
+                                               batch_size=batch_size)
+    for nb, batch in enumerate(batch_iterator):
+        for nl, line in enumerate(batch.split(batch_delim)):
+            if field_delim is None:
+                content = line
+            else:
+                if max_split is None:
+                    content = line.split(field_delim)
+                else:
+                    content = line.split(field_delim, max_split)
+
+                try:
+                    cui = content[cui_idx]
+                    if valid_cuis is not None and cui not in valid_cuis:
+                        continue
+                    sty = content[sty_idx]
+                    if valid_semtypes is not None and sty not in valid_semtypes:
+                        continue
+                    cuisty[cui].add(sty)
+                except IndexError as ex:
+                    print(content)
+
+    # Profile
+    if PROFILE > 1:
+        print(f'Num unique CUIs: {len(cuisty)}')
+        print(f'Num values in CUI-STY dictionary: {sum(len(v) for v in cuisty.values())}')
+        print(f'Size of CUI-STY dictionary: {sys.getsizeof(cuisty)}')
+
+    # q.put(cuisty)
+
+
+def get_file_content1(file_name,
+                     field_delim=None,
+                     max_split=None,
+                     batch_delim='\n',
+                     batch_size=io.DEFAULT_BUFFER_SIZE):
+    """
+    Args:
+        filename (str): File to open/read.
+
+    Kwargs:
+        field_delim (str, optional): Delimiter to split text.
+            If a delimiter is provided, then a list of strings is returned.
+            If None, then no text is not split and a string is returned.
+
+        max_split (int, optional): At most splits to occur.
+
+        batch_delim (str, optional): See 'delim' in 'get_file_content_batch'.
+
+        batch_size (str, optional): See 'batch_size' in 'get_file_content_batch'.
+    """
+    with open(file_name, 'r+b') as fd:
+        with mmap.mmap(fd.fileno(), 0, flags=mmap.MAP_PRIVATE, prot=mmap.PROT_READ) as mm:
+            batch_iterator = get_mmap_content_batch(mm,
+                                                    os.path.getsize(file_name),
+                                                    delim=batch_delim,
+                                                    batch_size=batch_size)
+            for nb, batch in enumerate(batch_iterator):
+                for nl, line in enumerate(batch.split(batch_delim)):
+                    if field_delim is None:
+                        yield line
+                    else:
+                        if max_split is None:
+                            yield line.split(field_delim)
+                        else:
+                            yield line.split(field_delim, max_split)
+
+
+def get_file_content0(file_name,
+                     field_delim=None,
+                     max_split=None,
+                     batch_delim='\n',
+                     batch_size=io.DEFAULT_BUFFER_SIZE):
+    """
+    Args:
+        filename (str): File to open/read.
+
+    Kwargs:
+        field_delim (str, optional): Delimiter to split text.
+            If a delimiter is provided, then a list of strings is returned.
+            If None, then no text is not split and a string is returned.
+
+        max_split (int, optional): At most splits to occur.
+
+        batch_delim (str, optional): See 'delim' in 'get_file_content_batch'.
+
+        batch_size (str, optional): See 'batch_size' in 'get_file_content_batch'.
+    """
+    with open(file_name, 'r') as fd:
+        batch_iterator = get_file_content_batch(fd,
+                                                delim=batch_delim,
+                                                batch_size=batch_size)
+        for nb, batch in enumerate(batch_iterator):
+            for nl, line in enumerate(batch.split(batch_delim)):
+                if field_delim is None:
+                    yield line
+                else:
+                    if max_split is None:
+                        yield line.split(field_delim)
+                    else:
+                        yield line.split(field_delim, max_split)
+
+
+def get_file_content_batch(file_descriptor,
+                           delim='\n',
+                           batch_size=io.DEFAULT_BUFFER_SIZE):
+    """
+    Parse a file in batches containing up to N delimited elements.
+    A batch always start after a delimiter character and ends either at
+    a delimiter or EOF.
+
+    Args:
+        file_descriptor (file descriptor): File to read from.
+
+    Kwargs:
+        delim (str, optional): Delimiter for batch contents.
+
+        batch_size (int, optional): Amount of bytes to read at a time.
+    """
+    batch = ''
+    while True:
+        # Read batch
+        bytes_read = file_descriptor.read(batch_size)
+
+        # EOF?
+        if not bytes_read:
+            # Last batch
+            if batch:
+                yield batch
+            break
+
+        batch += bytes_read
+
+        # Find position of last delimiter
+        delim_idx = batch.rfind(delim)
+
+        # If delimiter is not found either:
+        #   a) Last contents of file
+        #   b) Batch does not contain delimiter, need more data
+        if delim_idx >= 0:
+            # Extract text (do not include delimiter)
+            yield batch[:delim_idx]
+
+            # Trim batch (skip delimiter)
+            batch = batch[delim_idx+1:]
+
+
+def get_mmap_content_batch_mp(map_file,
+                              map_offsets,
+                              delim='\n',
+                              batch_size=mmap.ALLOCATIONGRANULARITY):
+    """
+    Parse a file in batches containing up to N delimited elements.
+    A batch always start after a delimiter character and ends either at
+    a delimiter or EOF.
+
+    Args:
+        file_descriptor (file descriptor): File to read from.
+
+    Kwargs:
+        delim (str, optional): Delimiter for batch contents.
+
+        batch_size (int, optional): Amount of bytes to read at a time.
+    """
+    delim = delim.encode()
+    end_idx = map_offsets[0]
+    batch = b''
+    while True:
+        # EOF?
+        start_idx = end_idx
+        if start_idx >= map_offsets[1]:
+            if batch:
+                yield batch.decode()
+            break
+
+        end_idx = min(start_idx + batch_size, map_offsets[1])
+
+        # Read batch
+        batch += map_file[start_idx:end_idx]
+
+        # Find position of last delimiter
+        delim_idx = batch.rfind(delim)
+
+        # If delimiter is not found either:
+        #   a) Last contents of file
+        #   b) Batch does not contain delimiter, need more data
+        if delim_idx >= 0:
+            # Extract text (do not include delimiter)
+            yield batch[:delim_idx].decode()
+
+            # Trim batch (skip delimiter)
+            batch = batch[delim_idx+1:]
+
+
+def get_mmap_content_batch(map_file,
+                           map_size,
+                           delim='\n',
+                           batch_size=io.DEFAULT_BUFFER_SIZE):
+    """
+    Parse a file in batches containing up to N delimited elements.
+    A batch always start after a delimiter character and ends either at
+    a delimiter or EOF.
+
+    Args:
+        file_descriptor (file descriptor): File to read from.
+
+    Kwargs:
+        delim (str, optional): Delimiter for batch contents.
+
+        batch_size (int, optional): Amount of bytes to read at a time.
+    """
+    delim = delim.encode()
+    end_idx = 0
+    batch = b''
+    while True:
+        # EOF?
+        start_idx = end_idx
+        if start_idx >= map_size:
+            if batch:
+                yield batch.decode()
+            break
+
+        end_idx = min(start_idx + batch_size, map_size)
+
+        # Read batch
+        batch += map_file[start_idx:end_idx]
+
+        # Find position of last delimiter
+        delim_idx = batch.rfind(delim)
+
+        # If delimiter is not found either:
+        #   a) Last contents of file
+        #   b) Batch does not contain delimiter, need more data
+        if delim_idx >= 0:
+            # Extract text (do not include delimiter)
+            yield batch[:delim_idx].decode()
+
+            # Trim batch (skip delimiter)
+            batch = batch[delim_idx+1:]
+
+
+def reader_mp(fn, q, ms, dm):
+    for content in get_file_content(fn, field_delim=dm, max_split=ms):
+        try:
+            q.put_nowait(content)
+        except queue.Full as ex:
+            q.put(content)
+    q.put(None)
+
+
+def extract_mrsty(mrsty_file, valid_cuis=None, valid_semtypes=None, mrsty_headers=HEADERS_MRSTY):
+    """
+    Args:
+        mrsty_file (str): Path of UMLS MRSTY.RRF file
+
+    Kwargs:
+        valid_cuis (set, optional): Valid CUIs to include.
+            If None, then all CUIs are included.
+
+        valid_semtypes (set, optional): Valid semantic types to include.
+            If None, then all semantic types are included.
+
+    Note:
+        * mrsty_headers should be automatically parsed from UMLS MRFILES.RRF.
+    """
+    cuisty = collections.defaultdict(set)
+
+    # Multiprocessing partition
+    file_size = os.path.getsize(mrsty_file)
+    # num_procs = multiprocessing.cpu_count()
+    num_procs = 1
+    num_pages = math.ceil(file_size // mmap.ALLOCATIONGRANULARITY)
+    pages_per_proc = num_pages // num_procs
+    batch_size = pages_per_proc * mmap.ALLOCATIONGRANULARITY
+
+    # Multiprocessing queue
+    q = multiprocessing.Queue()
+
+    workers = []
+    with open(mrsty_file, 'r+b') as fd:
+        with mmap.mmap(fd.fileno(), 0, flags=mmap.MAP_SHARED, prot=mmap.PROT_READ) as mm:
+            for ip in range(num_procs):
+                start_idx = ip * batch_size
+                if ip < num_procs - 1:
+                    end_idx = start_idx + batch_size
+                else:
+                    end_idx = file_size
+
+                worker = multiprocessing.Process(target=get_file_content_mp,
+                                                 args=(q,
+                                                       mm,
+                                                       (start_idx, end_idx),
+                                                       mrsty_headers,
+                                                       valid_cuis, valid_semtypes),
+                                                 kwargs={'field_delim': '|'})
+                workers.append(worker)
+                worker.daemon = True
+                worker.start()
+
+            # Merge dictionaries
+            for worker in workers:
+                worker.join()
+                # for k, v in q.get().items():
+                    # cuisty[k].update(v)
+
+    # Profile
+    if PROFILE > 1:
+        print(f'Num unique CUIs: {len(cuisty)}')
+        print(f'Num values in CUI-STY dictionary: {sum(len(v) for v in cuisty.values())}')
+        print(f'Size of CUI-STY dictionary: {sys.getsizeof(cuisty)}')
+
+    return cuisty
+
+
+def extract_mrsty4(mrsty_file, valid_cuis=None, valid_semtypes=None, mrsty_headers=HEADERS_MRSTY):
+    """
+    Args:
+        mrsty_file (str): Path of UMLS MRSTY.RRF file
+
+    Kwargs:
+        valid_cuis (set, optional): Valid CUIs to include.
+            If None, then all CUIs are included.
+
+        valid_semtypes (set, optional): Valid semantic types to include.
+            If None, then all semantic types are included.
+
+    Note:
+        * mrsty_headers should be automatically parsed from UMLS MRFILES.RRF.
+    """
+    cuisty = collections.defaultdict(set)
+
+    # Parse lines only until the fields we need, ignore remaining
+    cui_idx = mrsty_headers.index('cui')
+    sty_idx = mrsty_headers.index('sty')
+    max_split = max(cui_idx, sty_idx) + 1
+
+    # Multiprocessing queue
+    q = multiprocessing.Queue()
+
+    # P0: File reader
+    reader = threading.Thread(target=reader_mp,
+                              args=(mrsty_file, q, max_split, '|'))
+    reader.start()
+
+    # P1: Process/store contents
+    while True:
+        content = q.get()
+        if content is None:
+            break
+
+        cui = content[cui_idx]
+        if valid_cuis is not None and cui not in valid_cuis:
+            continue
+        sty = content[sty_idx]
+        if valid_semtypes is not None and sty not in valid_semtypes:
+            continue
+        cuisty[cui].add(sty)
+
+    reader.join()
+
+    # Profile
+    if PROFILE > 1:
+        print(f'Num unique CUIs: {len(cuisty)}')
+        print(f'Num values in CUI-STY dictionary: {sum(len(v) for v in cuisty.values())}')
+        print(f'Size of CUI-STY dictionary: {sys.getsizeof(cuisty)}')
+
+    return cuisty
+
+
+def extract_mrsty3(mrsty_file, valid_cuis=None, valid_semtypes=None, mrsty_headers=HEADERS_MRSTY):
+    """
+    Args:
+        mrsty_file (str): Path of UMLS MRSTY.RRF file
+
+    Kwargs:
+        valid_cuis (set, optional): Valid CUIs to include.
+            If None, then all CUIs are included.
+
+        valid_semtypes (set, optional): Valid semantic types to include.
+            If None, then all semantic types are included.
+
+    Note:
+        * mrsty_headers should be automatically parsed from UMLS MRFILES.RRF.
+    """
+    cuisty = collections.defaultdict(set)
+
+    # Parse lines only until the fields we need, ignore remaining
+    cui_idx = mrsty_headers.index('cui')
+    sty_idx = mrsty_headers.index('sty')
+    max_split = max(cui_idx, sty_idx) + 1
+
+    # Multiprocessing queue
+    q = multiprocessing.Queue()
+
+    # P0: File reader
+    reader = multiprocessing.Process(target=reader_mp,
+                                     args=(mrsty_file, q, max_split, '|'))
+    reader.daemon = True
+    reader.start()
+
+    # P1: Process/store contents
+    while True:
+        content = q.get()
+        if content is None:
+            break
+
+        cui = content[cui_idx]
+        if valid_cuis is not None and cui not in valid_cuis:
+            continue
+        sty = content[sty_idx]
+        if valid_semtypes is not None and sty not in valid_semtypes:
+            continue
+        cuisty[cui].add(sty)
+
+    # Profile
+    if PROFILE > 1:
+        print(f'Num unique CUIs: {len(cuisty)}')
+        print(f'Num values in CUI-STY dictionary: {sum(len(v) for v in cuisty.values())}')
+        print(f'Size of CUI-STY dictionary: {sys.getsizeof(cuisty)}')
+
+    return cuisty
+
+
+def extract_mrsty2(mrsty_file, valid_cuis=None, valid_semtypes=None, mrsty_headers=HEADERS_MRSTY):
+    """
+    Args:
+        mrsty_file (str): Path of UMLS MRSTY.RRF file
+
+    Kwargs:
+        valid_cuis (set, optional): Valid CUIs to include.
+            If None, then all CUIs are included.
+
+        valid_semtypes (set, optional): Valid semantic types to include.
+            If None, then all semantic types are included.
+
+    Note:
+        * mrsty_headers should be automatically parsed from UMLS MRFILES.RRF.
+    """
+    cuisty = collections.defaultdict(set)
+
+    # Parse lines only until the fields we need, ignore remaining
+    cui_idx = mrsty_headers.index('cui')
+    sty_idx = mrsty_headers.index('sty')
+    max_split = max(cui_idx, sty_idx) + 1
+
+    for content in get_file_content(mrsty_file,
+                                    field_delim='|',
+                                    max_split=max_split):
+        cui = content[cui_idx]
+        if valid_cuis is not None and cui not in valid_cuis:
+            continue
+        sty = content[sty_idx]
+        if valid_semtypes is not None and sty not in valid_semtypes:
+            continue
+        cuisty[cui].add(sty)
+
+    # Profile
+    if PROFILE > 1:
+        print(f'Num unique CUIs: {len(cuisty)}')
+        print(f'Num values in CUI-STY dictionary: {sum(len(v) for v in cuisty.values())}')
+        print(f'Size of CUI-STY dictionary: {sys.getsizeof(cuisty)}')
+
+    return cuisty
+
+
+def extract_mrsty1(mrsty_file, valid_cuis=None, valid_semtypes=None, mrsty_headers=HEADERS_MRSTY):
+    """
+    Args:
+        mrsty_file (str): Path of UMLS MRSTY.RRF file
+
+    Kwargs:
+        valid_cuis (set, optional): Valid CUIs to include.
+            If None, then all CUIs are included.
+
+        valid_semtypes (set, optional): Valid semantic types to include.
+            If None, then all semantic types are included.
+
+    Note:
+        * mrsty_headers should be automatically parsed from UMLS MRFILES.RRF.
+    """
+    cuisty = collections.defaultdict(set)
     with open(mrsty_file, 'r') as f:
         # Parse lines only until the fields we need, ignore remaining
         cui_idx = mrsty_headers.index('cui')
@@ -29,8 +550,36 @@ def extract_mrsty(mrsty_file, mrsty_headers=HEADERS_MRSTY):
 
         for ln in f:
             content = ln.strip().split('|', max_split)
-            sty = content[sty_idx].encode('utf-8')
-            cuisty.setdefault(content[cui_idx], set()).add(sty)
+            cui = content[cui_idx]
+            if valid_cuis is not None and cui not in valid_cuis:
+                continue
+            sty = content[sty_idx]
+            if valid_semtypes is not None and sty not in valid_semtypes:
+                continue
+            cuisty[cui].add(sty)
+
+    # Profile
+    if PROFILE > 1:
+        print(f'Num unique CUIs: {len(cuisty)}')
+        print(f'Num values in CUI-STY dictionary: {sum(len(v) for v in cuisty.values())}')
+        print(f'Size of CUI-STY dictionary: {sys.getsizeof(cuisty)}')
+
+    return cuisty
+
+
+def extract_mrsty0(mrsty_file, mrsty_headers=HEADERS_MRSTY):
+    cuisty = collections.defaultdict(set)
+    with open(mrsty_file, 'r') as f:
+        # Parse lines only until the fields we need, ignore remaining
+        cui_idx = mrsty_headers.index('cui')
+        sty_idx = mrsty_headers.index('sty')
+        max_split = max(cui_idx, sty_idx) + 1
+
+        for ln in f:
+            content = ln.strip().split('|', max_split)
+            cui = content[cui_idx]
+            sty = content[sty_idx]
+            cuisty[cui].add(sty)
 
     # Profile
     if PROFILE > 1:
@@ -148,6 +697,7 @@ def dump_conso_sty(extracted_it, cuisty_dir,
     if PROFILE > 0:
         print(f'Num terms: {num_terms}')
         print(f'Num unique terms: {len(terms)}')
+        print(f'Size of Simstring terms: {sys.getsizeof(terms)}')
 
     return terms
 
@@ -185,6 +735,8 @@ def driver(opts):
     curr_time = time.time()
     print(f'Loading semantic types: {curr_time - start} s')
 
+    sys.exit()
+
     print('Loading and parsing concepts...')
     start = time.time()
     conso_cuisty_iter = extract_mrconso(
@@ -204,6 +756,25 @@ def driver(opts):
 
 
 if __name__ == '__main__':
+    # args = argparse.ArgumentParser()
+    # args.add_argument(
+    #     'filename'
+    # )
+    # args.add_argument(
+    #     '-b', '--batch_size', default=2**20, type=int
+    # )
+    # args.add_argument(
+    #     '-d', '--delim', default=None
+    # )
+    # clargs = args.parse_args()
+    # for i, line in enumerate(get_file_content(clargs.filename,
+    #                                           field_delim=clargs.delim,
+    #                                           batch_size=clargs.batch_size)):
+    #     print(f'{i}: {line}')
+    #     if i == 10: break
+    # sys.exit()
+
+
     args = argparse.ArgumentParser()
     args.add_argument(
         '-U', '--umls_dir', required=True,
