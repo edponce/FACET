@@ -76,6 +76,8 @@ def extract_from_mrconso(
     sem_types = get_semantic_types(mrsty_path, mrsty_header)
     print('done in {:.2f} s'.format(time.time() - start))
 
+    sys.exit()
+
     start = time.time()
 
     mrconso_iterator = get_mrconso_iterator(
