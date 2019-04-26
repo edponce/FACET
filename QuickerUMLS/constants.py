@@ -2,11 +2,14 @@ HEADERS_MRCONSO = [
     'cui', 'lat', 'ts', 'lui', 'stt', 'sui', 'ispref', 'aui', 'saui',
     'scui', 'sdui', 'sab', 'tty', 'code', 'str', 'srl', 'suppress', 'cvf'
 ]
+
 HEADERS_MRSTY = [
     'cui', 'sty', 'hier', 'desc', 'sid', 'num'
 ]
 
-NEGATIONS = {'none', 'non', 'neither', 'nor', 'no', 'not'}
+NEGATIONS = {
+    'none', 'non', 'neither', 'nor', 'no', 'not'
+}
 
 ACCEPTED_SEMTYPES = {
     'T029',     # Body Location or Region
@@ -46,8 +49,7 @@ UNICODE_DASHES = {
     u'\uff0d'
 }
 
-# language with missing value
-# will not have support for tokenization
+# Languages with None value will not have support for tokenization
 LANGUAGES = {
     'BAQ': None,           # Basque
     'CHI': None,           # Chinese
@@ -73,7 +75,7 @@ LANGUAGES = {
     'SCR': None,           # Croatian
     'SPA': 'spanish',      # Spanish
     'SWE': 'swedish',      # Swedish
-    'TUR': 'turkish',      # Turkish
+    'TUR': 'turkish'       # Turkish
 }
 
 DOMAIN_SPECIFIC_STOPWORDS = {
