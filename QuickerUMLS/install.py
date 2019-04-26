@@ -24,17 +24,33 @@ PROFILE = 2
 # NOTE: UMLS headers should be automatically parsed from UMLS MRFILES.RRF.
 
 
-def umls_to_dict(rrf_file,
-                 key,
-                 values, *,
-                 headers=None,
-                 valid_keys=None,
-                 valid_values=None,
-                 **kwargs):
-    """Load UMLS data into a dictionary.
+# Converter functions
+def lowercase_str(term):
+    return term.lower()
 
-    Uses Pandas 'read_csv' to load data into a dataframe which is then
-    converted to a dictionary.
+
+def normalize_unicode_str(term):
+    return unidecode(term)
+
+
+def lowercase_and_normalize_unicode_str(term):
+    return normalize_unicode_str(lowercase_str(term))
+
+
+def is_preferred(ispref):
+    return 1 if ispref == 'Y' else 0
+
+
+def umls_to_dataframe(rrf_file,
+                      key,
+                      values, *,
+                      headers=None,
+                      valid_keys=None,
+                      valid_values=None,
+                      **kwargs):
+    """Load UMLS data into a dataframe.
+
+    Uses Pandas 'read_csv' to load data into a dataframe.
 
     Args:
         rrf_file (str): Path of UMLS RRF file
@@ -63,6 +79,7 @@ def umls_to_dict(rrf_file,
     Kwargs (See Pandas read_csv()):
         delimiter
         encoding
+        converters
         chunksize
         memory_map
         engine
@@ -70,11 +87,11 @@ def umls_to_dict(rrf_file,
         nrows
 
     Examples:
-        >>> umls = umls_to_dict('MRSTY.RRF', 'cui', 'sty', headers=HEADERS_MRSTY)
-        >>> umls = umls_to_dict('MRSTY.RRF', 0, 1)
-        >>> umls = umls_to_dict('MRSTY.RRF', 'cui', 'sty', headers=HEADERS_MRSTY, valid_values=ACCEPTED_SEMTYPES)
-        >>> umls = umls_to_dict('MRSTY.RRF', 'cui', ['sty', 'hier'], headers=HEADERS_MRSTY)
-        >>> umls = umls_to_dict('MRSTY.RRF', 0, [1, 2], nrows=10, valid_values=[None, None])
+        >>> umls = umls_to_dataframe('MRSTY.RRF', 'cui', 'sty', headers=HEADERS_MRSTY)
+        >>> umls = umls_to_dataframe('MRSTY.RRF', 0, 1)
+        >>> umls = umls_to_dataframe('MRSTY.RRF', 'cui', 'sty', headers=HEADERS_MRSTY, valid_values=ACCEPTED_SEMTYPES)
+        >>> umls = umls_to_dataframe('MRSTY.RRF', 'cui', ['sty', 'hier'], headers=HEADERS_MRSTY)
+        >>> umls = umls_to_dataframe('MRSTY.RRF', 0, [1, 2], nrows=10, valid_values=[None, None])
     """
     if isinstance(values, (str, int)):
         values = [values]
@@ -85,6 +102,12 @@ def umls_to_dict(rrf_file,
     # 'python' engine).
     if headers is not None:
         headers = list(headers) + ['_']
+
+    # No row filtering
+    if valid_keys is None and valid_values is None:
+        df_iterator = False
+    else:
+        df_iterator = True
 
     reader = pandas.read_csv(rrf_file,
                              delimiter=kwargs.get('delimiter', '|'),
@@ -98,8 +121,10 @@ def umls_to_dict(rrf_file,
 
                              # Extra
                              encoding=kwargs.get('encoding', 'utf-8'),
+                             converters=kwargs.get('converters'),
 
                              # Performance parameters
+                             iterator=df_iterator,
                              chunksize=kwargs.get('chunksize'),
                              memory_map=kwargs.get('memory_map', True),
                              engine=kwargs.get('engine', 'c'), # 'c', 'python'
@@ -108,22 +133,151 @@ def umls_to_dict(rrf_file,
                              skiprows=kwargs.get('skiprows'),
                              nrows=kwargs.get('nrows'))
 
-    # Even if not iterating and chunking through the file,
-    # place the dataframe into an iterable so that it uses the same logic
-    # as if it was a TextFileReader object for iteration.
-    if kwargs.get('chunksize') is None:
+    # No row filtering
+    if not df_iterator:
+        df = reader
+        # df = reader.groupby(key).agg(set)
+        # df = reader.groupby(key)
+    else:
+        df = pandas.DataFrame()
+    #     if valid_keys is not None:
+    #         df = pandas.concat([chunk[chunk[key] in valid_keys] for chunk in reader], ignore_index=True, sort=False)
+    #     if valid_values is not None:
+    #         df = pandas.concat([chunk[chunk[values] in valid_values] for chunk in reader], ignore_index=True, sort=False)
+    #
+    return df
+
+
+def umls_to_dict(rrf_file,
+                 key,
+                 values, *,
+                 headers=None,
+                 valid_keys=None,
+                 valid_values=None,
+                 **kwargs):
+    """Load UMLS data into a dictionary.
+
+    Uses Pandas 'read_csv' to load data into a dataframe which is then
+    converted to a dictionary.
+
+    Args:
+        rrf_file (str): Path of UMLS RRF file
+
+        key (str|int|Iterable[str|int]): Column to use as dictionary key.
+            If str, then it corresponds to a 'headers' value.
+            If int, then it corresponds to a column index.
+
+        values (str|int|Iterable[str|int]): Columns to use as dictionary values.
+            Multiple values are stored as key/tuples in same order as given.
+            If str, then it corresponds to 'headers' values.
+            If int, then it corresponds to column indices.
+
+    Kwargs:
+        headers (Iterable[str]): Column names.
+            Headers are required when key/values are str.
+            Headers do not need to be complete, but do need to be in order
+            and contain the key/values str.
+
+        valid_keys (Iterable[Any]): Valid keys to include.
+            If None, then all keys are included.
+
+        valid_values (Iterable[Any|Iterable[Any]]): Valid values to include.
+            If None, then all values are included.
+
+    Kwargs (See Pandas read_csv()):
+        delimiter
+        encoding
+        converters
+        skiprows
+        nrows
+        dtype
+        iterator
+        chunksize
+        memory_map
+        engine
+
+    Examples:
+        >>> umls = umls_to_dict('MRSTY.RRF', 'cui', 'sty', headers=HEADERS_MRSTY)
+        >>> umls = umls_to_dict('MRSTY.RRF', 0, 1)
+        >>> umls = umls_to_dict('MRSTY.RRF', 'cui', 'sty', headers=HEADERS_MRSTY, valid_values=ACCEPTED_SEMTYPES)
+        >>> umls = umls_to_dict('MRSTY.RRF', 'cui', ['sty', 'hier'], headers=HEADERS_MRSTY)
+        >>> umls = umls_to_dict('MRSTY.RRF', 0, [1, 2], nrows=10, valid_values=[None, None])
+    """
+    if isinstance(values, (str, int)):
+        values = [values]
+
+    # HACK: Extend the column headers with an empty header.
+    # NOTE: UMLS files end with a bar at each line and Pandas assumes
+    # there is an extra column afterwards (only required if using the
+    # 'python' engine).
+    if headers is not None:
+        headers = list(headers) + ['_']
+
+    # If 'valid_keys/valid_values' are provided, then apply converter
+    # functions after row filtering occurs. An iterable of only Nones is
+    # considered as no filtering.
+    # For large files, this may help improve performance.
+    post_convert = False
+    if valid_keys is not None:
+        if isinstance(valid_keys, (list, set, tuple)) and any(valid_keys):
+            post_convert = True
+    if valid_values is not None:
+        if isinstance(valid_values, (list, set, tuple)) and any(valid_values):
+            post_convert = True
+
+    # If necessary, move converters to post loading data
+    post_converters = None
+    if post_convert:
+        post_converters = kwargs.get('converters')
+        kwargs['converters'] = None
+
+    reader = pandas.read_csv(rrf_file,
+                             delimiter=kwargs.get('delimiter', '|'),
+                             names=headers,
+                             usecols=[key, *values],
+
+                             # Extra parameters
+                             encoding=kwargs.get('encoding', 'utf-8'),
+                             converters=kwargs.get('converters'),
+                             skiprows=kwargs.get('skiprows'),
+                             nrows=kwargs.get('nrows'),
+                             dtype=kwargs.get('dtype'),
+
+                             # Performance parameters
+                             iterator=kwargs.get('iterator', True),
+                             chunksize=kwargs.get('chunksize', 100000),
+                             memory_map=kwargs.get('memory_map', True),
+                             engine=kwargs.get('engine', 'c'), # 'c', 'python'
+
+                             # Constant settings
+                             header=None,
+                             index_col=False,
+                             na_filter=False
+                             )
+
+    # Place the dataframe into an iterable even if not iterating and
+    # chunking through the file, so that it uses the same logic
+    # as if it was a TextFileReader object.
+    if not isinstance(reader, pandas.io.parsers.TextFileReader):
         reader = [reader]
 
     umls = collections.defaultdict(set)
-    for df in reader:
-        if len(values) == 1:
-            for k, v in zip(df[key], df[values[0]]):
+    if len(values) == 1:
+        values = values[0]
+        for df in reader:
+            for k, v in zip(df[key], df[values]):
                 if valid_keys is not None and k not in valid_keys:
                     continue
                 if valid_values is not None and v not in valid_values:
                     continue
+                if post_converters is not None:
+                    if key in post_converters:
+                        k = post_converters[key](k)
+                    if values in post_converters:
+                        v = post_converters[values](v)
                 umls[k].add(v)
-        else:
+    else:
+        for df in reader:
             value = (df[val] for val in values)
             for k, *vs in zip(df[key], *value):
                 if valid_keys is not None and k not in valid_keys:
@@ -136,6 +290,12 @@ def umls_to_dict(rrf_file,
                             break
                     if is_invalid_value:
                         continue
+                if post_converters is not None:
+                    if key in post_converters:
+                        k = post_converters[key](k)
+                    vs = (post_converters[val](v)
+                          if val in post_converters else v
+                          for v, val in zip(vs, values))
                 umls[k].add(tuple(vs))
 
     return umls
@@ -282,8 +442,8 @@ def driver(opts):
 
     print('Loading semantic types...')
     start = time.time()
-    cuisty = umls_to_dict(mrsty_file, 'cui', 'sty', headers=HEADERS_MRSTY)
-    # cuisty = umls_to_dict(mrsty_file, 'cui', 'sty', headers=HEADERS_MRSTY, valid_values=ACCEPTED_SEMTYPES)
+    # cuisty = umls_to_dict(mrsty_file, 'cui', 'sty', headers=HEADERS_MRSTY)
+    cuisty = umls_to_dict(mrsty_file, 'cui', 'sty', headers=HEADERS_MRSTY, valid_values=ACCEPTED_SEMTYPES)
     curr_time = time.time()
     print(f'Loading semantic types: {curr_time - start} s')
 
@@ -293,6 +453,31 @@ def driver(opts):
         print(f'Num values in CUI-STY dictionary: {sum(len(v) for v in cuisty.values())}')
         print(f'Size of CUI-STY dictionary: {sys.getsizeof(cuisty)}')
 
+    # Set converter functions
+    converters = {}
+    if opts.lowercase and opts.normalize_unicode:
+        converters['str'] = lowercase_and_normalize_unicode_str
+    elif opts.lowercase:
+        converters['str'] = lowercase_str
+    else:
+        converters['str'] = normalize_unicode_str
+    converters['ispref'] = is_preferred
+
+    print('Loading concepts...')
+    start = time.time()
+    conso = umls_to_dict(mrconso_file, 'str', ('cui', 'lat', 'ispref'), headers=HEADERS_MRCONSO, nrows=20, valid_values=(cuisty.keys(), {'ENG'}, None), converters=converters)
+    # conso = umls_to_dict(mrconso_file, 'str', ('cui', 'lat', 'ispref'), headers=HEADERS_MRCONSO, nrows=20, valid_values=(None, {'ENG'}, None), converters=converters)
+    curr_time = time.time()
+    print(f'Loading concepts: {curr_time - start} s')
+
+    # Profile
+    if PROFILE > 1:
+        print(conso)
+        print(f'Num unique Terms: {len(conso)}')
+        print(f'Num values in Term-CUI/Lat/IsPref dictionary: {sum(len(v) for v in conso.values())}')
+        print(f'Size of Term-CUI/Lat/IsPref dictionary: {sys.getsizeof(conso)}')
+
+    sys.exit()
 
     print('Loading and parsing concepts...')
     start = time.time()
