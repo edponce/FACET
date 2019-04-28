@@ -43,195 +43,173 @@ def is_preferred(ispref):
 ########################################################################
 
 
-def iter_umls_to_dict(rrf_file,
-                      key,
-                      values, *,
-                      headers=None,
-                      valid_keys=None,
-                      valid_values=None,
-                      **kwargs):
+def valid_item(item, *,
+               valids=None,
+               invalids=None):
+    """Detect if an item is valid based on given valid/invalid sequences.
+
+    An item is valid if it is in the 'valids' sequence and not in the
+    'invalids' sequence. A None sequence is not checked.
+
+    Args:
+        item (Any): Item to check for validity.
+
+        valids (Iterable[Any]): Valid item values.
+
+        invalids (Iterable[Any]): Invalid item values.
+    """
+    # NOTE: Check 'invalids' sequence last to prevent validity even if
+    # item is in 'valids' sequence.
+    is_valid = True
+    if valids is not None:
+        is_valid = item in valids
+    if invalids is not None:
+        is_valid = item not in invalids
+    return is_valid
+
+
+def valid_items_from_seq(items, *,
+                         valids=None,
+                         invalids=None):
+    """
+    Args:
+        items (Iterable[Any]): Items to check for validity.
+
+        valids (Iterable[Any|Iterable[Any]]): Sequences with corresponding
+            valid item values.
+
+        invalids (Iterable[Any|Iterable[Any]]): Sequences with corresponding
+            invalid item values.
+    """
+    is_valid = False
+    if valids is not None and invalids is not None:
+        for item, valid_seq, invalid_seq in zip(items, valids, invalids):
+            if not valid_item(item, valids=valid_seq, invalids=invalid_seq):
+                break
+        else:
+            is_valid = True
+    elif valids is not None:
+        for item, valid_seq in zip(items, valids):
+            if not valid_item(item, valids=valid_seq):
+                break
+        else:
+            is_valid = True
+    else:
+        for item, invalid_seq in zip(items, invalids):
+            if not valid_item(item, invalids=invalid_seq):
+                break
+        else:
+            is_valid = True
+    return is_valid
+
+
+def valid_items_from_dict(keys,
+                          items, *,
+                          valids=None,
+                          invalids=None):
+    """
+    Args:
+        keys (Iterable[Any]): Keys corresponding to items.
+
+        items (Iterable[Any]): Items to check for validity.
+
+        valids (Dict[Any:Any|Iterable[Any]]): Valid keys/items.
+
+        invalids (Dict[Any:Any|Iterable[Any]]): Invalid keys/items.
+    """
+    is_valid = False
+    if valids is not None and invalids is not None:
+        for k, item in zip(keys, items):
+            if k in valids and k in invalids:
+                if not valid_item(item, valids=valids[k], invalids=invalids[k]):
+                    break
+            elif k in valids:
+                if not valid_item(item, valids=valids[k]):
+                    break
+            else:
+                if not valid_item(item, invalids=invalids[k]):
+                    break
+        else:
+            is_valid = True
+    elif valids is not None:
+        for k, item in zip(keys, items):
+            if k in valids:
+                if not valid_item(item, valids=valids[k]):
+                    break
+        else:
+            is_valid = True
+    else:
+        for k, item in zip(keys, items):
+            if k in invalids:
+                if not valid_item(item, invalids=invalids[k]):
+                    break
+        else:
+            is_valid = True
+    return is_valid
+
+
+def iterable_true(iterable):
+    """Tests truth value for an iterable.
+
+    An empty iterable or an iterable of Nones is considered false,
+    otherwise, it is true.
+    """
+    return isinstance(iterable, (list, set, tuple, dict)) and any(iterable)
+
+
+def iter_umls(rrf_data,
+              keys,
+              values, *,
+              headers=None,
+              valid_keys=None,
+              valid_values=None,
+              invalid_keys=None,
+              invalid_values=None,
+              multi_converters=None,
+              **kwargs):
     """Generator for UMLS data.
 
-    Uses Pandas 'read_csv' to load data into a dataframe which is then
+    Use Pandas 'read_csv()' to load data into a dataframe which is then
     iterated as tuples of keys/values.
 
     Args:
-        rrf_file (str): Path of UMLS RRF file
+        rrf_data (str): Path of UMLS RRF file or buffer.
 
-        key (str|int|Iterable[str|int]): Column to use as dictionary key.
-            If str, then it corresponds to a 'headers' value.
-            If int, then it corresponds to a column index.
-
-        values (str|int|Iterable[str|int]): Columns to use as dictionary values.
-            Multiple values are stored as key/tuples in same order as given.
-            If str, then it corresponds to 'headers' values.
-            If int, then it corresponds to column indices.
-
-    Kwargs:
-        headers (Iterable[str]): Column names.
-            Headers are required when key/values are str.
-            Headers do not need to be complete, but do need to be in order
-            and contain the key/values str.
-
-        valid_keys (Iterable[Any]): Valid keys to include.
-            If None, then all keys are included.
-
-        valid_values (Iterable[Any|Iterable[Any]]): Valid values to include.
-            If None, then all values are included.
-
-    Kwargs (See Pandas read_csv()):
-        delimiter
-        encoding
-        converters
-        skiprows
-        nrows
-        dtype
-        iterator
-        chunksize
-        memory_map
-        engine
-
-    Examples:
-        >>> umls = umls_to_dict('MRSTY.RRF', 'cui', 'sty', headers=HEADERS_MRSTY)
-        >>> umls = umls_to_dict('MRSTY.RRF', 0, 1)
-        >>> umls = umls_to_dict('MRSTY.RRF', 'cui', 'sty', headers=HEADERS_MRSTY, valid_values=ACCEPTED_SEMTYPES)
-        >>> umls = umls_to_dict('MRSTY.RRF', 'cui', ['sty', 'hier'], headers=HEADERS_MRSTY)
-        >>> umls = umls_to_dict('MRSTY.RRF', 0, [1, 2], nrows=10, valid_values=[None, None])
-    """
-    if isinstance(values, (str, int)):
-        values = [values]
-
-    # HACK: Extend the column headers with an empty header.
-    # NOTE: UMLS files end with a bar at each line and Pandas assumes
-    # there is an extra column afterwards (only required if using the
-    # 'python' engine).
-    if headers is not None:
-        headers = list(headers) + ['_']
-
-    # If 'valid_keys/valid_values' are provided, then apply converter
-    # functions after row filtering occurs. An iterable of only Nones is
-    # considered as no filtering.
-    # For large files, this may help improve performance.
-    post_convert = False
-    if valid_keys is not None:
-        if isinstance(valid_keys, (list, set, tuple)) and any(valid_keys):
-            post_convert = True
-    if valid_values is not None:
-        if isinstance(valid_values, (list, set, tuple)) and any(valid_values):
-            post_convert = True
-
-    # If necessary, move converters to post loading data
-    post_converters = None
-    if post_convert:
-        post_converters = kwargs.get('converters')
-        kwargs['converters'] = None
-
-    reader = pandas.read_csv(rrf_file,
-                             delimiter=kwargs.get('delimiter', '|'),
-                             names=headers,
-                             usecols=[key, *values],
-
-                             # Extra parameters
-                             encoding=kwargs.get('encoding', 'utf-8'),
-                             converters=kwargs.get('converters'),
-                             skiprows=kwargs.get('skiprows'),
-                             nrows=kwargs.get('nrows'),
-                             dtype=kwargs.get('dtype'),
-
-                             # Performance parameters
-                             iterator=kwargs.get('iterator', True),
-                             chunksize=kwargs.get('chunksize', 100000),
-                             memory_map=kwargs.get('memory_map', True),
-                             engine=kwargs.get('engine', 'c'), # 'c', 'python'
-
-                             # Constant settings
-                             header=None,
-                             index_col=False,
-                             na_filter=False
-                            )
-
-    # Place the dataframe into an iterable even if not iterating and
-    # chunking through the file, so that it uses the same logic
-    # as if it was a TextFileReader object.
-    if not isinstance(reader, pandas.io.parsers.TextFileReader):
-        reader = [reader]
-
-    umls = collections.defaultdict(set)
-    if len(values) == 1:
-        values = values[0]
-        for df in reader:
-            for k, v in zip(df[key], df[values]):
-                if valid_keys is not None and k not in valid_keys:
-                    continue
-                if valid_values is not None and v not in valid_values:
-                    continue
-                if post_converters is not None:
-                    if key in post_converters:
-                        k = post_converters[key](k)
-                    if values in post_converters:
-                        v = post_converters[values](v)
-                yield k, v
-    else:
-        for df in reader:
-            value = (df[val] for val in values)
-            for k, *vs in zip(df[key], *value):
-                if valid_keys is not None and k not in valid_keys:
-                    continue
-                if valid_values is not None:
-                    is_invalid_value = False
-                    for v, f in zip(vs, valid_values):
-                        if f is not None and v not in f:
-                            is_invalid_value = True
-                            break
-                    if is_invalid_value:
-                        continue
-                if post_converters is not None:
-                    if key in post_converters:
-                        k = post_converters[key](k)
-                    vs = (post_converters[val](v)
-                          if val in post_converters else v
-                          for v, val in zip(vs, values))
-                yield k, tuple(vs)
-
-
-def umls_to_dict(rrf_file,
-                 keys,
-                 values, *,
-                 headers=None,
-                 valid_keys=None,
-                 valid_values=None,
-                 **kwargs):
-    """Load UMLS data into a dictionary.
-
-    Uses Pandas 'read_csv' to load data into a dataframe which is then
-    converted to a dictionary.
-
-    Args:
-        rrf_file (str): Path of UMLS RRF file
-
-        keys (str|int|Iterable[str|int]): Columns to use as dictionary key.
+        keys (Iterable[str|int]): Columns to use as dictionary keys.
             Multiple keys are stored as tuples in same order as given.
-            If str, then it corresponds to a 'headers' value.
+            If str, then it corresponds to a 'headers' names.
             If int, then it corresponds to a column index.
 
-        values (str|int|Iterable[str|int]): Columns to use as dictionary values.
+        values (Iterable[str|int]): Columns to use as dictionary values.
             Multiple values are stored as tuples in same order as given.
-            If str, then it corresponds to 'headers' values.
+            If str, then it corresponds to 'headers' names.
             If int, then it corresponds to column indices.
 
     Kwargs:
-        headers (Iterable[str]): Column names.
+        headers (Iterable[str|int]): Column names.
             Headers are required when keys/values are str.
             Headers do not need to be complete, but do need to be in order
-            and contain the keys/values str.
+            and contain the keys/values identifier.
 
-        valid_keys (Iterable[Any]): Valid keys to include.
+        valid_keys (Iterable[None|Iterable[Any]]): Valid keys to include.
             If None, then all keys are included.
 
-        valid_values (Iterable[Any|Iterable[Any]]): Valid values to include.
+        valid_values (Iterable[None|Iterable[Any]]): Valid values to include.
             If None, then all values are included.
 
-    Kwargs (See Pandas read_csv()):
+        invalid_keys (Iterable[None|Iterable[Any]]): Invalid keys to skip.
+            Invalid keys have precedence over valid keys.
+            If None, then all keys are included.
+
+        invalid_values (Iterable[None|Iterable[Any]]): Invalid values to skip.
+            Invalid values have precedence over valid values.
+            If None, then all values are included.
+
+        multi_converters (Dict[Any:Iterable[Callable]]): Mapping between
+            headers and sequences of converter functions to be applied after
+            row filtering (and after regular/post-converter functions).
+
+    Kwargs (see Pandas 'read_csv()'):
         delimiter
         encoding
         converters
@@ -250,44 +228,41 @@ def umls_to_dict(rrf_file,
         >>> umls = umls_to_dict('MRSTY.RRF', 'cui', ['sty', 'hier'], headers=HEADERS_MRSTY)
         >>> umls = umls_to_dict('MRSTY.RRF', 0, [1, 2], nrows=10, valid_values=[None, None])
     """
-    if isinstance(keys, (str, int)):
-        keys = (keys,)
-    if isinstance(values, (str, int)):
-        values = (values,)
-
-    num_keys = len(keys)
-    num_values = len(values)
-
-    # HACK: Extend the column headers with an empty header.
+    # HACK: Extend the column headers with a dummy header (hopefully unique).
     # NOTE: UMLS files end with a bar at each line and Pandas assumes
     # there is an extra column afterwards (only required if using the
     # 'python' engine).
+    # if headers is not None and kwargs.get('engine') == 'python':
     if headers is not None:
-        headers = list(headers) + ['_']
+        headers = tuple(headers) + ('_',)
 
-    # If 'valid_keys/valid_values' are provided, then apply converter
-    # functions after row filtering occurs. An iterable of only Nones is
-    # considered as no filtering.
-    # For large files, this may help improve performance.
-    key_check = False
-    value_check = False
-    if valid_keys is not None:
-        if isinstance(valid_keys, (list, set, tuple)) and any(valid_keys):
-            key_check = True
-    if valid_values is not None:
-        if isinstance(valid_values, (list, set, tuple)) and any(valid_values):
-            value_check = True
+    # Check if row filtering iterables for 'valid/invalid keys/values' are
+    # provided. An empty iterable or an iterable of Nones is considered
+    # as a no filtering request.
+    # NOTE: Any iterable that supports the 'in' operator and has default
+    # behavior using 'any()' is allowed.
+    # NOTE: For large data sets, this may help improve performance because
+    # when row filtering is enabled, converter functions are applied after
+    # filtering occurs.
+    key_check = iterable_true(valid_keys) or iterable_true(invalid_keys)
+    value_check = iterable_true(valid_values) or iterable_true(invalid_values)
 
-    # If necessary, move converters to post loading data
+    # Check if converter functions need to be applied after row filtering.
     post_converters = None
     if key_check or value_check:
         post_converters = kwargs.get('converters')
         kwargs['converters'] = None
 
-    reader = pandas.read_csv(rrf_file,
-                             delimiter=kwargs.get('delimiter', '|'),
+    # Data reader or iterator
+    reader = pandas.read_csv(rrf_data,
                              names=headers,
-                             usecols=[*keys, *values],
+
+                             # Constant-ish settings
+                             delimiter=kwargs.get('delimiter', '|'),
+                             usecols=(*keys, *values),
+                             header=None,
+                             index_col=False,
+                             na_filter=False,
 
                              # Extra parameters
                              encoding=kwargs.get('encoding', 'utf-8'),
@@ -300,69 +275,95 @@ def umls_to_dict(rrf_file,
                              iterator=kwargs.get('iterator', True),
                              chunksize=kwargs.get('chunksize', 100000),
                              memory_map=kwargs.get('memory_map', True),
-                             engine=kwargs.get('engine', 'c'), # 'c', 'python'
-
-                             # Constant settings
-                             header=None,
-                             index_col=False,
-                             na_filter=False
-                            )
+                             engine=kwargs.get('engine', 'c'))
 
     # Place the dataframe into an iterable even if not iterating and
-    # chunking through the file, so that it uses the same logic
+    # chunking through the data, so that it uses the same logic
     # as if it was a TextFileReader object.
     if not isinstance(reader, pandas.io.parsers.TextFileReader):
-        reader = (reader)
+        reader = (reader,)
 
-    # Output dictionary
-    umls = collections.defaultdict(set)
+    # Get keys/values sizes into variables to prevent calling len()
+    # for every iteration during processing.
+    # NOTE: Performance-wise, not sure if this is worth it, but makes
+    # code cleaner.
+    num_keys = len(keys)
+    num_values = len(values)
 
     # Iterate through dataframes or TextFileReader:
-    #   a) Filter invalid keys/values
-    #   b) Apply post converter functions
+    #   a) Row filtering based on valid/invalid keys/values
+    #   b) Apply post/multi-converter functions
+    #   c) Store keys/values in dictionary
     for df in reader:
+        # Keys/values generators
         key = (df[ky] for ky in keys)
         value = (df[val] for val in values)
         for kv in zip(*key, *value):
+            # Keys/values tuples
             ks = kv[:num_keys]
             vs = kv[num_keys:]
-            if key_check:
-                is_invalid_key = False
-                if num_keys == 1:
-                    if ks[0] not in valid_keys:
-                        is_invalid_key = True
-                else:
-                    for k, f in zip(ks, valid_keys):
-                        if f is not None and k not in f:
-                            is_invalid_key = True
-                            break
-                if is_invalid_key:
-                    continue
-            if value_check:
-                is_invalid_value = False
-                if num_values == 1:
-                    if vs[0] not in valid_values:
-                        is_invalid_value = True
-                else:
-                    for v, f in zip(vs, valid_values):
-                        if f is not None and v not in f:
-                            is_invalid_value = True
-                            break
-                if is_invalid_value:
-                    continue
+
+            # Filter invalild keys
+            if key_check \
+               and not valid_items_from_seq(ks,
+                                            valids=valid_keys,
+                                            invalids=invalid_keys):
+                continue
+
+            # Filter invalild values
+            if value_check \
+               and not valid_items_from_seq(vs,
+                                            valids=valid_values,
+                                            invalids=invalid_values):
+                continue
+
+            # Apply post-converter functions
+            # NOTE: Post-converter functions occur before multi-converter
+            # functions to follow same logic as if post-converter functions
+            # had been applied by 'read_csv()' while reading data.
             if post_converters is not None:
-                ks = (post_converters[ky](k)
-                      if ky in post_converters else k
-                      for k, ky in zip(ks, keys))
-                vs = (post_converters[val](v)
-                      if val in post_converters else v
-                      for v, val in zip(vs, values))
+                ks = tuple(post_converters[ky](k)
+                           if ky in post_converters else k
+                           for k, ky in zip(ks, keys))
+                vs = tuple(post_converters[val](v)
+                           if val in post_converters else v
+                           for v, val in zip(vs, values))
+
+            # Apply multi-converter functions
+            # NOTE: Uses lists instead of tuples so that individual items
+            # can be modified.
+            if multi_converters is not None:
+                ks = list(ks)
+                for i, (k, ky) in enumerate(zip(ks, keys)):
+                    if ky in multi_converters:
+                        for f in multi_converters[ky]:
+                            ks[i] = f(k)
+                ks = tuple(ks)
+                vs = list(vs)
+                for i, (v, val) in enumerate(zip(vs, values)):
+                    if val in multi_converters:
+                        for f in multi_converters[val]:
+                            vs[i] = f(v)
+                vs = tuple(vs)
+
+            # Store keys/values in dictionary
             if num_keys == 1:
                 ks = ks[0]
             if num_values == 1:
                 vs = vs[0]
-            umls[ks].add(vs)
+            yield ks, vs
 
+
+def umls_to_dict(*args, **kwargs):
+    """Load UMLS data into a dictionary.
+
+    Args (see 'iter_umls)
+
+    Kwargs (see 'iter_umls')
+    """
+    umls = collections.defaultdict(set)
+    for k, v in iter_umls(*args, **kwargs):
+        umls[k].add(v)
     return umls
 
 
@@ -505,17 +506,25 @@ def driver(opts):
     os.makedirs(simstring_dir)
     os.makedirs(cuisty_dir)
 
+    converters = {}
+    # converters['sty'] = lowercase_and_normalize_unicode_str
+    converters['sty'] = [lowercase_str, normalize_unicode_str]
+
     print('Loading semantic types...')
     start = time.time()
-    cuisty = umls_to_dict(mrsty_file, 'cui', 'sty', headers=HEADERS_MRSTY)
-    # cuisty = umls_to_dict(mrsty_file, 'cui', 'sty', headers=HEADERS_MRSTY, valid_values=ACCEPTED_SEMTYPES)
-    # cuisty = umls_to_dict(mrsty_file, 'cui', ('sty', 'hier'), headers=HEADERS_MRSTY, valid_values=(ACCEPTED_SEMTYPES, None))
+    cuisty = umls_to_dict(mrsty_file, ['cui', 'sty'], ['sty', 'hier'], headers=HEADERS_MRSTY)
+    # cuisty = umls_to_dict(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, multi_converters=converters)
+    # cuisty = umls_to_dict(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, converters=converters)
+    # cuisty = umls_to_dict(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valid_values=[ACCEPTED_SEMTYPES])
+    # cuisty = umls_to_dict(mrsty_file, 'cui', 'sty', headers=HEADERS_MRSTY, invalid_values=ACCEPTED_SEMTYPES)
+    # cuisty = umls_to_dict(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valid_values=[ACCEPTED_SEMTYPES])
     # cuisty = umls_to_dict(mrsty_file, ('cui', 'sty'), ('sty', 'hier'), headers=HEADERS_MRSTY, valid_values=(ACCEPTED_SEMTYPES, None))
     curr_time = time.time()
     print(f'Loading semantic types: {curr_time - start} s')
 
     # Profile
     if PROFILE > 1:
+        print(cuisty)
         print(f'Num unique CUIs: {len(cuisty)}')
         print(f'Num values in CUI-STY dictionary: {sum(len(v) for v in cuisty.values())}')
         print(f'Size of CUI-STY dictionary: {sys.getsizeof(cuisty)}')
