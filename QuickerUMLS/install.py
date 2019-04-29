@@ -19,6 +19,7 @@ except ImportError:
 # 1 = Processing rate
 # 2 = Data structures info
 PROFILE = 1
+nrows = None
 
 
 # NOTE: UMLS headers should be automatically parsed from UMLS MRFILES.RRF.
@@ -142,6 +143,7 @@ def iter_umls(rrf_data,
               valids=None,
               invalids=None,
               multi_converters=None,
+              unique_keys=False,
               **kwargs):
     """Generator for UMLS data.
 
@@ -185,6 +187,8 @@ def iter_umls(rrf_data,
         multi_converters (Dict[Any:Iterable[Callable]]): Mapping between
             headers and sequences of converter functions to be applied after
             row filtering (and after regular/post-converter functions).
+
+        unique_keys (bool): Control if keys can be repeated or not.
 
     Kwargs (see Pandas 'read_csv()'):
         delimiter
@@ -287,6 +291,9 @@ def iter_umls(rrf_data,
     if not isinstance(reader, pandas.io.parsers.TextFileReader):
         reader = [reader]
 
+    # Internal data structure for tracking unique keys.
+    keys_processed = set()
+
     # Iterate through dataframes or TextFileReader:
     #   a) Row filtering based on valid/invalid keys/values
     #   b) Apply post/multi-converter functions
@@ -321,9 +328,18 @@ def iter_umls(rrf_data,
                     for f in multi_converters[key]:
                         kv[idx] = f(kv[idx])
 
-            # Organize keys/values (ignore filters)
+            # Organize keys
             ks = kv[0] if num_keys == 1 else \
                  tuple(kv[:num_keys])
+
+            # Filter unique keys
+            if unique_keys:
+                if ks not in keys_processed:
+                    keys_processed.add(ks)
+                else:
+                    continue
+
+            # Organize values
             vs = kv[num_keys] if num_values == 1 else \
                  tuple(kv[num_keys:values_stop])
 
@@ -337,29 +353,43 @@ def umls_to_dict(*args, **kwargs):
 
     Kwargs (see 'iter_umls')
     """
-    umls = collections.defaultdict(set)
-    for k, v in iter_umls(*args, **kwargs):
-        umls[k].add(v)
+    unique_keys = kwargs.get('unique_keys', False)
+    if unique_keys:
+        # Disable 'unique_keys' option for 'iter_umls' so that it does
+        # use internal data structure because the dictionary already
+        # accounts for that. Values of unique keys are not placed in a set.
+        # NOTE: Set value the first time only so that it has same behavior
+        # as 'iter_umls'.
+        kwargs['unique_keys'] = False
+        umls = collections.defaultdict()
+        for k, v in iter_umls(*args, **kwargs):
+            if k not in umls:
+                umls[k] = v
+    else:
+        umls = collections.defaultdict(set)
+        for k, v in iter_umls(*args, **kwargs):
+            umls[k].add(v)
     return umls
 
 
-def dump_cuisty(cuisty_iter,
-                cuisty_dir,
+def dump_cuisty(cuisty,
+                cuisty_db,
                 bulk_size=1000,
                 status_step=100000):
     # Profile
     prev_time = time.time()
     num_terms = 0
 
-    cuisty_db = CuiSemTypesDB(cuisty_dir)
+    if isinstance(cuisty, dict):
+        cuisty = cuisty.items()
 
     sty_bulk = []
-    for i, (cuisty) in enumerate(cuisty_iter, start=1):
+    for i, cui_sty in enumerate(cuisty, start=1):
         if len(sty_bulk) == bulk_size:
             cuisty_db.bulk_insert_sty(sty_bulk)
             sty_bulk = []
         else:
-            sty_bulk.append(cuisty)
+            sty_bulk.append(cui_sty)
 
         # Profile
         if PROFILE > 0 and i % status_step == 0:
@@ -378,18 +408,19 @@ def dump_cuisty(cuisty_iter,
 
 
 def dump_conso(conso,
-               cuisty_dir,
+               cuisty_db,
                bulk_size=1000,
                status_step=100000):
     # Profile
     prev_time = time.time()
     num_terms = 0
 
-    cuisty_db = CuiSemTypesDB(cuisty_dir)
+    if isinstance(conso, dict):
+        conso = conso.items()
 
     terms = set()
     cui_bulk = []
-    for i, ((term, cui), preferred) in enumerate(conso.items(), start=1):
+    for i, ((term, cui), preferred) in enumerate(conso, start=1):
         # Profile
         num_terms += 1
 
@@ -425,14 +456,12 @@ def dump_conso(conso,
     return terms
 
 
-def dump_terms(simstring_dir,
-               simstring_terms,
+def dump_terms(simstring_terms,
+               ss_db,
                bulk_size=1,
                status_step=100000):
     # Profile
     prev_time = time.time()
-
-    ss_db = SimstringDBWriter(simstring_dir)
 
     for i, term in enumerate(simstring_terms, start=1):
         ss_db.insert(term)
@@ -455,27 +484,9 @@ def driver(opts):
     os.makedirs(simstring_dir)
     os.makedirs(cuisty_dir)
 
-    print('Loading/parsing semantic types...')
-    start = time.time()
-    cuisty_iter = iter_umls(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY)
-    # cuisty_iter = iter_umls(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valids={'sty': ACCEPTED_SEMTYPES})
-    # cuisty = umls_to_dict(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY)
-    # cuisty = umls_to_dict(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valids={'sty': ACCEPTED_SEMTYPES})
-    curr_time = time.time()
-    print(f'Loading/parsing semantic types: {curr_time - start} s')
-
-    # Profile
-    if PROFILE > 1:
-        print(f'Num unique CUIs: {len(cuisty)}')
-        print(f'Num values in CUI-STY dictionary: {sum(len(v) for v in cuisty.values())}')
-        print(f'Size of CUI-STY dictionary: {sys.getsizeof(cuisty)}')
-
-    print('Writing semantic types...')
-    start = time.time()
-    dump_cuisty(cuisty_iter, cuisty_dir)
-    curr_time = time.time()
-    print(f'Writing semantic types: {curr_time - start} s')
-
+    # Database connections
+    cuisty_db = CuiSemTypesDB(cuisty_dir)
+    ss_db = SimstringDBWriter(simstring_dir)
 
     # Set converter functions
     converters = collections.defaultdict(list)
@@ -487,30 +498,52 @@ def driver(opts):
 
     print('Loading/parsing concepts...')
     start = time.time()
-    # conso_iter =  iter_umls(mrconso_file, ['str', 'cui'], ['ispref'], filters=['lat'], headers=HEADERS_MRCONSO, valids={'lat': ['ENG']}, multi_converters=converters)
-    conso = umls_to_dict(mrconso_file, ['str', 'cui'], ['ispref'], filters=['lat'], headers=HEADERS_MRCONSO, valids={'lat': ['ENG']}, multi_converters=converters)
-    # conso = umls_to_dict(mrconso_file, ['str', 'cui'], ['ispref'], filters=['lat'], headers=HEADERS_MRCONSO, valids={'cui': cuisty.keys(), 'lat': ['ENG']}, multi_converters=converters)
+    conso =  iter_umls(mrconso_file, ['str', 'cui'], ['ispref'], filters=['lat'], headers=HEADERS_MRCONSO, valids={'lat': opts.language}, multi_converters=converters, unique_keys=True, nrows=nrows)
+    # conso = umls_to_dict(mrconso_file, ['str', 'cui'], ['ispref'], filters=['lat'], headers=HEADERS_MRCONSO, valids={'lat': opts.language}, multi_converters=converters, nrows=nrows)
     curr_time = time.time()
     print(f'Loading/parsing concepts: {curr_time - start} s')
 
     # Profile
     if PROFILE > 1:
+        if nrows is not None and nrows < 20: print(conso)
         print(f'Num unique Terms: {len(conso)}')
         print(f'Num values in Term-CUI/Lat/IsPref dictionary: {sum(len(v) for v in conso.values())}')
         print(f'Size of Term-CUI/Lat/IsPref dictionary: {sys.getsizeof(conso)}')
 
     print('Writing concepts...')
     start = time.time()
-    terms = dump_conso(conso, cuisty_dir)
+    terms = dump_conso(conso, cuisty_db)
     curr_time = time.time()
     print(f'Writing concepts: {curr_time - start} s')
 
 
     print('Writing Simstring database...')
     start = time.time()
-    dump_terms(simstring_dir, terms)
+    dump_terms(terms, ss_db)
     curr_time = time.time()
     print(f'Writing Simstring database: {curr_time - start} s')
+
+
+    print('Loading/parsing semantic types...')
+    start = time.time()
+    cuisty = iter_umls(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valids={'sty': ACCEPTED_SEMTYPES}, nrows=nrows)
+    # cuisty = iter_umls(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valids={'cui': {k[1] for k in conso.keys()}, 'sty': ACCEPTED_SEMTYPES}, nrows=nrows)
+    # cuisty = umls_to_dict(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valids={'cui': {k[1] for k in conso.keys()}, 'sty': ACCEPTED_SEMTYPES}, nrows=nrows)
+    curr_time = time.time()
+    print(f'Loading/parsing semantic types: {curr_time - start} s')
+
+    # Profile
+    if PROFILE > 1:
+        if nrows is not None and nrows <= 10: print(cuisty)
+        print(f'Num unique CUIs: {len(cuisty)}')
+        print(f'Num values in CUI-STY dictionary: {sum(len(v) for v in cuisty.values())}')
+        print(f'Size of CUI-STY dictionary: {sys.getsizeof(cuisty)}')
+
+    print('Writing semantic types...')
+    start = time.time()
+    dump_cuisty(cuisty, cuisty_db)
+    curr_time = time.time()
+    print(f'Writing semantic types: {curr_time - start} s')
 
 
 if __name__ == '__main__':

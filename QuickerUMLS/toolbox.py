@@ -298,6 +298,13 @@ class CuiSemTypesDB(object):
         term = prepare_string_for_db_input(safe_unicode(term))
 
         cuis = pickle.loads(self.cui_db.get(db_key_encode(term)))
+
+        # NOTE: To make it work with QuickerUMLS DB format.
+        # for cui, is_preferred in {cuis}:
+           # print(cui, is_preferred)
+        # return []
+
+        cuis = pickle.loads(self.cui_db.get(db_key_encode(term)))
         matches = (
             (
                 cui,
