@@ -34,10 +34,6 @@ def normalize_unicode_str(term):
     return unidecode(term)
 
 
-def lowercase_and_normalize_unicode_str(term):
-    return normalize_unicode_str(lowercase_str(term))
-
-
 def is_preferred(ispref):
     return 1 if ispref == 'Y' else 0
 ########################################################################
@@ -236,6 +232,16 @@ def iter_umls(rrf_data,
     if headers is not None:
         headers = tuple(headers) + ('_',)
 
+    # Get keys/values sizes into variables to prevent calling len()
+    # for every iteration during processing.
+    # NOTE: Performance-wise, not sure if this is worth it, but makes
+    # code cleaner.
+    num_keys = len(keys)
+    num_values = len(values)
+
+    # Combine columns to use into single data structure.
+    usecols = (*keys, *values)
+
     # Check if row filtering iterables for 'valid/invalid keys/values' are
     # provided. An empty iterable or an iterable of Nones is considered
     # as a no filtering request.
@@ -253,13 +259,26 @@ def iter_umls(rrf_data,
         post_converters = kwargs.get('converters')
         kwargs['converters'] = None
 
+    # Pre-compute indices and columns for post/multi-converter functions.
+    # NOTE: This is a performance optimization because allows operating
+    # on deterministic items without incurring on hashing operations
+    # nor indirect addressing.
+    if post_converters is not None:
+        post_converters_idxcols = ((idx, col)
+                                   for idx, col in enumerate(usecols)
+                                   if col in post_converters)
+    if multi_converters is not None:
+        multi_converters_idxcols = ((idx, col)
+                                    for idx, col in enumerate(usecols)
+                                    if col in multi_converters)
+
     # Data reader or iterator
     reader = pandas.read_csv(rrf_data,
                              names=headers,
 
                              # Constant-ish settings
                              delimiter=kwargs.get('delimiter', '|'),
-                             usecols=(*keys, *values),
+                             usecols=usecols,
                              header=None,
                              index_col=False,
                              na_filter=False,
@@ -283,36 +302,28 @@ def iter_umls(rrf_data,
     if not isinstance(reader, pandas.io.parsers.TextFileReader):
         reader = (reader,)
 
-    # Get keys/values sizes into variables to prevent calling len()
-    # for every iteration during processing.
-    # NOTE: Performance-wise, not sure if this is worth it, but makes
-    # code cleaner.
-    num_keys = len(keys)
-    num_values = len(values)
-
     # Iterate through dataframes or TextFileReader:
     #   a) Row filtering based on valid/invalid keys/values
     #   b) Apply post/multi-converter functions
-    #   c) Store keys/values in dictionary
+    #   c) Organize keys/values
     for df in reader:
         # Keys/values generators
-        key = (df[ky] for ky in keys)
-        value = (df[val] for val in values)
-        for kv in zip(*key, *value):
-            # Keys/values tuples
-            ks = kv[:num_keys]
-            vs = kv[num_keys:]
+        keys_values = (df[col] for col in usecols)
+
+        # NOTE: Uses lists instead of tuples so that individual items
+        # can be modified with converter functions.
+        for kv in map(list, zip(*keys_values)):
 
             # Filter invalild keys
             if key_check \
-               and not valid_items_from_seq(ks,
+               and not valid_items_from_seq(kv[:num_keys],
                                             valids=valid_keys,
                                             invalids=invalid_keys):
                 continue
 
             # Filter invalild values
             if value_check \
-               and not valid_items_from_seq(vs,
+               and not valid_items_from_seq(kv[num_keys:],
                                             valids=valid_values,
                                             invalids=invalid_values):
                 continue
@@ -322,35 +333,19 @@ def iter_umls(rrf_data,
             # functions to follow same logic as if post-converter functions
             # had been applied by 'read_csv()' while reading data.
             if post_converters is not None:
-                ks = tuple(post_converters[ky](k)
-                           if ky in post_converters else k
-                           for k, ky in zip(ks, keys))
-                vs = tuple(post_converters[val](v)
-                           if val in post_converters else v
-                           for v, val in zip(vs, values))
+                for idx, key in post_converters_idxcols:
+                    kv[idx] = post_converters[key](kv[idx])
 
             # Apply multi-converter functions
-            # NOTE: Uses lists instead of tuples so that individual items
-            # can be modified.
             if multi_converters is not None:
-                ks = list(ks)
-                for i, (k, ky) in enumerate(zip(ks, keys)):
-                    if ky in multi_converters:
-                        for f in multi_converters[ky]:
-                            ks[i] = f(k)
-                ks = tuple(ks)
-                vs = list(vs)
-                for i, (v, val) in enumerate(zip(vs, values)):
-                    if val in multi_converters:
-                        for f in multi_converters[val]:
-                            vs[i] = f(v)
-                vs = tuple(vs)
+                for idx, key in multi_converters_idxcols:
+                    for f in multi_converters[key]:
+                        kv[idx] = f(kv[idx])
 
-            # Store keys/values in dictionary
-            if num_keys == 1:
-                ks = ks[0]
-            if num_values == 1:
-                vs = vs[0]
+            # Organize keys/values
+            ks = kv[0] if num_keys == 1 else tuple(kv[:num_keys])
+            vs = kv[num_keys] if num_values == 1 else tuple(kv[num_keys:])
+
             yield ks, vs
 
 
@@ -506,25 +501,20 @@ def driver(opts):
     os.makedirs(simstring_dir)
     os.makedirs(cuisty_dir)
 
-    converters = {}
-    # converters['sty'] = lowercase_and_normalize_unicode_str
-    converters['sty'] = [lowercase_str, normalize_unicode_str]
+    converters = {'sty': (lowercase_str, normalize_unicode_str)}
 
     print('Loading semantic types...')
     start = time.time()
-    cuisty = umls_to_dict(mrsty_file, ['cui', 'sty'], ['sty', 'hier'], headers=HEADERS_MRSTY)
+    cuisty = umls_to_dict(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY)
+    # cuisty = umls_to_dict(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valid_values=[ACCEPTED_SEMTYPES])
     # cuisty = umls_to_dict(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, multi_converters=converters)
-    # cuisty = umls_to_dict(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, converters=converters)
-    # cuisty = umls_to_dict(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valid_values=[ACCEPTED_SEMTYPES])
-    # cuisty = umls_to_dict(mrsty_file, 'cui', 'sty', headers=HEADERS_MRSTY, invalid_values=ACCEPTED_SEMTYPES)
-    # cuisty = umls_to_dict(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valid_values=[ACCEPTED_SEMTYPES])
-    # cuisty = umls_to_dict(mrsty_file, ('cui', 'sty'), ('sty', 'hier'), headers=HEADERS_MRSTY, valid_values=(ACCEPTED_SEMTYPES, None))
+    # cuisty = umls_to_dict(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valid_values=[ACCEPTED_SEMTYPES], multi_converters=converters)
     curr_time = time.time()
     print(f'Loading semantic types: {curr_time - start} s')
 
     # Profile
     if PROFILE > 1:
-        print(cuisty)
+        # print(cuisty)
         print(f'Num unique CUIs: {len(cuisty)}')
         print(f'Num values in CUI-STY dictionary: {sum(len(v) for v in cuisty.values())}')
         print(f'Size of CUI-STY dictionary: {sys.getsizeof(cuisty)}')
