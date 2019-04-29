@@ -277,11 +277,22 @@ class CuiSemTypesDB(object):
                 cuis.add((cui, is_preferred))
                 wb.put(term, pickle.dumps(cuis))
 
+
+    def safe_bulk_insert_cui(self, cui_bulk):
+        with self.cui_db.write_batch(transaction=True) as wb:
+            for term, cui, preferred in cui_bulk:
+                term = db_key_encode(safe_unicode(term))
+                cui = safe_unicode(cui)
+                wb.put(term, pickle.dumps((cui, preferred)))
+
+
     def bulk_insert_sty(self, sty_bulk):
         with self.semtypes_db.write_batch(transaction=True) as wb:
             for cui, semtypes in sty_bulk:
                 cui = db_key_encode(safe_unicode(cui))
-                wb.put(cui, pickle.dumps(set(semtypes)))
+                # wb.put(cui, pickle.dumps(set(semtypes)))
+                wb.put(cui, pickle.dumps(semtypes))
+
 
     def get(self, term):
         term = prepare_string_for_db_input(safe_unicode(term))
