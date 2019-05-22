@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 import sys
 import time
@@ -18,11 +20,7 @@ try:
 except ImportError:
     UNIDECODE_AVAIL = False
 
-# 0 = No status info
-# 1 = Processing rate
-# 2 = Data structures info
-PROFILE = 1
-nrows = None
+PROFILE = 0
 
 
 # NOTE: UMLS headers should be automatically parsed from UMLS MRFILES.RRF.
@@ -469,6 +467,38 @@ def dump_conso(conso,
     return terms
 
 
+def get_terms(data,
+              status_step=100000):
+    # Profile
+    prev_time = time.time()
+    num_terms = 0
+
+    if isinstance(data, dict):
+        data = data.items()
+
+    # NOTE: Check that unpacking is general enough.
+    terms = set()
+    for i, ((term, _), *__) in enumerate(data, start=1):
+        # Profile
+        num_terms += 1
+
+        terms.add(term)
+
+        # Profile
+        if PROFILE > 0 and i % status_step == 0:
+            curr_time = time.time()
+            print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / (bulk_size * (status_step / bulk_size))} s/batch')
+            prev_time = curr_time
+
+    # Profile
+    if PROFILE > 1:
+        print(f'Num terms: {num_terms}')
+        print(f'Num unique terms: {len(terms)}')
+        print(f'Size of Simstring terms: {sys.getsizeof(terms)}')
+
+    return terms
+
+
 def dump_terms(simstring_terms,
                ss_db,
                bulk_size=1,
@@ -511,8 +541,8 @@ def driver(opts):
 
     print('Loading/parsing concepts...')
     start = time.time()
-    conso = iter_umls(mrconso_file, ['str', 'cui'], ['ispref'], filters=['lat'], headers=HEADERS_MRCONSO, valids={'lat': opts.language}, multi_converters=converters, unique_keys=True, nrows=nrows)
-    # conso = umls_to_dict(mrconso_file, ['str', 'cui'], ['ispref'], filters=['lat'], headers=HEADERS_MRCONSO, valids={'lat': opts.language}, multi_converters=converters, nrows=nrows)
+    conso = iter_umls(mrconso_file, ['str', 'cui'], ['ispref'], filters=['lat'], headers=HEADERS_MRCONSO, valids={'lat': opts.language}, multi_converters=converters, unique_keys=True, delimiter=opts.delimiter, nrows=opts.nrows)
+    # conso = umls_to_dict(mrconso_file, ['str', 'cui'], ['ispref'], filters=['lat'], headers=HEADERS_MRCONSO, valids={'lat': opts.language}, multi_converters=converters, delimiter=opts.delimiter, nrows=opts.nrows)
     curr_time = time.time()
     print(f'Loading/parsing concepts: {curr_time - start} s')
 
@@ -625,9 +655,134 @@ def parse_args():
     return args
 
 
+def driver_noumls(opts):
+    # Create install directories for the two databases
+    simstring_dir = os.path.join(opts.install_dir, 'dict-simstring.db')
+    os.makedirs(simstring_dir)
+
+    # Database connections
+    ss_db = SimstringDBWriter(simstring_dir)
+
+    # Set converter functions
+    converters = collections.defaultdict(list)
+    if opts.lowercase:
+        converters[0].append(lowercase_str)
+    if opts.normalize_unicode:
+        converters[0].append(normalize_unicode_str)
+
+    print('Loading/parsing semantic types...')
+    start = time.time()
+    term_data = iter_umls(opts.file, [0, 1], None,
+                          delimiter=opts.delimiter, nrows=opts.rows)
+    curr_time = time.time()
+    print(f'Loading/parsing semantic types: {curr_time - start} s')
+
+    # Profile
+    if PROFILE > 1:
+        if nrows is not None and nrows <= 10:
+            print(term_data)
+        print(f'Num unique terms: {len(term_data)}')
+        print(f'Size of terms-frequency dictionary: {sys.getsizeof(term_data)}')
+
+    # Get terms from file
+    terms = get_terms(term_data)
+
+    print('Writing Simstring database...')
+    start = time.time()
+    dump_terms(terms, ss_db)
+    curr_time = time.time()
+    print(f'Writing Simstring database: {curr_time - start} s')
+
+
+def parse_args_noumls():
+    parser = argparse.ArgumentParser(
+        prog=__file__,
+        description='Simstring Installation Tool',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+
+    parser.add_argument(
+        '-f', '--file', type=str, required=True,
+        help='Term file to install in Simstring database'
+    )
+
+    parser.add_argument(
+        '-i', '--install_dir', type=str, required=True,
+        help='Directory for installing Simstring database'
+    )
+
+    parser.add_argument(
+        '-d', '--delimiter', type=str, default='|',
+        help='Delimiter character/regex of file'
+    )
+
+    parser.add_argument(
+        '-r', '--rows', type=int,
+        help='Maximum number of rows to process'
+    )
+
+    parser.add_argument(
+        '-l', '--lowercase', action='store_true',
+        help='Consider only lowercase version of tokens'
+    )
+
+    parser.add_argument(
+        '-n', '--normalize-unicode', action='store_true',
+        help='Normalize unicode strings to their closest ASCII representation'
+    )
+
+    parser.add_argument(
+        '-p', '--profile', type=int, default=0,
+        help="""Profile control:
+                0: No status info
+                1: Processing rate
+                2: Data structures info"""
+    )
+
+    args = parser.parse_args()
+
+    if not os.path.exists(args.file) or not os.path.isfile(args.file):
+        print('Error: term file does not exists '
+              f'or is not a valid file: {args.file}',
+              file=sys.stderr)
+        exit(1)
+    if not os.path.exists(args.install_dir):
+        print(f'Creating install directory: {args.install_dir}')
+        os.makedirs(args.install_dir)
+    elif len(os.listdir(args.install_dir)) > 0:
+        print(f'Warning: install directory ({args.install_dir}) is not empty,'
+              'removing files...')
+        shutil.rmtree(args.install_dir)
+        os.mkdir(args.install_dir)
+        # exit(1)
+
+    if args.rows is not None and args.rows <= 0:
+        print('Error: invalid number of rows to process',
+              file=sys.stderr)
+        exit(1)
+
+    if args.normalize_unicode:
+        if not UNIDECODE_AVAIL:
+            print("Error: 'unidecode' is needed for unicode normalization"
+                  "please install it via the 'pip install unidecode"
+                  "command.",
+                  file=sys.stderr)
+            exit(1)
+        flag_fp = os.path.join(args.install_dir, 'normalize-unicode.flag')
+        open(flag_fp, 'w').close()
+
+    if args.lowercase:
+        flag_fp = os.path.join(args.install_dir, 'lowercase.flag')
+        open(flag_fp, 'w').close()
+
+    PROFILE = args.profile
+
+    return args
+
+
 if __name__ == '__main__':
     t1 = time.time()
-    args = parse_args()
-    driver(args)
+    args = parse_args_noumls()
+    driver_noumls(args)
     t2 = time.time()
     print(f'Total runtime: {t2 - t1} s')
