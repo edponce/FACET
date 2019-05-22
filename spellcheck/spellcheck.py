@@ -2,6 +2,7 @@
 
 
 import os
+import re
 import sys
 import time
 import argparse
@@ -49,22 +50,63 @@ def parse_args():
 
 def main(args):
     t1 = time.time()
-    ss_db = toolbox.SimstringDBReader(args.database, 'jaccard', 0.7)
+    ss_db = toolbox.SimstringDBReader(args.database, 'jaccard', 0.8)
     t2 = time.time()
     print(f"Elapsed time: {t2 - t1} s")
 
     t1 = time.time()
     with open(args.input) as ifd, open(args.output, 'w') as ofd:
         for line in ifd:
-            for word in line.split():
-                suggestions = ss_db.get(word)
+            # Split on single whitespace
+            # Leave remaining syntax as is
+            word_parts = line.split(' ')
+            for i, words in enumerate(word_parts):
+                # Consecutive empty spaces
+                if not words:
+                    ofd.write(' ')
+                    continue
+                # Tab/EOL surrounded by empty spaces
+                elif words in ('\t', '\n'):
+                    ofd.write(words)
+                    continue
 
-                if len(suggestions) == 0:
-                    ofd.write(word)
+                # Tab/EOL embedded with word
+                idxs = []
+                idxs.extend([m.start() for m in re.finditer('\n', words)])
+                idxs.extend([m.start() for m in re.finditer('\t', words)])
+
+                if len(idxs) > 0:
+                    idxs.sort()
                 else:
-                    ofd.write(suggestions[0])
-                ofd.write(' ')
+                    # Length of word because the following stage uses
+                    # slice syntax which is non-inclusive end.
+                    idxs = [len(words)]
 
+                # Split word based on tab/EOL
+                e = -1
+                for idx in idxs:
+                    s = e + 1
+                    e = idx
+
+                    # Single tab/EOL
+                    if s == e:
+                        ofd.write(words[s])
+                        continue
+
+                    word = words[s:e]
+                    suggestions = ss_db.get(word)
+                    if len(suggestions) == 0:
+                        ofd.write(word)
+                    else:
+                        ofd.write(suggestions[0])
+
+                    # If not last word part, write tab/EOL
+                    if e < len(words):
+                        ofd.write(words[e])
+
+                # Write space removed by split()
+                if i < len(word_parts) - 1:
+                    ofd.write(' ')
     t2 = time.time()
     print(f"Elapsed time: {t2 - t1} s")
 
