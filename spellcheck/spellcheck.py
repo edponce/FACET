@@ -50,6 +50,7 @@ def parse_args():
 
 def main(args):
     t1 = time.time()
+    # Connect to database
     ss_db = toolbox.SimstringDBReader(args.database, 'jaccard', 0.8)
     t2 = time.time()
     print(f"Elapsed time: {t2 - t1} s")
@@ -95,6 +96,7 @@ def main(args):
 
                     word = words[s:e]
                     suggestions = ss_db.get(word)
+                    # print(suggestions)
                     if len(suggestions) == 0:
                         ofd.write(word)
                     else:
