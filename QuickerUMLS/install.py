@@ -5,8 +5,8 @@ import pandas
 import shutil
 import argparse
 import collections
-from toolbox import CuiSemTypesDB, SimstringDBWriter
-from constants import (HEADERS_MRCONSO,
+from .toolbox import CuiSemTypesDB, SimstringDBWriter
+from .constants import (HEADERS_MRCONSO,
                        HEADERS_MRSTY,
                        LANGUAGES,
                        ACCEPTED_SEMTYPES)
@@ -140,23 +140,22 @@ def filter_indices_and_values(predicate, iterable):
     return ((idx, val) for idx, val in enumerate(iterable) if predicate(val))
 
 
-def iter_umls(rrf_data,
+def iter_data(data,
               keys,
               values, *,
-              filters=None,
               headers=None,
               valids=None,
               invalids=None,
-              multi_converters=None,
               unique_keys=False,
               **kwargs):
-    """Generator for UMLS data.
+    """Generator for data.
 
     Use Pandas 'read_csv()' to load data into a dataframe which is then
-    iterated as tuples of keys/values.
+    iterated as key/value pairs.
 
     Args:
-        rrf_data (str): Path of UMLS RRF file or buffer.
+        data (str): File or buffer.
+            See Pandas 'filepath_or_buffer' option from 'read_csv()'.
 
         keys (Iterable[str|int]): Columns to use as dictionary keys.
             Multiple keys are stored as tuples in same order as given.
@@ -169,12 +168,6 @@ def iter_umls(rrf_data,
             If int, then it corresponds to column indices.
 
     Kwargs:
-        filters (Iterable[str|int]): Columns to load from data, which
-            makes them accessible for row filtering, but are not included
-            as dictionary values.
-            If str, then it corresponds to 'headers' names.
-            If int, then it corresponds to column indices.
-
         headers (Iterable[str|int]): Column names.
             Headers are required when keys/values are str.
             Headers do not need to be complete, but do need to be in order
@@ -189,11 +182,12 @@ def iter_umls(rrf_data,
             Invalid values have precedence over valid values.
             If values is None, then corresponding columns are included.
 
-        multi_converters (Dict[Any:Iterable[Callable]]): Mapping between
-            headers and sequences of converter functions to be applied after
-            row filtering (and after regular/post-converter functions).
-
         unique_keys (bool): Control if keys can be repeated or not.
+
+        converters (Dict[Any:Callable|Iterable[Callable]]): Mapping between
+            headers and (sequences of) converter functions to be applied after
+            row filtering (if 'valids' or 'invalids' are not provided, then
+            this is used as Pandas 'converters' option from 'read_csv()').
 
     Kwargs (see Pandas 'read_csv()'):
         delimiter
@@ -211,20 +205,25 @@ def iter_umls(rrf_data,
         keys = ()
     if values is None:
         values = ()
-    if filters is None:
-        filters = ()
+    keys_values = (*keys, *values)
 
-    # Get keys/values/filters sizes into variables to prevent calling len()
+    # Get keys/values sizes into variables to prevent calling len()
     # for every iteration during processing.
     # NOTE: Performance-wise, not sure if this is worth it, but makes
     # code cleaner.
     num_keys = len(keys)
     num_values = len(values)
-    num_filters = len(filters)
-    values_stop = num_keys + num_values
+    values_stop = len(keys_values)
+
+    # Get columns used for filtering that are not part of keys/values
+    filters = set()
+    if valids is not None:
+        filters.update(set(valids).difference(set(keys_values)))
+    if invalids is not None:
+        filters.update(set(invalids).difference(set(keys_values)))
 
     # Combine columns to use into a single data structure.
-    usecols = (*keys, *values, *filters)
+    usecols = (*keys_values, *filters)
 
     # Check if row filtering iterables for 'valid/invalid keys/values' are
     # provided. An empty iterable or an iterable of Nones is considered
@@ -242,7 +241,7 @@ def iter_umls(rrf_data,
         post_converters = kwargs.get('converters')
         kwargs['converters'] = None
 
-    # Pre-compute indices and columns for post/multi-converter functions.
+    # Pre-compute indices and columns for post-converter functions.
     # NOTE: This is a performance optimization because allows operating
     # on deterministic items without incurring on hashing operations
     # nor indirect addressing.
@@ -250,10 +249,6 @@ def iter_umls(rrf_data,
         post_converters_idxcols = tuple(filter_indices_and_values(
                                         lambda x: x in post_converters,
                                         usecols))
-    if multi_converters is not None:
-        multi_converters_idxcols = tuple(filter_indices_and_values(
-                                         lambda x: x in multi_converters,
-                                         usecols))
 
     # Extend the column headers with a dummy header (hopefully unique).
     # NOTE: UMLS files end with a bar at each line and Pandas assumes
@@ -263,7 +258,7 @@ def iter_umls(rrf_data,
         headers = list(headers) + [' ']
 
     # Data reader or iterator
-    reader = pandas.read_csv(rrf_data,
+    reader = pandas.read_csv(data,
                              names=headers,
 
                              # Constant-ish settings
@@ -297,15 +292,15 @@ def iter_umls(rrf_data,
 
     # Iterate through dataframes or TextFileReader:
     #   a) Row filtering based on valid/invalid keys/values
-    #   b) Apply post/multi-converter functions
+    #   b) Apply post-converter functions
     #   c) Organize keys/values
     for df in reader:
         # Keys/values generator
-        keys_values = (df[col] for col in usecols)
+        usecols_values = (df[col] for col in usecols)
 
         # NOTE: Uses lists instead of tuples so that individual items
         # can be modified with converter functions.
-        for kv in map(list, zip(*keys_values)):
+        for kv in map(list, zip(*usecols_values)):
 
             # Filter valid/invalild keys/values
             if key_value_check \
@@ -316,18 +311,13 @@ def iter_umls(rrf_data,
                 continue
 
             # Apply post-converter functions
-            # NOTE: Post-converter functions occur before multi-converter
-            # functions to follow same logic as if post-converter functions
-            # had been applied by 'read_csv()' while reading data.
             if post_converters is not None:
                 for idx, key in post_converters_idxcols:
-                    kv[idx] = post_converters[key](kv[idx])
-
-            # Apply multi-converter functions
-            if multi_converters is not None:
-                for idx, key in multi_converters_idxcols:
-                    for f in multi_converters[key]:
-                        kv[idx] = f(kv[idx])
+                    if callable(post_converters[key]):
+                        kv[idx] = post_converters[key](kv[idx])
+                    else:
+                        for f in post_converters[key]:
+                            kv[idx] = f(kv[idx])
 
             # Organize keys
             ks = (kv[0] if num_keys == 1
@@ -335,10 +325,9 @@ def iter_umls(rrf_data,
 
             # Filter unique keys
             if unique_keys:
-                if ks not in keys_processed:
-                    keys_processed.add(ks)
-                else:
+                if ks in keys_processed:
                     continue
+                keys_processed.add(ks)
 
             # Organize values
             vs = (kv[num_keys] if num_values == 1
@@ -347,42 +336,44 @@ def iter_umls(rrf_data,
             yield ks, vs
 
 
-def umls_to_dict(*args, **kwargs):
-    """Load UMLS data into a dictionary.
+def data_to_dict(*args, **kwargs):
+    """Load paired data into a dictionary.
 
-    Args (see 'iter_umls')
+    Args (see 'iter_data')
 
-    Kwargs (see 'iter_umls')
+    Kwargs (see 'iter_data')
 
     Examples:
-        >>> umls = umls_to_dict('MRSTY.RRF', 'cui', 'sty',
+        >>> data = data_to_dict('MRSTY.RRF', ['cui'], ['sty'],
                                 headers=HEADERS_MRSTY)
-        >>> umls = umls_to_dict('MRSTY.RRF', 0, 1)
-        >>> umls = umls_to_dict('MRSTY.RRF', 'cui', 'sty',
+        >>> data = data_to_dict('MRSTY.RRF', [0], [1])
+        >>> data = data_to_dict('MRSTY.RRF', ['cui'], ['sty'],
                                 headers=HEADERS_MRSTY,
-                                valid_values=ACCEPTED_SEMTYPES)
-        >>> umls = umls_to_dict('MRSTY.RRF', 'cui', ['sty', 'hier'],
+                                valids={'sty':ACCEPTED_SEMTYPES})
+        >>> data = data_to_dict('MRSTY.RRF', ['cui'], ['sty', 'hier'],
                                 headers=HEADERS_MRSTY)
-        >>> umls = umls_to_dict('MRSTY.RRF', 0, [1, 2],
-                                nrows=10, valid_values=[None, None])
+        >>> data = data_to_dict('MRSTY.RRF', [0], [1, 2],
+                                nrows=10, valids={1:None, 2:None})
     """
     unique_keys = kwargs.get('unique_keys', False)
     if unique_keys:
-        # Disable 'unique_keys' option for 'iter_umls' so that it does
-        # use internal data structure because the dictionary already
-        # accounts for that. Values of unique keys are not placed in a set.
-        # NOTE: Set value the first time only so that it has same behavior
-        # as 'iter_umls'.
+        # Disable 'unique_keys' option for 'iter_data' because
+        # dictionary already does that.
         kwargs['unique_keys'] = False
-        umls = collections.defaultdict()
-        for k, v in iter_umls(*args, **kwargs):
-            if k not in umls:
-                umls[k] = v
+        data = collections.defaultdict()
+        for k, v in iter_data(*args, **kwargs):
+            # Assume there is a single value per key
+            if k not in data:
+                data[k] = v
     else:
-        umls = collections.defaultdict(set)
-        for k, v in iter_umls(*args, **kwargs):
-            umls[k].add(v)
-    return umls
+        data = collections.defaultdict(list)
+        for k, v in iter_data(*args, **kwargs):
+            # Do not duplicate values for a key
+            if k not in data:
+                data[k].append(v)
+            elif v not in data[k]:
+                data[k].append(v)
+    return data
 
 
 def dump_cuisty(cuisty,
@@ -511,8 +502,8 @@ def driver(opts):
 
     print('Loading/parsing concepts...')
     start = time.time()
-    conso = iter_umls(mrconso_file, ['str', 'cui'], ['ispref'], filters=['lat'], headers=HEADERS_MRCONSO, valids={'lat': opts.language}, multi_converters=converters, unique_keys=True, nrows=nrows)
-    # conso = umls_to_dict(mrconso_file, ['str', 'cui'], ['ispref'], filters=['lat'], headers=HEADERS_MRCONSO, valids={'lat': opts.language}, multi_converters=converters, nrows=nrows)
+    conso = iter_data(mrconso_file, ['str', 'cui'], ['ispref'], headers=HEADERS_MRCONSO, valids={'lat': opts.language}, converters=converters, unique_keys=True, nrows=nrows)
+    # conso = data_to_dict(mrconso_file, ['str', 'cui'], ['ispref'], headers=HEADERS_MRCONSO, valids={'lat': opts.language}, converters=converters, nrows=nrows)
     curr_time = time.time()
     print(f'Loading/parsing concepts: {curr_time - start} s')
 
@@ -538,9 +529,9 @@ def driver(opts):
 
     print('Loading/parsing semantic types...')
     start = time.time()
-    cuisty = iter_umls(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valids={'sty': ACCEPTED_SEMTYPES}, nrows=nrows)
-    # cuisty = iter_umls(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valids={'cui': {k[1] for k in conso.keys()}, 'sty': ACCEPTED_SEMTYPES}, nrows=nrows)
-    # cuisty = umls_to_dict(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valids={'cui': {k[1] for k in conso.keys()}, 'sty': ACCEPTED_SEMTYPES}, nrows=nrows)
+    cuisty = iter_data(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valids={'sty': ACCEPTED_SEMTYPES}, nrows=nrows)
+    # cuisty = iter_data(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valids={'cui': {k[1] for k in conso.keys()}, 'sty': ACCEPTED_SEMTYPES}, nrows=nrows)
+    # cuisty = data_to_dict(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valids={'cui': {k[1] for k in conso.keys()}, 'sty': ACCEPTED_SEMTYPES}, nrows=nrows)
     curr_time = time.time()
     print(f'Loading/parsing semantic types: {curr_time - start} s')
 

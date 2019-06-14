@@ -34,3 +34,6 @@ __copyright__ = """ 2019 Kris Brown and Eduardo Ponce,
 
 
 from .quickumls import QuickUMLS
+from .install import *
+from .toolbox import *
+from .constants import *
