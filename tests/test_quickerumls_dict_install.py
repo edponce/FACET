@@ -51,14 +51,14 @@ def run():
     conso = QuickerUMLS.install.data_to_dict(mrconso_file, ['str'], ['cui'], headers=QuickerUMLS.constants.HEADERS_MRCONSO, valids={'lat': language, 'ispref': 'Y'}, converters=converters, nrows=nrows)  # 320 MB
     t1 = time.time()
     print('Loading UMLS MRCONSO.RRF to dictionary (s): ', t1 - t0)
-    print('Size of UMLS MRCONSO dictionary (B): ', sys.getsizeof(conso))
+    print('Size of UMLS MRCONSO dictionary (MB): ', sys.getsizeof(conso) / (1024 * 1024))
 
     t0 = time.time()
     # sty = QuickerUMLS.install.data_to_dict(mrsty_file, ['cui'], ['sty'], headers=QuickerUMLS.constants.HEADERS_MRSTY, valids={'sty': QuickerUMLS.constants.ACCEPTED_SEMTYPES}, nrows=nrows)
     sty = QuickerUMLS.install.data_to_dict(mrsty_file, ['cui'], ['sty'], headers=QuickerUMLS.constants.HEADERS_MRSTY, valids={'sty': QuickerUMLS.constants.ACCEPTED_SEMTYPES, 'cui': {v[0] for v in conso.values()}}, nrows=nrows)  # 80 MB
     t1 = time.time()
     print('Loading UMLS MRSTY.RRF to dictionary (s): ', t1 - t0)
-    print('Size of UMLS MRSTY dictionary (B): ', sys.getsizeof(conso))
+    print('Size of UMLS MRSTY dictionary (MB): ', sys.getsizeof(sty) / (1024 * 1024))
 
     return conso, sty
 
