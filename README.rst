@@ -32,8 +32,38 @@ Before Starting and System Initialize
    * setup_umls.sh: download UMLS and initialize the system
      (see 'Initialize System')
 3. Install package, pip install -e .
+4. Check installation
+>>> python3 QuickerUMLS/install.py -h
 
 Description of the NLM UMLS files is available at https://www.ncbi.nlm.nih.gov/books/NBK9685.
+
+
+Database Initialization
+-----------------------
+
+1. Create Simstring and LevelDB UMLS database (
+>>> python3 QuickerUMLS/install.py --lowercase --normalize-unicode --umls-dir /path/to/UMLS/RRF/files --install-dir /path/to/install/UMLS/database
+>>> python3 QuickerUMLS/install.py -l -n -u /path/to/UMLS/RRF/files -i /path/to/database/installation
+
+The following are results for UMLS 2018-AA (8,015,988 concepts).
+
+Loading concepts: 2.05e-05 sec
+Writing concepts: 247.99 sec
+Loading semantic types: 6.43e-06 sec
+Writing Simstring database: 468.66 sec
+Writing semantic types: 9.87 sec
+
+
+=====================  ===========  ====================
+Task                   Runtime (s)  Comments
+=====================  ===========  ====================
+Load concepts          0.0000205    File (pandas)
+Write concepts         247.99       Level DB
+Write Simstring DB     444.90       Files (Simstring DB)
+Load semantic types    0.02         File (pandas)
+Write semantic types   10.10        Level DB
+Total install          736.32
+=====================  ===========  ====================
 
 
 API and Usage
@@ -42,7 +72,6 @@ API and Usage
 QuickUMLS(quickumls_fp, overlapping_criteria, threshold, similarity_name, window,
           accepted_semtypes)
 * quickumls_fp is the directory for the UMLS installation
-
 * overlapping_criteria (optional, default="score") is the criteria used to deal
   with overlapping concepts; choose "score" if the matching score of the concepts
   should be consider first, "length" if the longest should be considered first
@@ -58,7 +87,7 @@ QuickUMLS(quickumls_fp, overlapping_criteria, threshold, similarity_name, window
   type of `Hazardous or Poisonous Substance`_).
 
 Instantiate a QuickUMLS object:
-    >>> matcher = QuickUMLS('path/to/UMLS/installation')
+    >>> matcher = QuickUMLS('path/to/database/installation')
 NOTE: this command will invoke NLTK which in turn downloads a package of stopwords
 which are placed in the home directory. For English language there 179 stopwords.
 

@@ -5,6 +5,7 @@ import pandas
 import shutil
 import argparse
 import collections
+# NOTE: Need to fix invocation of package modules
 from .toolbox import CuiSemTypesDB, SimstringDBWriter
 from .constants import (HEADERS_MRCONSO,
                        HEADERS_MRSTY,
@@ -18,6 +19,9 @@ try:
 except ImportError:
     UNIDECODE_AVAIL = False
 
+# NOTE: UMLS headers should be automatically parsed from UMLS MRFILES.RRF.
+
+
 # 0 = No status info
 # 1 = Processing rate
 # 2 = Data structures info
@@ -25,7 +29,13 @@ PROFILE = 1
 nrows = None
 
 
-# NOTE: UMLS headers should be automatically parsed from UMLS MRFILES.RRF.
+########################################################################
+# Internal Configuration
+########################################################################
+CONCEPTS_FILE = 'MRCONSO.RRF'
+SEMANTIC_TYPES_FILE = 'MRSTY.RRF'
+SIMSTRING_DB = 'umls-simstring.db'
+LEVEL_DB = 'cui-semtypes.db'
 
 
 ########################################################################
@@ -479,18 +489,18 @@ def dump_terms(simstring_terms,
 
 def driver(opts):
     # UMLS files
-    mrconso_file = os.path.join(opts.umls_dir, 'MRCONSO.RRF')
-    mrsty_file = os.path.join(opts.umls_dir, 'MRSTY.RRF')
+    mrconso_file = os.path.join(opts.umls_dir, CONCEPTS_FILE)
+    mrsty_file = os.path.join(opts.umls_dir, SEMANTIC_TYPES_FILE)
 
     # Create install directories for the two databases
-    simstring_dir = os.path.join(opts.install_dir, 'umls-simstring.db')
-    cuisty_dir = os.path.join(opts.install_dir, 'cui-semtypes.db')
+    simstring_dir = os.path.join(opts.install_dir, SIMSTRING_DB)
+    cuisty_dir = os.path.join(opts.install_dir, LEVEL_DB)
     os.makedirs(simstring_dir)
     os.makedirs(cuisty_dir)
 
     # Database connections
-    cuisty_db = CuiSemTypesDB(cuisty_dir)
     ss_db = SimstringDBWriter(simstring_dir)
+    cuisty_db = CuiSemTypesDB(cuisty_dir)
 
     # Set converter functions
     converters = collections.defaultdict(list)
@@ -503,17 +513,14 @@ def driver(opts):
     print('Loading/parsing concepts...')
     start = time.time()
     conso = iter_data(mrconso_file, ['str', 'cui'], ['ispref'], headers=HEADERS_MRCONSO, valids={'lat': opts.language}, converters=converters, unique_keys=True, nrows=nrows)
+
+    # NOTE: This version is the same as above with the only difference
+    # that it returns a dictionary data structure which is necessary
+    # if semantic types are going to use it as a filter for CUIs.
+    # See NOTE in loading of semantic types.
     # conso = data_to_dict(mrconso_file, ['str', 'cui'], ['ispref'], headers=HEADERS_MRCONSO, valids={'lat': opts.language}, converters=converters, nrows=nrows)
     curr_time = time.time()
     print(f'Loading/parsing concepts: {curr_time - start} s')
-
-    # Profile
-    if PROFILE > 1:
-        if nrows is not None and nrows < 20:
-            print(conso)
-        print(f'Num unique Terms: {len(conso)}')
-        print(f'Num values in Term-CUI/Lat/IsPref dictionary: {sum(len(v) for v in conso.values())}')
-        print(f'Size of Term-CUI/Lat/IsPref dictionary: {sys.getsizeof(conso)}')
 
     print('Writing concepts...')
     start = time.time()
@@ -530,18 +537,15 @@ def driver(opts):
     print('Loading/parsing semantic types...')
     start = time.time()
     cuisty = iter_data(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valids={'sty': ACCEPTED_SEMTYPES}, nrows=nrows)
+
+    # NOTE: These versions only considers CUIs that are found in the
+    # concepts ('conso') data structure. It requires that the 'conso'
+    # variable is in dictionary form. Although this approach reduces the
+    # installation time, it reduces the database size.
     # cuisty = iter_data(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valids={'cui': {k[1] for k in conso.keys()}, 'sty': ACCEPTED_SEMTYPES}, nrows=nrows)
     # cuisty = data_to_dict(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valids={'cui': {k[1] for k in conso.keys()}, 'sty': ACCEPTED_SEMTYPES}, nrows=nrows)
     curr_time = time.time()
     print(f'Loading/parsing semantic types: {curr_time - start} s')
-
-    # Profile
-    if PROFILE > 1:
-        if nrows is not None and nrows <= 10:
-            print(cuisty)
-        print(f'Num unique CUIs: {len(cuisty)}')
-        print(f'Num values in CUI-STY dictionary: {sum(len(v) for v in cuisty.values())}')
-        print(f'Size of CUI-STY dictionary: {sys.getsizeof(cuisty)}')
 
     print('Writing semantic types...')
     start = time.time()
@@ -549,22 +553,24 @@ def driver(opts):
     curr_time = time.time()
     print(f'Writing semantic types: {curr_time - start} s')
 
+    # Profile
+    if PROFILE > 1:
+        if nrows is not None and nrows <= 10:
+            print(conso)
+            print(cuisty)
+        print(f'Num unique Terms: {len(conso)}')
+        print(f'Num values in Term-CUI/Lat/IsPref dictionary: {sum(len(v) for v in conso.values())}')
+        print(f'Size of Term-CUI/Lat/IsPref dictionary: {sys.getsizeof(conso)}')
+        print(f'Num unique CUIs: {len(cuisty)}')
+        print(f'Num values in CUI-STY dictionary: {sum(len(v) for v in cuisty.values())}')
+        print(f'Size of CUI-STY dictionary: {sys.getsizeof(cuisty)}')
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
         prog=__file__,
         description='QuickerUMLS Installation Tool',
         formatter_class=argparse.RawTextHelpFormatter
-    )
-
-    parser.add_argument(
-        '-u', '--umls_dir', required=True,
-        help='Directory of UMLS RRF files'
-    )
-
-    parser.add_argument(
-        '-i', '--install_dir', required=True,
-        help='Directory for installing QuickerUMLS files'
     )
 
     parser.add_argument(
@@ -581,6 +587,16 @@ def parse_args():
         '-e', '--language', default={'ENG'}, action='append',
         choices={k for k, v in LANGUAGES.items() if v is not None},
         help='Extract concepts of the specified language'
+    )
+
+    parser.add_argument(
+        '-u', '--umls-dir', required=True,
+        help='Directory of UMLS RRF files'
+    )
+
+    parser.add_argument(
+        '-i', '--install-dir', required=True,
+        help='Directory for installing QuickerUMLS files'
     )
 
     args = parser.parse_args()

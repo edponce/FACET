@@ -3,14 +3,13 @@ import time
 from QuickerUMLS import QuickUMLS
 
 
-matcher = QuickUMLS('umls-2018-AA')
+matcher = QuickUMLS('UMLS-2018-AA')
 
 use_list = False
 best_match = True
 ignore_syntax = False
 
 
-# with open('data/VA_My_HealtheVet_Blue_Button_Sample_Version_12_10.txt', 'r') as fd:
 with open('data/test.txt', 'r') as fd:
     if use_list:
         textlines = fd.readlines()
@@ -25,4 +24,5 @@ with open('data/test.txt', 'r') as fd:
         matches = matcher.match_mp(text, best_match=best_match, ignore_syntax=ignore_syntax)
         t1 = time.time()
 print('Number of matches: ', len(matches))
+print(matches)
 print('Time: ', t1 - t0)

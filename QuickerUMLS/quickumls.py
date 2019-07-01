@@ -183,7 +183,10 @@ class QuickUMLS(object):
         if self.accepted_semtypes is None:
             ok = True
         else:
-            ok = any(sem in self.accepted_semtypes for sem in target_semtypes)
+            if isinstance(target_semtypes, str):
+                ok = target_semtypes in self.accepted_semtypes
+            else:
+                ok = any(sem in self.accepted_semtypes for sem in target_semtypes)
         return ok
 
     def _is_longer_than_min(self, span):
@@ -257,18 +260,15 @@ class QuickUMLS(object):
             # make it lowercase
             if self.to_lowercase_flag:
                 ngram_normalized = ngram_normalized.lower()
-
-            # if the term is all uppercase, it might be the case that
-            # no match is found; so we convert to lowercase;
-            # however, this is never needed if the string is lowercased
-            # in the step above
-            if not self.to_lowercase_flag and ngram_normalized.isupper():
+            elif ngram_normalized.isupper():
+                # if the term is all uppercase, it might be the case that
+                # no match is found; so we convert to lowercase;
                 ngram_normalized = ngram_normalized.lower()
 
             # Access/retrieve from Simstring database
             prev_cui = None
             ngram_cands = list(self.ss_db.get(ngram_normalized))
-
+            
             ngram_matches = []
 
             for match in ngram_cands:
@@ -552,7 +552,7 @@ class QuickUMLS(object):
         sent_length = len(sent)
 
         at_least_ngrams = 20
-        sent_ngram = False
+        sent_ngrams = False
         total_ngrams = 0
         total_matches = 0
         ngrams = []
@@ -623,12 +623,9 @@ class QuickUMLS(object):
                 # make it lowercase
                 if self.to_lowercase_flag:
                     ngram_normalized = ngram_normalized.lower()
-
-                # if the term is all uppercase, it might be the case that
-                # no match is found; so we convert to lowercase;
-                # however, this is never needed if the string is lowercased
-                # in the step above
-                if not self.to_lowercase_flag and ngram_normalized.isupper():
+                elif gram_normalized.isupper():
+                    # if the term is all uppercase, it might be the case that
+                    # no match is found; so we convert to lowercase;
                     ngram_normalized = ngram_normalized.lower()
 
                 ngrams.append((span.start_char, span.end_char, ngram, ngram_normalized))

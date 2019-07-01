@@ -296,21 +296,24 @@ class CuiSemTypesDB(object):
 
     def get(self, term):
         term = prepare_string_for_db_input(safe_unicode(term))
-
         cuis = pickle.loads(self.cui_db.get(db_key_encode(term)))
 
         # NOTE: To make it work with QuickerUMLS DB format.
-        # for cui, is_preferred in {cuis}:
-           # print(cui, is_preferred)
-        # return []
-
-        cuis = pickle.loads(self.cui_db.get(db_key_encode(term)))
-        matches = (
-            (
-                cui,
-                pickle.loads(self.semtypes_db.get(db_key_encode(cui))),
-                is_preferred
-            )
-            for cui, is_preferred in cuis
-        )
+        matches = set()
+        for cui, is_preferred in {cuis}:
+            sty = self.semtypes_db.get(db_key_encode(cui))
+            if sty is not None:
+                matches.add ((cui,
+                             pickle.loads(sty),
+                             is_preferred))
         return matches
+
+        # matches = (
+        #     (
+        #         cui,
+        #         pickle.loads(self.semtypes_db.get(db_key_encode(cui))),
+        #         is_preferred
+        #     )
+        #     for cui, is_preferred in cuis
+        # )
+        # return matches
