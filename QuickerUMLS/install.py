@@ -5,27 +5,18 @@ import pandas
 import shutil
 import argparse
 import collections
-# NOTE: Need to fix invocation of package modules
-from .toolbox import CuiSemTypesDB, SimstringDBWriter
+from unidecode import unidecode
+from .toolbox import (CuiSemTypesDB,
+                      SimstringDBWriter)
 from .constants import (HEADERS_MRCONSO,
-                       HEADERS_MRSTY,
-                       LANGUAGES,
-                       ACCEPTED_SEMTYPES)
-
-
-try:
-    from unidecode import unidecode
-    UNIDECODE_AVAIL = True
-except ImportError:
-    UNIDECODE_AVAIL = False
-
-# NOTE: UMLS headers should be automatically parsed from UMLS MRFILES.RRF.
-
+                        HEADERS_MRSTY,
+                        LANGUAGES,
+                        ACCEPTED_SEMTYPES)
 
 # 0 = No status info
 # 1 = Processing rate
 # 2 = Data structures info
-PROFILE = 1
+VERBOSE = 1
 nrows = None
 
 
@@ -405,8 +396,7 @@ def dump_cuisty(cuisty,
         else:
             sty_bulk.append(cui_sty)
 
-        # Profile
-        if PROFILE > 0 and i % status_step == 0:
+        if VERBOSE > 0 and i % status_step == 0:
             curr_time = time.time()
             print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / (bulk_size * (status_step / bulk_size))} s/batch')
             prev_time = curr_time
@@ -415,8 +405,7 @@ def dump_cuisty(cuisty,
     if len(sty_bulk) > 0:
         cuisty_db.bulk_insert_sty(sty_bulk)
 
-        # Profile
-        if PROFILE > 0:
+        if VERBOSE > 0:
             curr_time = time.time()
             print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / len(sty_bulk)} s/batch')
 
@@ -446,8 +435,7 @@ def dump_conso(conso,
         else:
             cui_bulk.append((term, cui, preferred))
 
-        # Profile
-        if PROFILE > 0 and i % status_step == 0:
+        if VERBOSE > 0 and i % status_step == 0:
             curr_time = time.time()
             print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / (bulk_size * (status_step / bulk_size))} s/batch')
             prev_time = curr_time
@@ -456,13 +444,11 @@ def dump_conso(conso,
     if len(cui_bulk) > 0:
         cuisty_db.safe_bulk_insert_cui(cui_bulk)
 
-        # Profile
-        if PROFILE > 0:
+        if VERBOSE > 0:
             curr_time = time.time()
             print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / len(cui_bulk)} s/batch')
 
-    # Profile
-    if PROFILE > 1:
+    if VERBOSE > 1:
         print(f'Num terms: {num_terms}')
         print(f'Num unique terms: {len(terms)}')
         print(f'Size of Simstring terms: {sys.getsizeof(terms)}')
@@ -480,8 +466,7 @@ def dump_terms(simstring_terms,
     for i, term in enumerate(simstring_terms, start=1):
         ss_db.insert(term)
 
-        # Profile
-        if PROFILE > 0 and i % status_step == 0:
+        if VERBOSE > 0 and i % status_step == 0:
             curr_time = time.time()
             print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / (bulk_size * (status_step / bulk_size))} s/batch')
             prev_time = curr_time
@@ -499,6 +484,7 @@ def driver(opts):
     os.makedirs(cuisty_dir)
 
     # Database connections
+    # NOTE: Move these to inside of 'dump_xxx' functions
     ss_db = SimstringDBWriter(simstring_dir)
     cuisty_db = CuiSemTypesDB(cuisty_dir)
 
@@ -553,8 +539,7 @@ def driver(opts):
     curr_time = time.time()
     print(f'Writing semantic types: {curr_time - start} s')
 
-    # Profile
-    if PROFILE > 1:
+    if VERBOSE > 1:
         if nrows is not None and nrows <= 10:
             print(conso)
             print(cuisty)
@@ -605,19 +590,13 @@ def parse_args():
         print(f'Creating install directory: {args.install_dir}')
         os.makedirs(args.install_dir)
     elif len(os.listdir(args.install_dir)) > 0:
-        print(f'Install directory ({args.install_dir}) is not empty,'
-              'removing files...')
-        shutil.rmtree(args.install_dir)
-        os.mkdir(args.install_dir)
-        # exit(1)
+        err = f"Install directory '{args.install_dir}' is not empty."
+        raise FileExistsError(err)
+        # NOTE: Only remove files that are required for installation.
+        # shutil.rmtree(args.install_dir)
+        # os.mkdir(args.install_dir)
 
     if args.normalize_unicode:
-        if not UNIDECODE_AVAIL:
-            err = ("""'unidecode' is needed for unicode normalization
-                   please install it via the 'pip install unidecode'
-                   command.""")
-            print(err, file=sys.stderr)
-            exit(1)
         flag_fp = os.path.join(args.install_dir, 'normalize-unicode.flag')
         open(flag_fp, 'w').close()
 
