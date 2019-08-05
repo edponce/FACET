@@ -2,6 +2,6 @@ leveldb>=0.193
 numpy>=1.8.2
 spacy>=1.6.0
 unidecode>=0.4.19
-nltk>=3.3
 plyvel>=1.0.5
 pandas>=0.24.2
+redis>=3.2.1
