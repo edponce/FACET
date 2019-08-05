@@ -1,20 +1,18 @@
 import os
 import sys
-import datetime
-import spacy
 import math
 import time
+import spacy
+import datetime
 import itertools
 import threading
+import queue as Queue
+import multiprocessing
 import concurrent.futures
 import multiprocessing.pool
-import multiprocessing
-import queue as Queue
 from unidecode import unidecode
 from .toolbox import (CuiSemTypesDB,
                       SimstringDBReader,
-                      Intervals,
-                      get_similarity,
                       safe_unicode)
 from .constants import (LANGUAGES,
                         ACCEPTED_SEMTYPES)
@@ -34,6 +32,28 @@ VERBOSE = 1
 
 # Number of threads/processes
 NUM_THREADS = None
+
+
+class Intervals:
+    def __init__(self):
+        self.intervals = []
+
+    def _is_overlapping_intervals(self, a, b):
+        if b[0] < a[1] and b[1] > a[0]:
+            return True
+        elif a[0] < b[1] and a[1] > b[0]:
+            return True
+        else:
+            return False
+
+    def __contains__(self, interval):
+        return any(
+            self._is_overlapping_intervals(interval, other)
+            for other in self.intervals
+        )
+
+    def append(self, interval):
+        self.intervals.append(interval)
 
 
 class QuickUMLS:
@@ -124,6 +144,28 @@ class QuickUMLS:
             'ngram_length': self.ngram_length,
             'language': self.language
         }
+
+    def get_similarity(self, x, y, n):
+        def make_ngrams(s, n):
+            n = len(s) if len(s) < n else n
+            return (s[i:i + n] for i in range(len(s) - n + 1))
+
+        if len(x) == 0 or len(y) == 0:
+            # we define similarity between two strings
+            # to be 0 if any of the two is empty.
+            return 0.
+
+        X, Y = set(make_ngrams(x, n)), set(make_ngrams(y, n))
+        intersec = len(X.intersection(Y))
+
+        if self.similarity_name == 'dice':
+            return 2 * intersec / (len(X) + len(Y))
+        elif self.similarity_name == 'jaccard':
+            return intersec / (len(X) + len(Y) - intersec)
+        elif self.similarity_name == 'cosine':
+            return intersec / numpy.sqrt(len(X) * len(Y))
+        elif self.similarity_name == 'overlap':
+            return intersec
 
     def _is_valid_token(self, tok):
         return not(
@@ -249,11 +291,10 @@ class QuickUMLS:
                 cuisem_match = sorted(self.cuisem_db.get(match))
 
                 for cui, semtypes, preferred in cuisem_match:
-                    match_similarity = get_similarity(
+                    match_similarity = self.get_similarity(
                         x=ngram_normalized,
                         y=match,
                         n=self.ngram_length,
-                        similarity_name=self.similarity_name
                     )
                     if match_similarity == 0:
                         continue
@@ -674,11 +715,10 @@ class QuickUMLS:
         for match, cuisem_match in dct:
             cuisem_match = sorted(cuisem_match)
             for cui, semtypes, preferred in cuisem_match:
-                match_similarity = get_similarity(
+                match_similarity = self.get_similarity(
                     x=ngram_normalized,
                     y=match,
                     n=self.ngram_length,
-                    similarity_name=self.similarity_name
                 )
                 if match_similarity == 0:
                     continue
