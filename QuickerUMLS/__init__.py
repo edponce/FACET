@@ -23,10 +23,10 @@ __keywords__ = (
     "natural language processing",
 )
 __url__ = "code.ornl.gov:reachvet-nlp/quicker-umls.git"
-__author__ = "Kris Brown, Oak Ridge National Laboratory, Oak Ridge, TN"
-__author_email__ = "brownka@ornl.gov"
+__author__ = "Eduardo Ponce, Oak Ridge National Laboratory, Oak Ridge, TN"
+__author_email__ = "poncemojicae@ornl.gov"
 __license__ = "MIT"
-__copyright__ = """ 2019 Kris Brown and Eduardo Ponce,
+__copyright__ = """ 2019 Eduardo Ponce and Kris Brown
                     Oak Ridge National Laboratory """
 
 

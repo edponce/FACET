@@ -7,7 +7,7 @@ import argparse
 import collections
 from unidecode import unidecode
 from .toolbox import (CuiSemTypesDB,
-                      SimstringDBWriter)
+                      SimstringDB)
 from .constants import (HEADERS_MRCONSO,
                         HEADERS_MRSTY,
                         LANGUAGES,
@@ -25,7 +25,7 @@ nrows = None
 ########################################################################
 CONCEPTS_FILE = 'MRCONSO.RRF'
 SEMANTIC_TYPES_FILE = 'MRSTY.RRF'
-SIMSTRING_DB = 'umls-simstring.db'
+SIMSTRING_DB = 'umls-simstring.db/umls-terms.simstring'
 LEVEL_DB = 'cui-semtypes.db'
 
 
@@ -118,13 +118,17 @@ def valid_items_from_dict(keys,
     return is_valid
 
 
-def iterable_true(iterable):
+def is_iterable(obj):
+    return hasattr(obj, '__iter__') and not isinstance(obj, str)
+
+
+def iterable_true(obj):
     """Tests truth value for an iterable.
 
     An empty iterable or an iterable of Nones is considered false,
     otherwise, it is true.
     """
-    return isinstance(iterable, (list, set, tuple, dict)) and any(iterable)
+    return is_iterable(obj) and any(obj)
 
 
 def filter_indices_and_values(predicate, iterable):
@@ -331,8 +335,10 @@ def iter_data(data,
                 keys_processed.add(ks)
 
             # Organize values
+            # NOTE: Can't we simply use kv[num_keys:]?
             vs = (kv[num_keys] if num_values == 1
                   else tuple(kv[num_keys:values_stop]))
+                  # else tuple(kv[num_keys:]))
 
             yield ks, vs
 
@@ -370,6 +376,7 @@ def data_to_dict(*args, **kwargs):
         data = collections.defaultdict(list)
         for k, v in iter_data(*args, **kwargs):
             # Do not duplicate values for a key
+            # NOTE: Can collapse into a single if-statement
             if k not in data:
                 data[k].append(v)
             elif v not in data[k]:
@@ -377,13 +384,17 @@ def data_to_dict(*args, **kwargs):
     return data
 
 
+# NOTE: Stores CUI-Semantic Type mapping
+# cui: [sty, ...]
 def dump_cuisty(cuisty,
-                cuisty_db,
+                cuisty_dir,
                 bulk_size=1000,
                 status_step=100000):
     # Profile
     prev_time = time.time()
-    num_terms = 0
+
+    # Database connection
+    cuisty_db = CuiSemTypesDB(cuisty_dir)
 
     if isinstance(cuisty, dict):
         cuisty = cuisty.items()
@@ -410,13 +421,17 @@ def dump_cuisty(cuisty,
             print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / len(sty_bulk)} s/batch')
 
 
+# NOTE: Stores Term-CUI,Preferred mapping
+# term: [(CUI,pref), ...]
 def dump_conso(conso,
-               cuisty_db,
+               cuisty_dir,
                bulk_size=1000,
                status_step=100000):
     # Profile
     prev_time = time.time()
-    num_terms = 0
+
+    # Database connection
+    cuisty_db = CuiSemTypesDB(cuisty_dir)
 
     if isinstance(conso, dict):
         conso = conso.items()
@@ -424,9 +439,6 @@ def dump_conso(conso,
     terms = set()
     cui_bulk = []
     for i, ((term, cui), preferred) in enumerate(conso, start=1):
-        # Profile
-        num_terms += 1
-
         terms.add(term)
 
         if len(cui_bulk) == bulk_size:
@@ -449,7 +461,7 @@ def dump_conso(conso,
             print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / len(cui_bulk)} s/batch')
 
     if VERBOSE > 1:
-        print(f'Num terms: {num_terms}')
+        print(f'Num terms: {i}')
         print(f'Num unique terms: {len(terms)}')
         print(f'Size of Simstring terms: {sys.getsizeof(terms)}')
 
@@ -457,19 +469,17 @@ def dump_conso(conso,
 
 
 def dump_terms(simstring_terms,
-               ss_db,
+               simstring_file,
                bulk_size=1,
                status_step=100000):
-    # Profile
     prev_time = time.time()
-
-    for i, term in enumerate(simstring_terms, start=1):
-        ss_db.insert(term)
-
-        if VERBOSE > 0 and i % status_step == 0:
-            curr_time = time.time()
-            print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / (bulk_size * (status_step / bulk_size))} s/batch')
-            prev_time = curr_time
+    with SimstringDB(simstring_file, 'w') as db:
+        for i, term in enumerate(simstring_terms, start=1):
+            db.write(term)
+            if VERBOSE > 0 and i % status_step == 0:
+                curr_time = time.time()
+                print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / (bulk_size * (status_step / bulk_size))} s/batch')
+                prev_time = curr_time
 
 
 def driver(opts):
@@ -478,15 +488,9 @@ def driver(opts):
     mrsty_file = os.path.join(opts.umls_dir, SEMANTIC_TYPES_FILE)
 
     # Create install directories for the two databases
-    simstring_dir = os.path.join(opts.install_dir, SIMSTRING_DB)
+    simstring_file = os.path.join(opts.install_dir, SIMSTRING_DB)
     cuisty_dir = os.path.join(opts.install_dir, LEVEL_DB)
-    os.makedirs(simstring_dir)
     os.makedirs(cuisty_dir)
-
-    # Database connections
-    # NOTE: Move these to inside of 'dump_xxx' functions
-    ss_db = SimstringDBWriter(simstring_dir)
-    cuisty_db = CuiSemTypesDB(cuisty_dir)
 
     # Set converter functions
     converters = collections.defaultdict(list)
@@ -510,13 +514,13 @@ def driver(opts):
 
     print('Writing concepts...')
     start = time.time()
-    terms = dump_conso(conso, cuisty_db)
+    terms = dump_conso(conso, cuisty_dir)
     curr_time = time.time()
     print(f'Writing concepts: {curr_time - start} s')
 
     print('Writing Simstring database...')
     start = time.time()
-    dump_terms(terms, ss_db)
+    dump_terms(terms, simstring_file)
     curr_time = time.time()
     print(f'Writing Simstring database: {curr_time - start} s')
 
@@ -535,7 +539,7 @@ def driver(opts):
 
     print('Writing semantic types...')
     start = time.time()
-    dump_cuisty(cuisty, cuisty_db)
+    dump_cuisty(cuisty, cuisty_dir)
     curr_time = time.time()
     print(f'Writing semantic types: {curr_time - start} s')
 

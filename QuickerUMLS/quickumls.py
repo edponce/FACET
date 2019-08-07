@@ -3,6 +3,7 @@ import sys
 import math
 import time
 import spacy
+import numpy
 import datetime
 import itertools
 import threading
@@ -11,12 +12,11 @@ import multiprocessing
 import concurrent.futures
 import multiprocessing.pool
 from unidecode import unidecode
-from .toolbox import (CuiSemTypesDB,
-                      SimstringDBReader,
-                      safe_unicode)
 from .constants import (LANGUAGES,
                         ACCEPTED_SEMTYPES)
-
+from .toolbox import (CuiSemTypesDB,
+                      SimstringDB,
+                      safe_unicode)
 
 # Enable/disable profiling
 PROFILE = False
@@ -29,9 +29,11 @@ if PROFILE:
 # 2 = Data structures info
 VERBOSE = 1
 
-
 # Number of threads/processes
 NUM_THREADS = None
+
+SIMSTRING_DB = 'umls-simstring.db/umls-terms.simstring'
+LEVEL_DB = 'cui-semtypes.db'
 
 
 class Intervals:
@@ -74,20 +76,28 @@ class QuickUMLS:
         """
         Args:
             db_dir (str): Directory of installed database.
+
             overlap_criteria (str): Criteria for measuring string
-                overlaps. Valid values are: 'length' or 'score'.
+                overlaps. Valid values are: 'length' and 'score'.
                 Default is 'score'.
-            similarity_name (str): Name of similarity measure.
-                Valid values are: 'dice', 'jaccard', 'cosine', or 'overlap'.
-                Default is 'jaccard'.
+
+            query_type (str): Name of similarity measure.
+                Valid values are: 'exact', 'dice', 'jaccard', 'cosine', and 'overlap'.
+                Default is 'cosine'.
+
             threshold (float): Threshold value for similarity measure.
                 Valid values are: (0., 1.]. Default value is 0.7.
+
             window (int): Window size for processing words.
                 Default value is 5.
+
             min_match_length (int): Minimum number of characters for matching
                 criterion. Default value is 3.
+
             ngram_length (int): Length of N-grams. Default value is 3.
+
             language (str): Language. Default is 'ENG'.
+
             stopwords (Iterable[str]): Domain specific stopwords. These are
                 added to spaCy's language-specific stopwords.
         """
@@ -95,7 +105,7 @@ class QuickUMLS:
         # but are used for printing configuration.
         self.db_dir = db_dir
         self.overlap_criteria = kwargs.get('overlap_criteria', 'score')
-        self.similarity_name = kwargs.get('similarity_name', 'jaccard')
+        self.query_type = kwargs.get('query_type', 'jaccard')
         self.threshold = kwargs.get('threshold', 0.7)
         self.window = kwargs.get('window', 5)
         self.min_match_length = kwargs.get('min_match_length', 3)
@@ -104,11 +114,7 @@ class QuickUMLS:
 
         # TODO: Parameterize and generalize these files.
         # Also, check that files exist and have valid access.
-        self.ss_db = SimstringDBReader(
-            os.path.join(db_dir, 'umls-simstring.db'),
-            self.similarity_name, self.threshold
-        )
-        self.cuisem_db = CuiSemTypesDB(os.path.join(db_dir, 'cui-semtypes.db'))
+        self.cuisem_db = CuiSemTypesDB(os.path.join(db_dir, LEVEL_DB))
 
         try:
             self.nlp = spacy.load(LANGUAGES[self.language])
@@ -137,7 +143,7 @@ class QuickUMLS:
         return {
             'database': self.db_dir,
             'overlap_criteria': self.overlap_criteria,
-            'similarity_name': self.similarity_name,
+            'query_type': self.query_type,
             'threshold': self.threshold,
             'window': self.window,
             'min_match_length': self.min_match_length,
@@ -147,25 +153,29 @@ class QuickUMLS:
 
     def get_similarity(self, x, y, n):
         def make_ngrams(s, n):
-            n = len(s) if len(s) < n else n
-            return (s[i:i + n] for i in range(len(s) - n + 1))
+            n = min(len(s), n)
+            return set(s[i:i + n] for i in range(len(s) - n + 1))
 
+        # Similarity between one or more empty strings is 0.
         if len(x) == 0 or len(y) == 0:
-            # we define similarity between two strings
-            # to be 0 if any of the two is empty.
             return 0.
 
-        X, Y = set(make_ngrams(x, n)), set(make_ngrams(y, n))
+        X = make_ngrams(x, n)
+        Y = make_ngrams(y, n)
         intersec = len(X.intersection(Y))
 
-        if self.similarity_name == 'dice':
+        if self.query_type == 'dice':
             return 2 * intersec / (len(X) + len(Y))
-        elif self.similarity_name == 'jaccard':
+        elif self.query_type == 'jaccard':
             return intersec / (len(X) + len(Y) - intersec)
-        elif self.similarity_name == 'cosine':
+        elif self.query_type == 'cosine':
             return intersec / numpy.sqrt(len(X) * len(Y))
-        elif self.similarity_name == 'overlap':
-            return intersec
+        elif self.query_type == 'overlap':
+            return float(intersec)
+        elif self.query_type == 'exact':
+            return float(X == Y)
+        else:
+            return 0.
 
     def _is_valid_token(self, tok):
         return not(
@@ -173,7 +183,7 @@ class QuickUMLS:
             tok.pos_ == 'ADP' or tok.pos_ == 'DET' or tok.pos_ == 'CONJ'
         )
 
-    def _is_valid_start_token(self, tok):
+    def _is_valid_begin_token(self, tok):
         return not(
             tok.like_num or
             (self._is_stop_term(tok) and tok.lemma_ not in type(self).NEGATIONS) or
@@ -211,10 +221,10 @@ class QuickUMLS:
     def _make_ngrams(self, sent):
         sent_length = len(sent)
 
-        # do not include teterminers inside a span
+        # do not include determiners inside a span
         skip_in_span = {token.i for token in sent if token.pos_ == 'DET'}
 
-        # invalidate a span if it includes any on these  symbols
+        # invalidate a span if it includes any on these symbols
         invalid_mid_tokens = {
             token.i for token in sent if not self._is_valid_middle_token(token)
         }
@@ -227,7 +237,7 @@ class QuickUMLS:
 
             # do not consider this token by itself if it is
             # a number or a stopword.
-            if self._is_valid_start_token(tok):
+            if self._is_valid_begin_token(tok):
                 compensate = False
             else:
                 compensate = True
@@ -266,94 +276,93 @@ class QuickUMLS:
                 )
 
     def _get_all_matches(self, ngrams):
-        matches = []
-        for start, end, ngram in ngrams:
-            ngram_normalized = ngram
+        with SimstringDB(
+            os.path.join(self.db_dir, SIMSTRING_DB),
+            query_type=self.query_type,
+            threshold=self.threshold
+        ) as ss_db:
+            matches = []
+            for begin, end, ngram in ngrams:
+                ngram_normalized = ngram
 
-            if self.normalize_unicode:
-                ngram_normalized = unidecode(ngram_normalized)
+                if self.normalize_unicode:
+                    ngram_normalized = unidecode(ngram_normalized)
 
-            if self.lowercase:
-                ngram_normalized = ngram_normalized.lower()
-            elif ngram_normalized.isupper():
-                # if the term is all uppercase, it might be the case that
-                # no match is found; so we convert to lowercase;
-                ngram_normalized = ngram_normalized.lower()
+                if self.lowercase:
+                    ngram_normalized = ngram_normalized.lower()
+                elif ngram_normalized.isupper():
+                    # if the term is all uppercase, it might be the case that
+                    # no match is found; so we convert to lowercase;
+                    ngram_normalized = ngram_normalized.lower()
 
-            # Access/retrieve from Simstring database
-            prev_cui = None
-            ngram_cands = list(self.ss_db.get(ngram_normalized))
+                # Access/retrieve from Simstring database
+                ngram_candidates = list(ss_db.read(ngram_normalized))
+                ngram_matches = []
+                prev_cui = None
+                for candidate in ngram_candidates:
+                    # Access/retrieve from CuiSem database
+                    cuisem_match = sorted(self.cuisem_db.get(candidate))
 
-            ngram_matches = []
+                    for cui, semtypes, preferred in cuisem_match:
+                        match_similarity = self.get_similarity(
+                            x=ngram_normalized,
+                            y=candidate,
+                            n=self.ngram_length,
+                        )
 
-            for match in ngram_cands:
-                # Access/retrieve from CuiSem database
-                cuisem_match = sorted(self.cuisem_db.get(match))
+                        # If there is some similarity and it is a valid semantic type
+                        if match_similarity > 0. \
+                           and self._is_ok_semtype(semtypes):
 
-                for cui, semtypes, preferred in cuisem_match:
-                    match_similarity = self.get_similarity(
-                        x=ngram_normalized,
-                        y=match,
-                        n=self.ngram_length,
+                            # Remove previously matched CUI if current match is more similar.
+                            # Requires matches to be ordered by CUIs.
+                            if prev_cui is not None and prev_cui == cui:
+                                if match_similarity > ngram_matches[-1]['similarity']:
+                                    ngram_matches.pop(-1)
+                                else:
+                                    continue
+
+                            prev_cui = cui
+                            ngram_matches.append(
+                                {
+                                    'begin': begin,
+                                    'end': end,
+                                    'ngram': ngram,
+                                    'term': safe_unicode(candidate),
+                                    'cui': cui,
+                                    'similarity': match_similarity,
+                                    'semantic_types': semtypes,
+                                    'preferred': preferred
+                                }
+                            )
+
+                # Sort matches by similarity and preference
+                if len(ngram_matches) > 0:
+                    matches.append(
+                        sorted(
+                            ngram_matches,
+                            key=lambda m: m['similarity'] + m['preferred'],
+                            reverse=True
+                        )
                     )
-                    if match_similarity == 0:
-                        continue
-
-                    if not self._is_ok_semtype(semtypes):
-                        continue
-
-                    if prev_cui is not None and prev_cui == cui:
-                        if match_similarity > ngram_matches[-1]['similarity']:
-                            ngram_matches.pop(-1)
-                        else:
-                            continue
-
-                    prev_cui = cui
-
-                    ngram_matches.append(
-                        {
-                            'start': start,
-                            'end': end,
-                            'ngram': ngram,
-                            'term': safe_unicode(match),
-                            'cui': cui,
-                            'similarity': match_similarity,
-                            'semtypes': semtypes,
-                            'preferred': preferred
-                        }
-                    )
-
-            if len(ngram_matches) > 0:
-                matches.append(
-                    sorted(
-                        ngram_matches,
-                        key=lambda m: m['similarity'] + m['preferred'],
-                        reverse=True
-                    )
-                )
         return matches
 
     @staticmethod
     def _select_score(match):
-        return (match[0]['similarity'], (match[0]['end'] - match[0]['start']))
+        return (match[0]['similarity'], (match[0]['end'] - match[0]['begin']))
 
     @staticmethod
     def _select_longest(match):
-        return ((match[0]['end'] - match[0]['start']), match[0]['similarity'])
+        return ((match[0]['end'] - match[0]['begin']), match[0]['similarity'])
 
     def _select_terms(self, matches):
-        sort_func = (
-            self._select_longest if self.overlap_criteria == 'length'
-            else self._select_score
-        )
-
+        sort_func = self._select_longest if self.overlap_criteria == 'length' else self._select_score
         matches = sorted(matches, key=sort_func, reverse=True)
 
         intervals = Intervals()
         final_matches_subset = []
-
         for match in matches:
-            match_interval = (match[0]['start'], match[0]['end'])
+            match_interval = (match[0]['begin'], match[0]['end'])
             if match_interval not in intervals:
                 final_matches_subset.append(match)
                 intervals.append(match_interval)
@@ -491,8 +500,8 @@ class QuickUMLS:
                 invalid_mid_tokens.add(token.i)
 
         # Worker processes
-        for pid, start in enumerate(range(0, len(sent), batch_size)):
-            worker = multiprocessing.Process(target=self._make_batch_ngram_mp, args=((sent, start, batch_size, pid, iqueue, oqueue, matches_queue, invalid_mid_tokens)))
+        for pid, begin in enumerate(range(0, len(sent), batch_size)):
+            worker = multiprocessing.Process(target=self._make_batch_ngram_mp, args=((sent, begin, batch_size, pid, iqueue, oqueue, matches_queue, invalid_mid_tokens)))
             worker.daemon = True
             worker.start()
 
@@ -521,34 +530,39 @@ class QuickUMLS:
             prof = cProfile.Profile(subcalls=True, builtins=True)
             prof.enable()
 
-        tasks_completed = 0
-        done_procs = 0
-        while True:
-            data = iqueue.get()
+        with SimstringDB(
+            os.path.join(self.db_dir, SIMSTRING_DB),
+            query_type=self.query_type,
+            threshold=self.threshold
+        ) as ss_db:
+            tasks_completed = 0
+            done_procs = 0
+            while True:
+                data = iqueue.get()
 
-            # Check if we are done
-            if data is None:
-                print(f'(DB) Worker {done_procs} finished sending ngrams')
-                done_procs += 1
-                if done_procs == num_procs:
-                    for _ in range(num_procs):
-                        oqueue.put_nowait(None)
-                    break
-                continue
+                # Check if we are done
+                if data is None:
+                    print(f'(DB) Worker {done_procs} finished sending ngrams')
+                    done_procs += 1
+                    if done_procs == num_procs:
+                        for _ in range(num_procs):
+                            oqueue.put_nowait(None)
+                        break
+                    continue
 
-            # Receive a tuple of data to be processed along with metadata
-            odata = []
-            for start, end, ngram, ngram_normalized in data:
-                # Access databases
-                # (ngram_cand, (cuisem_matches))
-                dct = [(ngram_cand, tuple(self.cuisem_db.get(ngram_cand)))
-                       for ngram_cand in self.ss_db.get(ngram_normalized)]
+                # Receive a tuple of data to be processed along with metadata
+                odata = []
+                for begin, end, ngram, ngram_normalized in data:
+                    # Access databases
+                    # (ngram_cand, (cuisem_matches))
+                    dct = [(ngram_cand, tuple(self.cuisem_db.get(ngram_cand)))
+                           for ngram_cand in ss_db.read(ngram_normalized)]
 
-                # Send tuple of metadata and dictionary
-                # oqueue.put_nowait((start, end, ngram, ngram_normalized, dct))
-                odata.append((start, end, ngram, ngram_normalized, dct))
-                tasks_completed += 1
-            oqueue.put_nowait(odata)
+                    # Send tuple of metadata and dictionary
+                    # oqueue.put_nowait((begin, end, ngram, ngram_normalized, dct))
+                    odata.append((begin, end, ngram, ngram_normalized, dct))
+                    tasks_completed += 1
+                oqueue.put_nowait(odata)
         print('(DB) Completed tasks: ', tasks_completed)
 
         if PROFILE:
@@ -562,7 +576,7 @@ class QuickUMLS:
             prof = cProfile.Profile(subcalls=True, builtins=True)
             prof.enable()
 
-        sent, start, chunk, pid, iqueue, oqueue, matches_queue, invalid_mid_tokens = args
+        sent, begin, chunk, pid, iqueue, oqueue, matches_queue, invalid_mid_tokens = args
         sent_length = len(sent)
 
         at_least_ngrams = 20
@@ -570,7 +584,7 @@ class QuickUMLS:
         total_ngrams = 0
         total_matches = 0
         ngrams = []
-        for i in range(start, min(sent_length, start + chunk)):
+        for i in range(begin, min(sent_length, begin + chunk)):
             tok = sent[i]
 
             if not self._is_valid_token(tok):
@@ -578,7 +592,7 @@ class QuickUMLS:
 
             # do not consider this token by itself if it is
             # a number or a stopword.
-            if self._is_valid_start_token(tok):
+            if self._is_valid_begin_token(tok):
                 compensate = False
             else:
                 compensate = True
@@ -708,7 +722,7 @@ class QuickUMLS:
             prof.clear()
 
     def _get_all_matches_mp(self, matches_queue, *args):
-        start, end, ngram, ngram_normalized, dct = args
+        begin, end, ngram, ngram_normalized, dct = args
         matches = []
         ngram_matches = []
         prev_cui = None
@@ -736,13 +750,13 @@ class QuickUMLS:
 
                 ngram_matches.append(
                     {
-                        'start': start,
+                        'begin': begin,
                         'end': end,
                         'ngram': ngram,
                         'term': safe_unicode(match),
                         'cui': cui,
                         'similarity': match_similarity,
-                        'semtypes': semtypes,
+                        'semantic_types': semtypes,
                         'preferred': preferred
                     }
                 )
