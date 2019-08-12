@@ -5,3 +5,5 @@ unidecode>=0.4.19
 plyvel>=1.0.5
 pandas>=0.24.2
 redis>=3.2.1
+ruamel.yaml>=0.15
+ray>=0.7.1

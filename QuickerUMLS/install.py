@@ -7,7 +7,7 @@ import argparse
 import collections
 from unidecode import unidecode
 from .toolbox import (CuiSemTypesDB,
-                      SimstringDB)
+                      SimstringDBWriter)
 from .constants import (HEADERS_MRCONSO,
                         HEADERS_MRSTY,
                         LANGUAGES,
@@ -25,7 +25,7 @@ nrows = None
 ########################################################################
 CONCEPTS_FILE = 'MRCONSO.RRF'
 SEMANTIC_TYPES_FILE = 'MRSTY.RRF'
-SIMSTRING_DB = 'umls-simstring.db/umls-terms.simstring'
+SIMSTRING_DB = 'umls-simstring.db'
 LEVEL_DB = 'cui-semtypes.db'
 
 
@@ -387,15 +387,16 @@ def data_to_dict(*args, **kwargs):
 # NOTE: Stores CUI-Semantic Type mapping
 # cui: [sty, ...]
 def dump_cuisty(cuisty,
-                cuisty_dir,
+                db_dir,
                 bulk_size=1000,
                 status_step=100000):
     # Profile
     prev_time = time.time()
 
     # Database connection
-    cuisty_db = CuiSemTypesDB(cuisty_dir)
+    cuisty_db = CuiSemTypesDB(db_dir)
 
+    # NOTE: Do we need really to extract items?
     if isinstance(cuisty, dict):
         cuisty = cuisty.items()
 
@@ -424,15 +425,16 @@ def dump_cuisty(cuisty,
 # NOTE: Stores Term-CUI,Preferred mapping
 # term: [(CUI,pref), ...]
 def dump_conso(conso,
-               cuisty_dir,
+               db_dir,
                bulk_size=1000,
                status_step=100000):
     # Profile
     prev_time = time.time()
 
     # Database connection
-    cuisty_db = CuiSemTypesDB(cuisty_dir)
+    cuisty_db = CuiSemTypesDB(db_dir)
 
+    # NOTE: Do we need really to extract items?
     if isinstance(conso, dict):
         conso = conso.items()
 
@@ -468,13 +470,13 @@ def dump_conso(conso,
     return terms
 
 
-def dump_terms(simstring_terms,
-               simstring_file,
+def dump_terms(terms,
+               db_dir,
                bulk_size=1,
                status_step=100000):
     prev_time = time.time()
-    with SimstringDB(simstring_file, 'w') as db:
-        for i, term in enumerate(simstring_terms, start=1):
+    with SimstringDBWriter(db_dir) as db:
+        for i, term in enumerate(terms, start=1):
             db.write(term)
             if VERBOSE > 0 and i % status_step == 0:
                 curr_time = time.time()
@@ -487,10 +489,9 @@ def driver(opts):
     mrconso_file = os.path.join(opts.umls_dir, CONCEPTS_FILE)
     mrsty_file = os.path.join(opts.umls_dir, SEMANTIC_TYPES_FILE)
 
-    # Create install directories for the two databases
-    simstring_file = os.path.join(opts.install_dir, SIMSTRING_DB)
-    cuisty_dir = os.path.join(opts.install_dir, LEVEL_DB)
-    os.makedirs(cuisty_dir)
+    # Create install directory
+    if not os.path.exists(opts.install_dir) or not os.path.isdir(opts.install_dir):
+        os.makedirs(opts.install_dir)
 
     # Set converter functions
     converters = collections.defaultdict(list)
@@ -514,13 +515,15 @@ def driver(opts):
 
     print('Writing concepts...')
     start = time.time()
+    cuisty_dir = os.path.join(opts.install_dir, LEVEL_DB)
     terms = dump_conso(conso, cuisty_dir)
     curr_time = time.time()
     print(f'Writing concepts: {curr_time - start} s')
 
     print('Writing Simstring database...')
     start = time.time()
-    dump_terms(terms, simstring_file)
+    simstring_dir = os.path.join(opts.install_dir, SIMSTRING_DB)
+    dump_terms(terms, simstring_dir)
     curr_time = time.time()
     print(f'Writing Simstring database: {curr_time - start} s')
 
@@ -539,6 +542,7 @@ def driver(opts):
 
     print('Writing semantic types...')
     start = time.time()
+    cuisty_dir = os.path.join(opts.install_dir, LEVEL_DB)
     dump_cuisty(cuisty, cuisty_dir)
     curr_time = time.time()
     print(f'Writing semantic types: {curr_time - start} s')
