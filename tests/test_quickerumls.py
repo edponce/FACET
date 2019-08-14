@@ -20,6 +20,7 @@ with open('data/test.txt', 'r') as fd:
     else:
         text = fd.read().replace(os.linesep, '')
         t0 = time.time()
+        # text = 'cancer'
         matches = matcher.match(text, best_match=best_match, ignore_syntax=ignore_syntax)
         # matches = matcher.match_mp(text, best_match=best_match, ignore_syntax=ignore_syntax)
         t1 = time.time()

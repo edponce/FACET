@@ -164,8 +164,8 @@ def iter_data(data,
 
         keys (Iterable[str|int]): Columns to use as dictionary keys.
             Multiple keys are stored as tuples in same order as given.
-            If str, then it corresponds to a 'headers' names.
-            If int, then it corresponds to a column index.
+            If str, then it corresponds to 'headers' names.
+            If int, then it corresponds to column indices.
 
         values (Iterable[str|int]): Columns to use as dictionary values.
             Multiple values are stored as tuples in same order as given.
@@ -263,6 +263,8 @@ def iter_data(data,
         headers = list(headers) + [' ']
 
     # Data reader or iterator
+    # NOTE: Could we benefit from using Modin.pandas? This function returns
+    # a generator, but for the 'dict' version we could use DataFrames instead?
     reader = pandas.read_csv(data,
                              names=headers,
 
@@ -376,7 +378,6 @@ def data_to_dict(*args, **kwargs):
         data = collections.defaultdict(list)
         for k, v in iter_data(*args, **kwargs):
             # Do not duplicate values for a key
-            # NOTE: Can collapse into a single if-statement
             if k not in data:
                 data[k].append(v)
             elif v not in data[k]:
@@ -386,7 +387,7 @@ def data_to_dict(*args, **kwargs):
 
 # NOTE: Stores CUI-Semantic Type mapping
 # cui: [sty, ...]
-def dump_cuisty(cuisty,
+def dump_cuisty(data,
                 db_dir,
                 bulk_size=1000,
                 status_step=100000):
@@ -394,37 +395,38 @@ def dump_cuisty(cuisty,
     prev_time = time.time()
 
     # Database connection
-    cuisty_db = CuiSemTypesDB(db_dir)
+    # db = CuiSemTypesDB(db_dir)
 
     # NOTE: Do we need really to extract items?
-    if isinstance(cuisty, dict):
-        cuisty = cuisty.items()
+    if isinstance(data, dict):
+        data = data.items()
 
-    sty_bulk = []
-    for i, cui_sty in enumerate(cuisty, start=1):
-        if len(sty_bulk) == bulk_size:
-            cuisty_db.bulk_insert_sty(sty_bulk)
-            sty_bulk = []
-        else:
-            sty_bulk.append(cui_sty)
+    with UMLSDB(db_dir) as db:
+        bulk_data = []
+        for i, cui_sty in enumerate(data, start=1):
+            if len(bulk_data) == bulk_size:
+                db.bulk_insert_sty(bulk_data)
+                bulk_data = []
+            else:
+                bulk_data.append(cui_sty)
 
-        if VERBOSE > 0 and i % status_step == 0:
-            curr_time = time.time()
-            print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / (bulk_size * (status_step / bulk_size))} s/batch')
-            prev_time = curr_time
+            if VERBOSE > 0 and i % status_step == 0:
+                curr_time = time.time()
+                print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / (bulk_size * (status_step / bulk_size))} s/batch')
+                prev_time = curr_time
 
-    # Flush remaining ones
-    if len(sty_bulk) > 0:
-        cuisty_db.bulk_insert_sty(sty_bulk)
+        # Flush remaining ones
+        if len(bulk_data) > 0:
+            db.bulk_insert_sty(bulk_data)
 
-        if VERBOSE > 0:
-            curr_time = time.time()
-            print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / len(sty_bulk)} s/batch')
+            if VERBOSE > 0:
+                curr_time = time.time()
+                print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / len(bulk_data)} s/batch')
 
 
 # NOTE: Stores Term-CUI,Preferred mapping
 # term: [(CUI,pref), ...]
-def dump_conso(conso,
+def dump_conso(data,
                db_dir,
                bulk_size=1000,
                status_step=100000):
@@ -432,35 +434,36 @@ def dump_conso(conso,
     prev_time = time.time()
 
     # Database connection
-    cuisty_db = CuiSemTypesDB(db_dir)
+    # cuisty_db = CuiSemTypesDB(db_dir)
 
     # NOTE: Do we need really to extract items?
     if isinstance(conso, dict):
-        conso = conso.items()
+        data = data.items()
 
-    terms = set()
-    cui_bulk = []
-    for i, ((term, cui), preferred) in enumerate(conso, start=1):
-        terms.add(term)
+    with UMLSDB(db_dir) as db:
+        terms = set()
+        bulk_data = []
+        for i, ((term, cui), preferred) in enumerate(data, start=1):
+            terms.add(term)
 
-        if len(cui_bulk) == bulk_size:
-            cuisty_db.safe_bulk_insert_cui(cui_bulk)
-            cui_bulk = []
-        else:
-            cui_bulk.append((term, cui, preferred))
+            if len(bulk_data) == bulk_size:
+                db.safe_bulk_insert_cui(bulk_data)
+                bulk_data = []
+            else:
+                bulk_data.append((term, cui, preferred))
 
-        if VERBOSE > 0 and i % status_step == 0:
-            curr_time = time.time()
-            print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / (bulk_size * (status_step / bulk_size))} s/batch')
-            prev_time = curr_time
+            if VERBOSE > 0 and i % status_step == 0:
+                curr_time = time.time()
+                print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / (bulk_size * (status_step / bulk_size))} s/batch')
+                prev_time = curr_time
 
-    # Flush remaining ones
-    if len(cui_bulk) > 0:
-        cuisty_db.safe_bulk_insert_cui(cui_bulk)
+        # Flush remaining ones
+        if len(bulk_data) > 0:
+            db.safe_bulk_insert_cui(bulk_data)
 
-        if VERBOSE > 0:
-            curr_time = time.time()
-            print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / len(cui_bulk)} s/batch')
+            if VERBOSE > 0:
+                curr_time = time.time()
+                print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / len(bulk_data)} s/batch')
 
     if VERBOSE > 1:
         print(f'Num terms: {i}')

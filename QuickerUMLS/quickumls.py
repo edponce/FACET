@@ -12,14 +12,18 @@ import multiprocessing
 import concurrent.futures
 import multiprocessing.pool
 from unidecode import unidecode
-from .constants import (LANGUAGES,
-                        ACCEPTED_SEMTYPES)
-from .toolbox import (CuiSemTypesDB,
-                      SimstringDB,
-                      safe_unicode)
+from .constants import (
+    LANGUAGES,
+    ACCEPTED_SEMTYPES
+)
+from .toolbox import (
+    UMLSDB,
+    SimstringDBReader,
+    safe_unicode
+)
 
 # Enable/disable profiling
-PROFILE = False
+PROFILE = True
 if PROFILE:
     import cProfile
 
@@ -32,7 +36,7 @@ VERBOSE = 1
 # Number of threads/processes
 NUM_THREADS = None
 
-SIMSTRING_DB = 'umls-simstring.db/umls-terms.simstring'
+SIMSTRING_DB = 'umls-simstring.db'
 LEVEL_DB = 'cui-semtypes.db'
 
 
@@ -81,9 +85,9 @@ class QuickUMLS:
                 overlaps. Valid values are: 'length' and 'score'.
                 Default is 'score'.
 
-            query_type (str): Name of similarity measure.
-                Valid values are: 'exact', 'dice', 'jaccard', 'cosine', and 'overlap'.
-                Default is 'cosine'.
+            measure (str): Name of similarity measure.
+                Valid values are: 'exact', 'dice', 'jaccard', 'cosine', and
+                'overlap'. Default is 'cosine'.
 
             threshold (float): Threshold value for similarity measure.
                 Valid values are: (0., 1.]. Default value is 0.7.
@@ -105,7 +109,7 @@ class QuickUMLS:
         # but are used for printing configuration.
         self.db_dir = db_dir
         self.overlap_criteria = kwargs.get('overlap_criteria', 'score')
-        self.query_type = kwargs.get('query_type', 'jaccard')
+        self.measure = kwargs.get('measure', 'jaccard')
         self.threshold = kwargs.get('threshold', 0.7)
         self.window = kwargs.get('window', 5)
         self.min_match_length = kwargs.get('min_match_length', 3)
@@ -114,7 +118,12 @@ class QuickUMLS:
 
         # TODO: Parameterize and generalize these files.
         # Also, check that files exist and have valid access.
-        self.cuisem_db = CuiSemTypesDB(os.path.join(db_dir, LEVEL_DB))
+        self.ss_db = SimstringDBReader(
+            os.path.join(db_dir, SIMSTRING_DB),
+            measure=self.measure,
+            threshold=self.threshold
+        )
+        self.cuisem_db = UMLSDB(os.path.join(db_dir, LEVEL_DB))
 
         try:
             self.nlp = spacy.load(LANGUAGES[self.language])
@@ -139,11 +148,15 @@ class QuickUMLS:
         if VERBOSE > 0:
             print(self.info())
 
+    def __del__(self):
+        self.ss_db.close()
+        self.cuisem_db.close()
+
     def info(self):
         return {
             'database': self.db_dir,
             'overlap_criteria': self.overlap_criteria,
-            'query_type': self.query_type,
+            'measure': self.measure,
             'threshold': self.threshold,
             'window': self.window,
             'min_match_length': self.min_match_length,
@@ -164,30 +177,36 @@ class QuickUMLS:
         Y = make_ngrams(y, n)
         intersec = len(X.intersection(Y))
 
-        if self.query_type == 'dice':
+        if self.measure == 'dice':
             return 2 * intersec / (len(X) + len(Y))
-        elif self.query_type == 'jaccard':
+        elif self.measure == 'jaccard':
             return intersec / (len(X) + len(Y) - intersec)
-        elif self.query_type == 'cosine':
+        elif self.measure == 'cosine':
             return intersec / numpy.sqrt(len(X) * len(Y))
-        elif self.query_type == 'overlap':
+        elif self.measure == 'overlap':
             return float(intersec)
-        elif self.query_type == 'exact':
+        elif self.measure == 'exact':
             return float(X == Y)
         else:
             return 0.
 
     def _is_valid_token(self, tok):
         return not(
-            tok.is_punct or tok.is_space or
-            tok.pos_ == 'ADP' or tok.pos_ == 'DET' or tok.pos_ == 'CONJ'
+            tok.is_punct
+            or tok.is_space
+            or tok.pos_ == 'ADP'
+            or tok.pos_ == 'DET'
+            or tok.pos_ == 'CONJ'
         )
 
     def _is_valid_begin_token(self, tok):
         return not(
-            tok.like_num or
-            (self._is_stop_term(tok) and tok.lemma_ not in type(self).NEGATIONS) or
-            tok.pos_ == 'ADP' or tok.pos_ == 'DET' or tok.pos_ == 'CONJ'
+            tok.like_num
+            or (self._is_stop_term(tok)
+                and tok.lemma_ not in type(self).NEGATIONS)
+            or tok.pos_ == 'ADP'
+            or tok.pos_ == 'DET'
+            or tok.pos_ == 'CONJ'
         )
 
     def _is_stop_term(self, tok):
@@ -195,14 +214,19 @@ class QuickUMLS:
 
     def _is_valid_end_token(self, tok):
         return not(
-            tok.is_punct or tok.is_space or self._is_stop_term(tok) or
-            tok.pos_ == 'ADP' or tok.pos_ == 'DET' or tok.pos_ == 'CONJ'
+            tok.is_punct
+            or tok.is_space
+            or self._is_stop_term(tok)
+            or tok.pos_ == 'ADP'
+            or tok.pos_ == 'DET'
+            or tok.pos_ == 'CONJ'
         )
 
     def _is_valid_middle_token(self, tok):
         return (
-            not(tok.is_punct or tok.is_space) or tok.is_bracket or
-            tok.text in type(self).UNICODE_DASHES
+            not(tok.is_punct or tok.is_space)
+            or tok.is_bracket
+            or tok.text in type(self).UNICODE_DASHES
         )
 
     def _is_ok_semtype(self, target_semtypes):
@@ -275,66 +299,61 @@ class QuickUMLS:
                             if token.i not in skip_in_span).strip()
                 )
 
-    def _get_all_matches(self, ngrams):
-        with SimstringDB(
-            os.path.join(self.db_dir, SIMSTRING_DB),
-            query_type=self.query_type,
-            threshold=self.threshold
-        ) as ss_db:
-            matches = []
-            for begin, end, ngram in ngrams:
-                ngram_normalized = ngram
+    def _get_all_matches2(self, ngrams):
+        matches = []
+        for begin, end, ngram in ngrams:
+            ngram_normalized = ngram
 
-                if self.normalize_unicode:
-                    ngram_normalized = unidecode(ngram_normalized)
+            if self.normalize_unicode:
+                ngram_normalized = unidecode(ngram_normalized)
 
-                if self.lowercase:
-                    ngram_normalized = ngram_normalized.lower()
-                elif ngram_normalized.isupper():
-                    # if the term is all uppercase, it might be the case that
-                    # no match is found; so we convert to lowercase;
-                    ngram_normalized = ngram_normalized.lower()
+            if self.lowercase:
+                ngram_normalized = ngram_normalized.lower()
+            elif ngram_normalized.isupper():
+                # if the term is all uppercase, it might be the case that
+                # no match is found; so we convert to lowercase;
+                ngram_normalized = ngram_normalized.lower()
 
-                # Access/retrieve from Simstring database
-                ngram_candidates = list(ss_db.read(ngram_normalized))
-                ngram_matches = []
-                prev_cui = None
-                for candidate in ngram_candidates:
-                    # Access/retrieve from CuiSem database
-                    cuisem_match = sorted(self.cuisem_db.get(candidate))
+            # Do not use Simstring database
+            ngram_candidates = [ngram_normalized]
+            ngram_matches = []
+            prev_cui = None
+            for candidate in ngram_candidates:
+                similarity = self.get_similarity(
+                    x=ngram_normalized,
+                    y=candidate,
+                    n=self.ngram_length,
+                )
 
-                    for cui, semtypes, preferred in cuisem_match:
-                        match_similarity = self.get_similarity(
-                            x=ngram_normalized,
-                            y=candidate,
-                            n=self.ngram_length,
-                        )
+                if similarity <= 0.:
+                    continue
 
-                        # If there is some similarity and it is a valid semantic type
-                        if match_similarity > 0. \
-                           and self._is_ok_semtype(semtypes):
+                # Access/retrieve from CuiSem database
+                cuisem_match = sorted(self.cuisem_db.read(candidate))
+                for cui, semtypes, preferred in cuisem_match:
+                    if not self._is_ok_semtype(semtypes):
+                        continue
 
-                            # Remove previously matched CUI if current match is more similar.
-                            # Requires matches to be ordered by CUIs.
-                            if prev_cui is not None and prev_cui == cui:
-                                if match_similarity > ngram_matches[-1]['similarity']:
-                                    ngram_matches.pop(-1)
-                                else:
-                                    continue
+                    # Remove previously matched CUI if current match
+                    # is more similar.
+                    # Requires matches to be ordered by CUIs.
+                    if prev_cui is not None and prev_cui == cui:
+                        if similarity > ngram_matches[-1]['similarity']:
+                            ngram_matches.pop(-1)
+                        else:
+                            continue
 
-                            prev_cui = cui
-                            ngram_matches.append(
-                                {
-                                    'begin': begin,
-                                    'end': end,
-                                    'ngram': ngram,
-                                    'term': safe_unicode(candidate),
-                                    'cui': cui,
-                                    'similarity': match_similarity,
-                                    'semantic_types': semtypes,
-                                    'preferred': preferred
-                                }
-                            )
+                    prev_cui = cui
+                    ngram_matches.append({
+                        'begin': begin,
+                        'end': end,
+                        'ngram': ngram,
+                        'term': safe_unicode(candidate),
+                        'cui': cui,
+                        'similarity': similarity,
+                        'semantic_types': semtypes,
+                        'preferred': preferred
+                    })
 
                 # Sort matches by similarity and preference
                 if len(ngram_matches) > 0:
@@ -347,6 +366,73 @@ class QuickUMLS:
                     )
         return matches
 
+    def _get_all_matches(self, ngrams):
+        matches = []
+        for begin, end, ngram in ngrams:
+            ngram_normalized = ngram
+
+            if self.normalize_unicode:
+                ngram_normalized = unidecode(ngram_normalized)
+
+            if self.lowercase:
+                ngram_normalized = ngram_normalized.lower()
+            elif ngram_normalized.isupper():
+                # if the term is all uppercase, it might be the case that
+                # no match is found; so we convert to lowercase;
+                ngram_normalized = ngram_normalized.lower()
+
+            # Access/retrieve from Simstring database
+            ngram_candidates = list(self.ss_db.read(ngram_normalized))
+            ngram_matches = []
+            prev_cui = None
+            for candidate in ngram_candidates:
+                similarity = self.get_similarity(
+                    x=ngram_normalized,
+                    y=candidate,
+                    n=self.ngram_length,
+                )
+
+                if similarity <= 0.:
+                    continue
+
+                # Access/retrieve from CuiSem database
+                cuisem_match = sorted(self.cuisem_db.read(candidate))
+                for cui, semtypes, preferred in cuisem_match:
+                    if not self._is_ok_semtype(semtypes):
+                        continue
+
+                    # Remove previously matched CUI if current match
+                    # is more similar.
+                    # Requires matches to be ordered by CUIs.
+                    if prev_cui is not None and prev_cui == cui:
+                        if similarity > ngram_matches[-1]['similarity']:
+                            ngram_matches.pop(-1)
+                        else:
+                            continue
+
+                    prev_cui = cui
+                    ngram_matches.append({
+                        'begin': begin,
+                        'end': end,
+                        'ngram': ngram,
+                        'term': safe_unicode(candidate),
+                        'cui': cui,
+                        'similarity': similarity,
+                        'semantic_types': semtypes,
+                        'preferred': preferred
+                    })
+
+            # Sort matches by similarity and preference
+            if len(ngram_matches) > 0:
+                matches.append(
+                    sorted(
+                        ngram_matches,
+                        key=lambda m: m['similarity'] + m['preferred'],
+                        reverse=True
+                    )
+                )
+        return matches
+
     @staticmethod
     def _select_score(match):
         return (match[0]['similarity'], (match[0]['end'] - match[0]['begin']))
@@ -356,7 +442,10 @@ class QuickUMLS:
         return ((match[0]['end'] - match[0]['begin']), match[0]['similarity'])
 
     def _select_terms(self, matches):
-        sort_func = self._select_longest if self.overlap_criteria == 'length' else self._select_score
+        if self.overlap_criteria == 'length':
+            sort_func = self._select_longest
+        elif self.overlap_criteria == 'score':
+            sort_func = self._select_score
         matches = sorted(matches, key=sort_func, reverse=True)
 
         intervals = Intervals()
@@ -412,7 +501,8 @@ class QuickUMLS:
         print('_make_ngrams: ', t1 - t0, ' seconds')
 
         t0 = time.time()
-        matches = self._get_all_matches(ngrams)
+        # matches = self._get_all_matches(ngrams)
+        matches = self._get_all_matches2(ngrams)
         t1 = time.time()
         print('Num matches: ', len(matches))
         print('_get_all_matches: ', t1 - t0, ' seconds')
@@ -490,7 +580,14 @@ class QuickUMLS:
         matches_queue = multiprocessing.Queue()
 
         # Database process
-        db = multiprocessing.Process(target=self.database_mp, args=((iqueue, oqueue, num_procs)))
+        db = multiprocessing.Process(
+            target=self.database_mp,
+            args=((
+                iqueue,
+                oqueue,
+                num_procs
+            ))
+        )
         db.daemon = True
         db.start()
 
@@ -501,7 +598,19 @@ class QuickUMLS:
 
         # Worker processes
         for pid, begin in enumerate(range(0, len(sent), batch_size)):
-            worker = multiprocessing.Process(target=self._make_batch_ngram_mp, args=((sent, begin, batch_size, pid, iqueue, oqueue, matches_queue, invalid_mid_tokens)))
+            worker = multiprocessing.Process(
+                target=self._make_batch_ngram_mp,
+                args=((
+                    sent,
+                    begin,
+                    batch_size,
+                    pid,
+                    iqueue,
+                    oqueue,
+                    matches_queue,
+                    invalid_mid_tokens
+                ))
+            )
             worker.daemon = True
             worker.start()
 
@@ -530,39 +639,34 @@ class QuickUMLS:
             prof = cProfile.Profile(subcalls=True, builtins=True)
             prof.enable()
 
-        with SimstringDB(
-            os.path.join(self.db_dir, SIMSTRING_DB),
-            query_type=self.query_type,
-            threshold=self.threshold
-        ) as ss_db:
-            tasks_completed = 0
-            done_procs = 0
-            while True:
-                data = iqueue.get()
+        tasks_completed = 0
+        done_procs = 0
+        while True:
+            data = iqueue.get()
 
-                # Check if we are done
-                if data is None:
-                    print(f'(DB) Worker {done_procs} finished sending ngrams')
-                    done_procs += 1
-                    if done_procs == num_procs:
-                        for _ in range(num_procs):
-                            oqueue.put_nowait(None)
-                        break
-                    continue
+            # Check if we are done
+            if data is None:
+                print(f'(DB) Worker {done_procs} finished sending ngrams')
+                done_procs += 1
+                if done_procs == num_procs:
+                    for _ in range(num_procs):
+                        oqueue.put_nowait(None)
+                    break
+                continue
 
-                # Receive a tuple of data to be processed along with metadata
-                odata = []
-                for begin, end, ngram, ngram_normalized in data:
-                    # Access databases
-                    # (ngram_cand, (cuisem_matches))
-                    dct = [(ngram_cand, tuple(self.cuisem_db.get(ngram_cand)))
-                           for ngram_cand in ss_db.read(ngram_normalized)]
+            # Receive a tuple of data to be processed along with metadata
+            odata = []
+            for begin, end, ngram, ngram_normalized in data:
+                # Access databases
+                # (ngram_cand, (cuisem_matches))
+                dct = [(ngram_cand, tuple(self.cuisem_db.read(ngram_cand)))
+                       for ngram_cand in self.ss_db.read(ngram_normalized)]
 
-                    # Send tuple of metadata and dictionary
-                    # oqueue.put_nowait((begin, end, ngram, ngram_normalized, dct))
-                    odata.append((begin, end, ngram, ngram_normalized, dct))
-                    tasks_completed += 1
-                oqueue.put_nowait(odata)
+                # Send tuple of metadata and dictionary
+                # oqueue.put_nowait((begin, end, ngram, ngram_normalized, dct))
+                odata.append((begin, end, ngram, ngram_normalized, dct))
+                tasks_completed += 1
+            oqueue.put_nowait(odata)
         print('(DB) Completed tasks: ', tasks_completed)
 
         if PROFILE:
@@ -576,7 +680,8 @@ class QuickUMLS:
             prof = cProfile.Profile(subcalls=True, builtins=True)
             prof.enable()
 
-        sent, begin, chunk, pid, iqueue, oqueue, matches_queue, invalid_mid_tokens = args
+        sent, begin, chunk, pid, iqueue, oqueue, matches_queue, \
+            invalid_mid_tokens = args
         sent_length = len(sent)
 
         at_least_ngrams = 20
@@ -622,7 +727,9 @@ class QuickUMLS:
                 if not self.lowercase and ngram_normalized.isupper():
                     ngram_normalized = ngram_normalized.lower()
 
-                ngrams.append((tok.idx, tok.idx + len(tok), tok.text, ngram_normalized))
+                ngrams.append(
+                    (tok.idx, tok.idx + len(tok), tok.text, ngram_normalized)
+                )
 
             for j in range(i + 1, span_end):
                 if compensate:
@@ -656,7 +763,9 @@ class QuickUMLS:
                     # no match is found; so we convert to lowercase;
                     ngram_normalized = ngram_normalized.lower()
 
-                ngrams.append((span.start_char, span.end_char, ngram, ngram_normalized))
+                ngrams.append(
+                    (span.start_char, span.end_char, ngram, ngram_normalized)
+                )
 
             # Process batch
             if len(ngrams) < at_least_ngrams:
@@ -685,7 +794,8 @@ class QuickUMLS:
             else:
                 # print(f'(W{pid}) Received match')
                 for dat in data:
-                    total_matches += self._get_all_matches_mp(matches_queue, *dat)
+                    total_matches += self._get_all_matches_mp(matches_queue,
+                                                              *dat)
                 continue
 
         # Send ngram to database reader
@@ -727,39 +837,37 @@ class QuickUMLS:
         ngram_matches = []
         prev_cui = None
         for match, cuisem_match in dct:
+            similarity = self.get_similarity(
+                x=ngram_normalized,
+                y=match,
+                n=self.ngram_length,
+            )
+
+            if similarity == 0:
+                continue
+
             cuisem_match = sorted(cuisem_match)
             for cui, semtypes, preferred in cuisem_match:
-                match_similarity = self.get_similarity(
-                    x=ngram_normalized,
-                    y=match,
-                    n=self.ngram_length,
-                )
-                if match_similarity == 0:
-                    continue
-
                 if not self._is_ok_semtype(semtypes):
                     continue
 
                 if prev_cui is not None and prev_cui == cui:
-                    if match_similarity > ngram_matches[-1]['similarity']:
+                    if similarity > ngram_matches[-1]['similarity']:
                         ngram_matches.pop(-1)
                     else:
                         continue
 
                 prev_cui = cui
-
-                ngram_matches.append(
-                    {
-                        'begin': begin,
-                        'end': end,
-                        'ngram': ngram,
-                        'term': safe_unicode(match),
-                        'cui': cui,
-                        'similarity': match_similarity,
-                        'semantic_types': semtypes,
-                        'preferred': preferred
-                    }
-                )
+                ngram_matches.append({
+                    'begin': begin,
+                    'end': end,
+                    'ngram': ngram,
+                    'term': safe_unicode(match),
+                    'cui': cui,
+                    'similarity': similarity,
+                    'semantic_types': semtypes,
+                    'preferred': preferred
+                })
 
         if len(ngram_matches) > 0:
             matches.append(
