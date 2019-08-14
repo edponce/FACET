@@ -37,3 +37,5 @@ from .quickumls import QuickUMLS
 from .install import *
 from .toolbox import *
 from .constants import *
+from .database import RedisDatabase
+from .serializer import Serializer

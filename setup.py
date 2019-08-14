@@ -86,16 +86,21 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Topic :: Documentation :: Sphinx",
         "Topic :: Utilities",
-        "Topic :: Software Development :: Libraries"
+        "Topic :: Software Development :: Libraries",
     ],
     platforms=["Linux"],
     zip_safe=False,
     python_requires=">=3.7",
     include_package_data=True,
-    packages=find_packages(),
+    # packages=find_packages(),
+    packages=[
+        'QuickerUMLS',
+        'QuickerUMLS.database',
+        'QuickerUMLS.serializer',
+    ],
     install_requires=install_requirements,
     setup_requires=setup_requirements,
     extras_require=extras_requirements,
     tests_require=tests_requirements,
-    test_suite="tests"
+    test_suite="tests",
 )
