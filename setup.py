@@ -94,6 +94,7 @@ setup(
     include_package_data=True,
     # packages=find_packages(),
     packages=[
+        'simstring',
         'QuickerUMLS',
         'QuickerUMLS.database',
         'QuickerUMLS.serializer',
