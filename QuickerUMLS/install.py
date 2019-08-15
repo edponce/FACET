@@ -119,7 +119,7 @@ def valid_items_from_dict(keys,
 
 
 def is_iterable(obj):
-    return hasattr(obj, '__iter__') and not isinstance(obj, str)
+    return hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes))
 
 
 def iterable_true(obj):
