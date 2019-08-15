@@ -15,13 +15,13 @@ __name__ = "QuickerUMLS"
 __version__ = "0.0.1"
 __description__ = """ High-performance tool for concept extraction
                       from medical narratives. """
-__keywords__ = (
+__keywords__ = [
     "information extraction",
     "UMLS",
     "concepts",
     "medical text",
     "natural language processing",
-)
+]
 __url__ = "code.ornl.gov:reachvet-nlp/quicker-umls.git"
 __author__ = "Eduardo Ponce, Oak Ridge National Laboratory, Oak Ridge, TN"
 __author_email__ = "poncemojicae@ornl.gov"
