@@ -7,23 +7,29 @@ import numpy
 import datetime
 import itertools
 import threading
+import collections
 import queue as Queue
 import multiprocessing
 import concurrent.futures
 import multiprocessing.pool
 from unidecode import unidecode
-from .constants import (
+from QuickerUMLS.constants import (
     LANGUAGES,
-    ACCEPTED_SEMTYPES
+    ACCEPTED_SEMTYPES,
 )
-from .toolbox import (
+from QuickerUMLS.toolbox import (
     UMLSDB,
     SimstringDBReader,
-    safe_unicode
+    safe_unicode,
+)
+from QuickerUMLS.install import is_iterable
+from typing import (
+    List, Dict, Any, Union, Tuple, Iterable
 )
 
+
 # Enable/disable profiling
-PROFILE = True
+PROFILE = False
 if PROFILE:
     import cProfile
 
@@ -116,6 +122,7 @@ class QuickUMLS:
         self.ngram_length = kwargs.get('ngram_length', 3)
         self.language = kwargs.get('language', 'ENG')
 
+        t1 = time.time()
         # TODO: Parameterize and generalize these files.
         # Also, check that files exist and have valid access.
         self.ss_db = SimstringDBReader(
@@ -123,8 +130,13 @@ class QuickUMLS:
             measure=self.measure,
             threshold=self.threshold
         )
-        self.cuisem_db = UMLSDB(os.path.join(db_dir, LEVEL_DB))
+        print(f'Loading Simstring: {time.time() - t1} sec')
 
+        t1 = time.time()
+        self.cuisem_db = UMLSDB(os.path.join(db_dir, LEVEL_DB))
+        print(f'Loading UMLS-LevelDB: {time.time() - t1} sec')
+
+        t1 = time.time()
         try:
             self.nlp = spacy.load(LANGUAGES[self.language])
         except KeyError:
@@ -133,6 +145,9 @@ class QuickUMLS:
         except OSError as ex:
             err = (f"Please run 'python -m spacy download {self.language}'")
             raise OSError(ex)
+        # Combine spaCy stopwords with domain specific stopwords
+        self.nlp.Defaults.stop_words.update(kwargs.get('stopwords', ()))
+        print(f'Loading Spacy model: {time.time() - t1} sec')
 
         # NOTE: Save database installation settings into a JSON configuration
         # file, which can be loaded by applications using the database. This
@@ -141,9 +156,6 @@ class QuickUMLS:
             os.path.join(db_dir, 'lowercase.flag'))
         self.normalize_unicode = os.path.exists(
             os.path.join(db_dir, 'normalize-unicode.flag'))
-
-        # Combine spaCy stopwords with domain specific stopwords
-        self.nlp.Defaults.stop_words.update(kwargs.get('stopwords', ()))
 
         if VERBOSE > 0:
             print(self.info())
@@ -242,7 +254,7 @@ class QuickUMLS:
     def _is_longer_than_min(self, span):
         return (span.end_char - span.start_char) >= self.min_match_length
 
-    def _make_ngrams(self, sent):
+    def _make_ngrams(self, sent) -> Tuple[Any]:
         sent_length = len(sent)
 
         # do not include determiners inside a span
@@ -299,7 +311,7 @@ class QuickUMLS:
                             if token.i not in skip_in_span).strip()
                 )
 
-    def _get_all_matches2(self, ngrams):
+    def _get_all_matches2(self, ngrams: Iterable[Any]) -> List[Dict[str, Any]]:
         matches = []
         for begin, end, ngram in ngrams:
             ngram_normalized = ngram
@@ -366,7 +378,7 @@ class QuickUMLS:
                     )
         return matches
 
-    def _get_all_matches(self, ngrams):
+    def _get_all_matches(self, ngrams: Iterable[Any]) -> List[Dict[str, Any]]:
         matches = []
         for begin, end, ngram in ngrams:
             ngram_normalized = ngram
@@ -479,43 +491,126 @@ class QuickUMLS:
             file=sys.stdout
         )
 
-    def match(self, text, best_match=True, ignore_syntax=False):
+    def _unpack_dir(self,
+                    adir: str,
+                    hidden=False,
+                    recursive=False) -> List[str]:
+        """Unpack directories into a list of files.
+
+        Args:
+            adir (str): Directory name.
+
+            hidden (bool): If set, include hidden files.
+
+            recursive (bool): If set, unpack files recursively.
+        """
+        files = []
+        for file_or_dir in os.listdir(adir):
+            fd = os.path.join(adir, file_or_dir)
+            if os.path.isdir(fd) and recursive:
+                files.extend(self._unpack_dir(fd))
+            elif os.path.isfile(fd):
+                if not hidden and os.path.basename(fd).startswith('.'):
+                    continue
+                files.append(fd)
+        return files
+
+    def corpus_generator(self,
+                         corpora: str,
+                         phony=False, **kwargs) -> Tuple[str, str]:
+        """Match concepts found in a vocabulary to terms in corpora.
+
+        Args:
+            corpora (str): Text data to process. Valid values are:
+                * Directory
+                * File
+                * Raw text
+                * An iterable of any combination of the above
+
+            phony (bool): If set, attr:`corpora` items are not considered
+                as file system objects when name collisions occur.
+                Default is false.
+
+            kwargs (Dict): Options passed directory to '_unpack_dir()'.
+        """
+        if not is_iterable(corpora):
+            corpora = (corpora,)
+
+        if not phony:
+            # Unpack directories into a list of files
+            _corpora = []
+            for corpus in corpora:
+                if os.path.isdir(corpus):
+                    _corpora.extend(self._unpack_dir(corpus, **kwargs))
+                else:
+                    _corpora.append(corpus)
+        else:
+            _corpora = corpora
+
+        # NOTE: Return both the corpus source and corpus
+        for corpus in _corpora:
+            # Is text if not a valid file system object
+            if phony or not os.path.exists(corpus):
+                yield '_text', corpus
+            elif os.path.isfile(corpus):
+                if os.path.basename(corpus).startswith('.'):
+                    continue
+                with open(corpus) as fd:
+                    for line in fd:
+                        yield corpus, line
+
+    def match(self,
+              corpora,
+              best_match=True,
+              ignore_syntax=False,
+              **kwargs) -> Dict[str, List[List[Dict[str, Any]]]]:
+        """
+        Example:
+        >>> matches = QuickUMLS.match(['file1.txt', 'file2.txt', ...])
+        >>> for terms in matches['file1.txt']:
+        >>>     for term in terms:
+        >>>         print(term['term'], term['cui'], term['semantic_types'])
+        """
         if PROFILE:
             prof = cProfile.Profile(subcalls=True, builtins=True)
             prof.enable()
 
-        # Creates a spaCy Doc object
-        # len(Doc) == number of words
-        t0 = time.time()
-        parsed = self.nlp(u'{}'.format(text))
-        t1 = time.time()
-        print('Num words: ', len(parsed))
-        print('spaCy parse: ', t1 - t0, ' seconds')
+        matches = collections.defaultdict(list)
+        for source, corpus in self.corpus_generator(corpora, **kwargs):
+            # Creates a spaCy Doc object
+            # len(Doc) == number of words
+            t0 = time.time()
+            doc = self.nlp.make_doc(corpus)
+            t1 = time.time()
+            print('Num words: ', len(doc))
+            print('spaCy parse: ', t1 - t0, ' seconds')
 
-        t0 = time.time()
-        if ignore_syntax:
-            ngrams = self._make_token_sequences(parsed)
-        else:
-            ngrams = self._make_ngrams(parsed)
-        t1 = time.time()
-        print('_make_ngrams: ', t1 - t0, ' seconds')
+            t0 = time.time()
+            if ignore_syntax:
+                ngrams = self._make_token_sequences(doc)
+            else:
+                ngrams = self._make_ngrams(doc)
+            t1 = time.time()
+            print('_make_ngrams: ', t1 - t0, ' seconds')
 
-        t0 = time.time()
-        # matches = self._get_all_matches(ngrams)
-        matches = self._get_all_matches2(ngrams)
-        t1 = time.time()
-        print('Num matches: ', len(matches))
-        print('_get_all_matches: ', t1 - t0, ' seconds')
+            t0 = time.time()
+            _matches = self._get_all_matches(ngrams)
+            # _matches = self._get_all_matches2(ngrams)
+            t1 = time.time()
+            print('Num matches: ', len(_matches))
+            print('_get_all_matches: ', t1 - t0, ' seconds')
 
-        t0 = time.time()
-        if best_match:
-            matches = self._select_terms(matches)
-        t1 = time.time()
-        print('Num best matches: ', len(matches))
-        print('_select_terms: ', t1 - t0, ' seconds')
+            t0 = time.time()
+            if best_match:
+                _matches = self._select_terms(_matches)
+            t1 = time.time()
+            print('Num best matches: ', len(_matches))
+            print('_select_terms: ', t1 - t0, ' seconds')
 
-        if VERBOSE > 0:
-            self._print_status(parsed, matches)
+            if VERBOSE > 0:
+                self._print_status(doc, _matches)
+
+            matches[source].extend(_matches)
 
         if PROFILE:
             prof.disable()
@@ -562,7 +657,7 @@ class QuickUMLS:
 
         return matches
 
-    def _make_ngrams_mp(self, sent):
+    def _make_ngrams_mp(self, sent) -> Tuple[Any]:
         requested_procs = multiprocessing.cpu_count() - 1
         # requested_procs = 1
         batch_size = math.ceil(len(sent) / requested_procs)
