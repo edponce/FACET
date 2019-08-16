@@ -57,17 +57,25 @@ class RedisDatabase(BaseDatabase):
         return value
 
     def set(self, key, value,
-            append=False, unique=False, **kwargs):
-        if not isinstance(value, (str, bytes)):
-            value = self.serializer.dumps(value)
-
-        if not append:
-            self.db.set(key, value, **kwargs)
+            extend=False, unique=False, **kwargs):
+        if not extend or not self.exists(key):
+            if not isinstance(value, (str, bytes)):
+                value = self.serializer.dumps(value)
         else:
+            prev_value = self.get(key)
             if not unique:
-                pass
+                if not isinstance(prev_value, list):
+                    prev_value = [prev_value]
             else:
-                pass
+                if isinstance(prev_value, list):
+                    if value not in prev_value:
+                        value = self.serializer.dumps(prev_value.append(value))
+                        self.db.set(key, value, **kwargs)
+                else:
+                    if value != prev_value:
+                        prev_value = [prev_value]
+            value = self.serializer.dumps(prev_value.append(value))
+        self.db.set(key, value, **kwargs)
 
     def mget(self, keys):
         return list(map(
@@ -76,7 +84,7 @@ class RedisDatabase(BaseDatabase):
         ))
 
     def mset(self, mapping,
-             append=False, unique=False):
+             extend=False, unique=False):
         for key, value in mapping.items():
             if not isinstance(value, (str, bytes)):
                 mapping[key] = self.serializer.dumps(value)
@@ -89,7 +97,7 @@ class RedisDatabase(BaseDatabase):
         return value
 
     def hset(self, key, field, value,
-             append=False, unique=False):
+             extend=False, unique=False):
         if not isinstance(value, (str, bytes)):
             value = self.serializer.dumps(value)
         self.db.hset(key, field, value)
@@ -101,7 +109,7 @@ class RedisDatabase(BaseDatabase):
         ))
 
     def hmset(self, key, mapping,
-              append=False, unique=False):
+              extend=False, unique=False):
         for field, value in mapping.items():
             if not isinstance(value, (str, bytes)):
                 mapping[field] = self.serializer.dumps(value)

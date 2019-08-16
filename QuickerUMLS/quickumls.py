@@ -13,18 +13,19 @@ import multiprocessing
 import concurrent.futures
 import multiprocessing.pool
 from unidecode import unidecode
-from QuickerUMLS.constants import (
+from typing import List, Dict, Any, Union, Tuple, Iterable
+
+from QuickerUMLS.file_system import unpack_dir, corpus_generator
+
+from QuickerUMLS.umls_constants import (
     LANGUAGES,
     ACCEPTED_SEMTYPES,
 )
+
 from QuickerUMLS.toolbox import (
     UMLSDB,
     SimstringDBReader,
     safe_unicode,
-)
-from QuickerUMLS.install import is_iterable
-from typing import (
-    List, Dict, Any, Union, Tuple, Iterable
 )
 
 
@@ -491,74 +492,6 @@ class QuickUMLS:
             file=sys.stdout
         )
 
-    def _unpack_dir(self,
-                    adir: str,
-                    hidden=False,
-                    recursive=False) -> List[str]:
-        """Unpack directories into a list of files.
-
-        Args:
-            adir (str): Directory name.
-
-            hidden (bool): If set, include hidden files.
-
-            recursive (bool): If set, unpack files recursively.
-        """
-        files = []
-        for file_or_dir in os.listdir(adir):
-            fd = os.path.join(adir, file_or_dir)
-            if os.path.isdir(fd) and recursive:
-                files.extend(self._unpack_dir(fd))
-            elif os.path.isfile(fd):
-                if not hidden and os.path.basename(fd).startswith('.'):
-                    continue
-                files.append(fd)
-        return files
-
-    def corpus_generator(self,
-                         corpora: str,
-                         phony=False, **kwargs) -> Tuple[str, str]:
-        """Match concepts found in a vocabulary to terms in corpora.
-
-        Args:
-            corpora (str): Text data to process. Valid values are:
-                * Directory
-                * File
-                * Raw text
-                * An iterable of any combination of the above
-
-            phony (bool): If set, attr:`corpora` items are not considered
-                as file system objects when name collisions occur.
-                Default is false.
-
-            kwargs (Dict): Options passed directory to '_unpack_dir()'.
-        """
-        if not is_iterable(corpora):
-            corpora = (corpora,)
-
-        if not phony:
-            # Unpack directories into a list of files
-            _corpora = []
-            for corpus in corpora:
-                if os.path.isdir(corpus):
-                    _corpora.extend(self._unpack_dir(corpus, **kwargs))
-                else:
-                    _corpora.append(corpus)
-        else:
-            _corpora = corpora
-
-        # NOTE: Return both the corpus source and corpus
-        for corpus in _corpora:
-            # Is text if not a valid file system object
-            if phony or not os.path.exists(corpus):
-                yield '_text', corpus
-            elif os.path.isfile(corpus):
-                if os.path.basename(corpus).startswith('.'):
-                    continue
-                with open(corpus) as fd:
-                    for line in fd:
-                        yield corpus, line
-
     def match(self,
               corpora,
               best_match=True,
@@ -576,7 +509,7 @@ class QuickUMLS:
             prof.enable()
 
         matches = collections.defaultdict(list)
-        for source, corpus in self.corpus_generator(corpora, **kwargs):
+        for source, corpus in corpus_generator(corpora, **kwargs):
             # Creates a spaCy Doc object
             # len(Doc) == number of words
             t0 = time.time()
