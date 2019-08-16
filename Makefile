@@ -1,4 +1,4 @@
-PKGDIR  := src
+PKGDIR  := QuickerUMLS
 TESTDIR := tests
 PYTHON  := python3
 DOCDIR  := docs
