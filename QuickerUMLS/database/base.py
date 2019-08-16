@@ -32,7 +32,7 @@ class BaseDatabase(ABC):
 
     @abstractmethod
     def set(self, key: str, value: Any,
-            append=False, unique=False):
+            extend=False, unique=False):
         raise NotImplementedError
 
     @abstractmethod
@@ -41,7 +41,7 @@ class BaseDatabase(ABC):
 
     @abstractmethod
     def mset(self, mapping: Dict[str, Any],
-             append=False, unique=False):
+             extend=False, unique=False):
         raise NotImplementedError
 
     @abstractmethod
@@ -50,7 +50,7 @@ class BaseDatabase(ABC):
 
     @abstractmethod
     def hset(self, key: str, field: str, value: Any,
-             append=False, unique=False):
+             extend=False, unique=False):
         raise NotImplementedError
 
     @abstractmethod
@@ -59,7 +59,7 @@ class BaseDatabase(ABC):
 
     @abstractmethod
     def hmset(self, key: str, mapping: Dict[str, Any],
-              append=False, unique=False):
+              extend=False, unique=False):
         raise NotImplementedError
 
     @abstractmethod
