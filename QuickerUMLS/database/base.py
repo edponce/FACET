@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from QuickerUMLS.serializer import Serializer
 from typing import Any, List, Dict, Iterable
+from QuickerUMLS.serializer import Serializer
 
 
 class BaseDatabase(ABC):
@@ -27,39 +27,71 @@ class BaseDatabase(ABC):
         self.close()
 
     @abstractmethod
-    def get(self, key: str) -> Any:
+    def get(self, key: str) -> List[Any]:
         raise NotImplementedError
 
     @abstractmethod
     def set(self, key: str, value: Any,
             extend=False, unique=False):
+        """
+        Args:
+            extend (bool): If key exists, add value to existing values.
+                Default is false.
+
+            unique (bool): If set, do not allow duplicate values.
+                Used in conjunction with `attr:extend`.
+        """
         raise NotImplementedError
 
     @abstractmethod
-    def mget(self, keys: Iterable[str]) -> List[Any]:
+    def mget(self, keys: Iterable[str]) -> List[List[Any]]:
         raise NotImplementedError
 
     @abstractmethod
     def mset(self, mapping: Dict[str, Any],
              extend=False, unique=False):
+        """
+        Args:
+            extend (bool): If key exists, add value to existing values.
+                Default is false.
+
+            unique (bool): If set, do not allow duplicate values.
+                Used in conjunction with `attr:extend`.
+        """
         raise NotImplementedError
 
     @abstractmethod
-    def hget(self, key: str, field: str) -> Any:
+    def hget(self, key: str, field: str) -> List[Any]:
         raise NotImplementedError
 
     @abstractmethod
     def hset(self, key: str, field: str, value: Any,
              extend=False, unique=False):
+        """
+        Args:
+            extend (bool): If key exists, add value to existing values.
+                Default is false.
+
+            unique (bool): If set, do not allow duplicate values.
+                Used in conjunction with `attr:extend`.
+        """
         raise NotImplementedError
 
     @abstractmethod
-    def hmget(self, key: str, fields: Iterable[str]) -> List[Any]:
+    def hmget(self, key: str, fields: Iterable[str]) -> List[List[Any]]:
         raise NotImplementedError
 
     @abstractmethod
     def hmset(self, key: str, mapping: Dict[str, Any],
               extend=False, unique=False):
+        """
+        Args:
+            extend (bool): If key exists, add value to existing values.
+                Default is false.
+
+            unique (bool): If set, do not allow duplicate values.
+                Used in conjunction with `attr:extend`.
+        """
         raise NotImplementedError
 
     @abstractmethod
