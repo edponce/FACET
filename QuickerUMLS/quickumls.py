@@ -1,14 +1,17 @@
 import os
 import sys
 import math
+import json
 import time
 import spacy
 import numpy
 import datetime
+import dicttoxml
 import itertools
 import threading
 import collections
 import queue as Queue
+import xml.dom.minidom
 import multiprocessing
 import concurrent.futures
 import multiprocessing.pool
@@ -25,7 +28,6 @@ from QuickerUMLS.umls_constants import (
 from QuickerUMLS.toolbox import (
     UMLSDB,
     SimstringDBReader,
-    safe_unicode,
 )
 
 
@@ -361,7 +363,7 @@ class QuickUMLS:
                         'begin': begin,
                         'end': end,
                         'ngram': ngram,
-                        'term': safe_unicode(candidate),
+                        'term': candidate,
                         'cui': cui,
                         'similarity': similarity,
                         'semantic_types': semtypes,
@@ -428,7 +430,7 @@ class QuickUMLS:
                         'begin': begin,
                         'end': end,
                         'ngram': ngram,
-                        'term': safe_unicode(candidate),
+                        'term': candidate,
                         'cui': cui,
                         'similarity': similarity,
                         'semantic_types': semtypes,
@@ -492,13 +494,32 @@ class QuickUMLS:
             file=sys.stdout
         )
 
+    def _formatter(self, matches, formatter=None):
+        """
+        Args:
+            formatter (Union[str, None]): Output format.
+                Valid values are 'json', 'xml', and None. Default is None.
+        """
+        if formatter is None:
+            return matches
+        elif formatter.lower() == 'json':
+            return json.JSONEncoder(indent=2).encode(matches)
+        elif formatter.lower() == 'xml':
+            return xml.dom.minidom.parseString(
+                dicttoxml.dicttoxml(matches, attr_type=False)
+            ).toprettyxml(indent=4 * ' ')
+        else:
+            print(f'Error: invalid formatter option for matches, {formatter}')
+            return matches
+
     def match(self,
               corpora,
               best_match=True,
               ignore_syntax=False,
               **kwargs) -> Dict[str, List[List[Dict[str, Any]]]]:
         """
-        Example:
+        Examples:
+
         >>> matches = QuickUMLS.match(['file1.txt', 'file2.txt', ...])
         >>> for terms in matches['file1.txt']:
         >>>     for term in terms:
@@ -551,7 +572,7 @@ class QuickUMLS:
             prof.print_stats('time')
             prof.clear()
 
-        return matches
+        return self._formatter(matches, **kwargs)
 
     def match_mp(self, text, best_match=True, ignore_syntax=False):
         if PROFILE:
@@ -890,7 +911,7 @@ class QuickUMLS:
                     'begin': begin,
                     'end': end,
                     'ngram': ngram,
-                    'term': safe_unicode(match),
+                    'term': match,
                     'cui': cui,
                     'similarity': similarity,
                     'semantic_types': semtypes,

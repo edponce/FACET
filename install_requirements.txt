@@ -7,3 +7,4 @@ pandas>=0.24.2
 redis>=3.2.1
 ruamel.yaml>=0.15
 ray>=0.7.1
+dicttoxml>=1.7.4
