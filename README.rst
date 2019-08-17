@@ -29,11 +29,10 @@ Before Starting and System Initialize
 2. Run all the setup scripts in 'setup' directory.
    * setup_simstring.sh
    * setup_spacy.sh
-   * setup_umls.sh: download UMLS and initialize the system
-     (see 'Initialize System')
+   * setup_umls.sh: download UMLS and initialize the system (see 'Initialize System')
 3. Install package, pip install -e .
 4. Check installation
->>> python3 QuickerUMLS/install.py -h
+   >>> python3 QuickerUMLS/install.py -h
 
 Description of the NLM UMLS files is available at https://www.ncbi.nlm.nih.gov/books/NBK9685.
 
@@ -69,8 +68,8 @@ Total install          736.32
 API and Usage
 -------------
 
-QuickUMLS(quickumls_fp, overlapping_criteria, threshold, similarity_name, window,
-          accepted_semtypes)
+QuickUMLS(quickumls_fp, overlapping_criteria, threshold, similarity_name, window, accepted_semtypes):
+
 * quickumls_fp is the directory for the UMLS installation
 * overlapping_criteria (optional, default="score") is the criteria used to deal
   with overlapping concepts; choose "score" if the matching score of the concepts
@@ -88,7 +87,8 @@ QuickUMLS(quickumls_fp, overlapping_criteria, threshold, similarity_name, window
 
 Instantiate a QuickUMLS object:
     >>> matcher = QuickUMLS('path/to/database/installation')
-NOTE: this command will invoke NLTK which in turn downloads a package of stopwords
+
+NOTE: This command will invoke NLTK which in turn downloads a package of stopwords
 which are placed in the home directory. For English language there 179 stopwords.
 
 Use the QuickUMLS object:
@@ -172,10 +172,9 @@ Initialize system
 
 1. Download and compile `Simstring`_, bash setup_simstring.sh 3.
 2. Initialize the system by running, python install.py <umls_installation_path> <destination_path>. This process takes between between 30 minutes and forever.
-   * <umls_installation_path> is the directory of the UMLS installation (in particular,
-     we need MRCONSO.RRF and MRSTY.RRF).
-   * <destination_path> is the directory where the QuickUMLS data files will be
-     installed.
+   * <umls_installation_path> is the directory of the UMLS installation (in particular, we need MRCONSO.RRF and MRSTY.RRF).
+   * <destination_path> is the directory where the QuickUMLS data files will be installed.
+
      - -L, --lowercase: Fold all concept terms to lowercase before being processed.
        This option typically increases recall, but it might reduce precision.
      - -U, --normalize-unicode: Expressions with non-ASCII characters are converted

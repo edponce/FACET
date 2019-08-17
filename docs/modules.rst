@@ -1,8 +1,8 @@
 MODULES
 =======
 
-UMLSSearch
-----------
+QuickUMLS API
+-------------
 
-.. .. autoclass:: quicker-umls.src.UMLSSearch
+.. autoclass:: QuickerUMLS.QuickUMLS
     :members:
