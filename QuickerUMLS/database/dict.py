@@ -8,14 +8,15 @@ class DictDatabase(BaseDatabase):
 
     def __init__(self, **kwargs):
         self._db = collections.defaultdict(list)
-        super().__init__(**kwargs)
 
     def _resolve_set(self, key, value,
                      replace=True,
                      unique=False) -> Union[List[Any], None]:
-        if self.exists(key) and not replace:
+        if self._exists(key) and not replace:
             prev_value = self.get(key)
-            if unique and value in prev_value:
+            if isinstance(prev_value, dict):
+                prev_value = []
+            elif unique and value in prev_value:
                 return
             prev_value.append(value)
             value = prev_value
@@ -26,9 +27,11 @@ class DictDatabase(BaseDatabase):
     def _resolve_hset(self, key, field, value,
                       replace=True,
                       unique=False) -> Union[List[Any], None]:
-        if self.hexists(key, field) and not replace:
-            prev_value = self.hget(key, field)
-            if unique and value in prev_value:
+        if self._hexists(key, field) and not replace:
+            prev_value = self._hget(key, field)
+            if prev_value is None:
+                prev_value = []
+            elif unique and value in prev_value:
                 return
             prev_value.append(value)
             value = prev_value
@@ -36,22 +39,31 @@ class DictDatabase(BaseDatabase):
             value = [value]
         return value
 
-    def __contains__(self, key):
-        return key in self._db
+    def _is_hash_name(self, key: str) -> bool:
+        return isinstance(self._get(key), defaultdict)
 
-    def get(self, key):
+    def _get(self, key):
         try:
             return self._db[key]
         except KeyError:
-            return None
+            return
+
+    def _mget(self, keys):
+        return [self._get(key) for key in keys]
+
+    def _hget(self, key, field):
+        # if self._is_hash_name(key):
+        #     return self._get
+
+        value = self._get(key)
+        if value is not None:
+            value = self.serializer.loads(value)
+        return value
 
     def set(self, key, value, **kwargs):
         value = self._resolve_set(key, value, **kwargs)
         if value is not None:
             self._db[key] = value
-
-    def mget(self, keys):
-        return [self.get(key) for key in keys]
 
     def mset(self, mapping, **kwargs):
         _mapping = {}
@@ -61,12 +73,6 @@ class DictDatabase(BaseDatabase):
                 _mapping[key] = value
         if len(_mapping) > 0:
             self._dbp.mset(_mapping)
-
-    def hget(self, key, field):
-        value = self._db.hget(key, field)
-        if value is not None:
-            value = self.serializer.loads(value)
-        return value
 
     def hset(self, key, field, value, **kwargs):
         value = self._resolve_hset(key, value, **kwargs)
@@ -89,7 +95,7 @@ class DictDatabase(BaseDatabase):
             self._dbp.hmset(key, _mapping)
 
     def keys(self):
-        return list(map(self.serializer.loads, self._db.keys()))
+        return self._db.keys()
 
     def hkeys(self, key):
         return list(map(self.serializer.loads, self._db.hkeys(key)))
