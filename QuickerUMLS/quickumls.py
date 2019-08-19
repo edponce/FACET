@@ -1,10 +1,12 @@
 import os
 import sys
+import csv
 import math
 import json
 import time
 import spacy
 import numpy
+import pickle
 import datetime
 import dicttoxml
 import itertools
@@ -494,23 +496,53 @@ class QuickUMLS:
             file=sys.stdout
         )
 
-    def _formatter(self, matches, formatter=None):
+    def _formatter(self, matches, *, formatter=None, outfile=None):
         """
         Args:
             formatter (Union[str, None]): Output format.
-                Valid values are 'json', 'xml', and None. Default is None.
+                Valid values are 'json', 'xml', 'pickle', 'csv', and None.
+                Default is None.
+
+            outfile (str): Output file. Default is to print output.
         """
         if formatter is None:
-            return matches
+            formatted_matches = matches
         elif formatter.lower() == 'json':
-            return json.JSONEncoder(indent=2).encode(matches)
+            formatted_matches = json.JSONEncoder(indent=2).encode(matches)
         elif formatter.lower() == 'xml':
-            return xml.dom.minidom.parseString(
+            formatted_matches = xml.dom.minidom.parseString(
                 dicttoxml.dicttoxml(matches, attr_type=False)
             ).toprettyxml(indent=4 * ' ')
+        elif formatter.lower() == 'pickle':
+            formatted_matches = pickle.dumps(matches)
+        elif formatter.lower() == 'csv':
+            formatted_matches = matches
+            if outfile is None:
+                print('Warn: csv formatting only supported '
+                      'for writing to file')
         else:
-            print(f'Error: invalid formatter option for matches, {formatter}')
-            return matches
+            raise ValueError(
+                f'Error: invalid formatting, {formatter} is not supported'
+            )
+
+        if outfile is not None:
+            if formatter.lower() == 'csv':
+                with open(outfile, 'w', newline='') as fd:
+                    keys = [
+                        'begin', 'end', 'ngram', 'term', 'cui',
+                        'similarity', 'semantic_types', 'preferred'
+                    ]
+                    writer = csv.DictWriter(fd, fieldnames=keys)
+                    writer.writeheader()
+                    # NOTE: Only works if query is raw text.
+                    for text in matches['_text']:
+                        for match in text:
+                            writer.writerow(match)
+            else:
+                with open(outfile, 'w') as fd:
+                    fd.write(formatted_matches)
+        else:
+            return formatted_matches
 
     def match(self,
               corpora,
