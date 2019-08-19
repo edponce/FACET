@@ -10,14 +10,10 @@ class DictDatabase(BaseDatabase):
         self._db = collections.defaultdict(list)
         super().__init__(**kwargs)
 
-    @property
-    def db(self):
-        return self._db
-
     def _resolve_set(self, key, value,
-                     extend=False,
+                     replace=True,
                      unique=False) -> Union[List[Any], None]:
-        if self.exists(key) and extend:
+        if self.exists(key) and not replace:
             prev_value = self.get(key)
             if unique and value in prev_value:
                 return
@@ -25,12 +21,12 @@ class DictDatabase(BaseDatabase):
             value = prev_value
         else:
             value = [value]
-        return self.serializer.dumps(value)
+        return value
 
     def _resolve_hset(self, key, field, value,
-                      extend=False,
+                      replace=True,
                       unique=False) -> Union[List[Any], None]:
-        if self.hexists(key, field) and extend:
+        if self.hexists(key, field) and not replace:
             prev_value = self.hget(key, field)
             if unique and value in prev_value:
                 return
@@ -38,24 +34,24 @@ class DictDatabase(BaseDatabase):
             value = prev_value
         else:
             value = [value]
-        return self.serializer.dumps(value)
+        return value
+
+    def __contains__(self, key):
+        return key in self._db
 
     def get(self, key):
-        value = self.db.get(key)
-        if value is not None:
-            value = self.serializer.loads(value)
-        return value
+        try:
+            return self._db[key]
+        except KeyError:
+            return None
 
     def set(self, key, value, **kwargs):
         value = self._resolve_set(key, value, **kwargs)
         if value is not None:
-            self.db.set(key, value)
+            self._db[key] = value
 
     def mget(self, keys):
-        return list(map(
-            self.serializer.loads,
-            filter(lambda v: v is not None, self.db.mget(keys))
-        ))
+        return [self.get(key) for key in keys]
 
     def mset(self, mapping, **kwargs):
         _mapping = {}
@@ -64,10 +60,10 @@ class DictDatabase(BaseDatabase):
             if value is not None:
                 _mapping[key] = value
         if len(_mapping) > 0:
-            self.db.mset(_mapping)
+            self._dbp.mset(_mapping)
 
     def hget(self, key, field):
-        value = self.db.hget(key, field)
+        value = self._db.hget(key, field)
         if value is not None:
             value = self.serializer.loads(value)
         return value
@@ -75,12 +71,12 @@ class DictDatabase(BaseDatabase):
     def hset(self, key, field, value, **kwargs):
         value = self._resolve_hset(key, value, **kwargs)
         if value is not None:
-            self.db.hset(key, field, value)
+            self._dbp.hset(key, field, value)
 
     def hmget(self, key, fields):
         return list(map(
             self.serializer.loads,
-            filter(lambda v: v is not None, self.db.hmget(key, fields))
+            filter(lambda v: v is not None, self._db.hmget(key, fields))
         ))
 
     def hmset(self, key, mapping, **kwargs):
@@ -90,89 +86,42 @@ class DictDatabase(BaseDatabase):
             if value is not None:
                 _mapping[field] = value
         if len(_mapping) > 0:
-            self.db.hmset(key, _mapping)
+            self._dbp.hmset(key, _mapping)
 
     def keys(self):
-        return list(map(self.serializer.loads, self.db.keys()))
+        return list(map(self.serializer.loads, self._db.keys()))
 
     def hkeys(self, key):
-        return list(map(self.serializer.loads, self.db.hkeys(key)))
+        return list(map(self.serializer.loads, self._db.hkeys(key)))
+        # NOTE: This approach does not work because an iterator is
+        # returned and breaks the serializer.
+        # yield self.serializer.loads(self._db.hscan_iter())
+
+    def len(self):
+        return len(self._db)
+
+    def hlen(self, key):
+        return len(self._db[key])
 
     def exists(self, key):
-        return bool(self.db.exists(key))
+        return key in self._db
 
     def hexists(self, key, field):
-        return bool(self.db.hexists(key, field))
+        return field in self._db[key]
 
     def delete(self, keys):
         for key in keys:
-            self.db.delete(key)
+            del self._db[key]
 
     def hdelete(self, key, fields):
         for field in fields:
-            self.db.hdel(key, field)
-
-    def close(self):
-        """Redis object is disconnected automatically when object
-        goes out of scope."""
-        self.execute()
-
-    def flush(self):
-        self.db.flushdb()
+            self._db[key].remove(field)
 
     def execute(self):
-        if self.pipe:
-            self.db.execute()
+        pass
 
+    def close(self):
+        pass
 
-# class RedisSearcher:
-#     def __init__(self,
-#                  feature_extractor,
-#                  host=os.environ.get('REDIS_HOST', 'localhost'),
-#                  port=os.environ.get('REDIS_PORT', 6379),
-#                  database=os.environ.get('REDIS_DB', 0),
-#                  **kwargs):
-#         self.feature_extractor = feature_extractor
-#         self.db = redis.Redis(host=host, port=port, db=database)
-#         self._db = self.db.pipeline()
-#         self.serializer = kwargs.get('serializer', Serializer())
-#
-#     def add(self, string):
-#         features = self.feature_extractor.features(string)
-#         if self.db.exists(len(features)):
-#             # NOTE: Optimization idea is to remove duplicate features.
-#             # Probably this should be handled by the feature extractor.
-#             # For now, let us assume that features are unique.
-#             prev_features = self.db.hkeys(len(features))
-#
-#             # NOTE: Decode previous features, so that we only manage strings.
-#             # Also, use set for fast membership test.
-#             prev_features = set(map(bytes.decode, prev_features))
-#
-#             for feature in features:
-#                 if feature in prev_features:
-#                     strings = self.lookup_strings_by_feature_set_size_and_feature(len(features), feature)
-#                     if string not in strings:
-#                         strings.add(string)
-#                         self._db.hmset(len(features), {feature: self.serializer.serialize(strings)})
-#                 else:
-#                     self._db.hmset(len(features), {feature: self.serializer.serialize(set((string,)))})
-#         else:
-#             for feature in features:
-#                 self._db.hmset(len(features), {feature: self.serializer.serialize(set((string,)))})
-#         self._db.execute()
-#
-#     def lookup_strings_by_feature_set_size_and_feature(self, size, feature):
-#         # NOTE: Redis returns a list
-#         res = self.db.hmget(size, feature)[0]
-#         return self.serializer.deserialize(res) if res is not None else set()
-#
-#     def all(self):
-#         strings = set()
-#         for key in self.db.keys():
-#             for values in map(self.serializer.deserialize, self.db.hvals(key)):
-#                 strings.update(values)
-#         return strings
-#
-#     def clear(self):
-#         self.db.flushdb()
+    def flush(self):
+        self._db = collections.defaultdict(list)

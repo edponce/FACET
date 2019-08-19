@@ -7,10 +7,6 @@ from simstring import simstring
 from typing import Set, Tuple
 
 
-def db_key_encode(s):
-    return s.encode('utf-8')
-
-
 def safe_unicode(s):
     return unicodedata.normalize('NFKD', s)
 
@@ -356,25 +352,25 @@ class CuiSemTypesDB:
         # some terms have multiple cuis associated with them,
         # so we store them all
         try:
-            cuis = self.cui_db.get(db_key_encode(term))
+            cuis = self.cui_db.get(term.encode())
             cuis = pickle.loads(cuis)
         except KeyError:
             cuis = set()
 
         cuis.add((cui, is_preferred))
-        self.cui_db.put(db_key_encode(term), pickle.dumps(cuis))
+        self.cui_db.put(term.encode(), pickle.dumps(cuis))
 
         try:
-            self.semtypes_db.get(db_key_encode(cui))
+            self.semtypes_db.get(cui.encode())
         except KeyError:
             self.semtypes_db.put(
-                db_key_encode(cui), pickle.dumps(set(semtypes))
+                cui.encode(), pickle.dumps(set(semtypes))
             )
 
     def bulk_insert_cui(self, cui_bulk):
         with self.cui_db.write_batch(transaction=True) as wb:
             for term, cui, is_preferred in cui_bulk:
-                term = db_key_encode(safe_unicode(term))
+                term = safe_unicode(term).encode()
                 cui = safe_unicode(cui)
 
                 # Some terms have multiple cuis associated with them,
@@ -392,27 +388,27 @@ class CuiSemTypesDB:
     def safe_bulk_insert_cui(self, cui_bulk):
         with self.cui_db.write_batch(transaction=True) as wb:
             for term, cui, preferred in cui_bulk:
-                term = db_key_encode(safe_unicode(term))
+                term = safe_unicode(term).encode()
                 cui = safe_unicode(cui)
                 wb.put(term, pickle.dumps((cui, preferred)))
 
     def bulk_insert_sty(self, sty_bulk):
         with self.semtypes_db.write_batch(transaction=True) as wb:
             for cui, semtypes in sty_bulk:
-                cui = db_key_encode(safe_unicode(cui))
+                cui = safe_unicode(cui).encode()
                 # wb.put(cui, pickle.dumps(set(semtypes)))
                 wb.put(cui, pickle.dumps(semtypes))
 
     def get(self, term):
         term = safe_unicode(term)
-        cuis = pickle.loads(self.cui_db.get(db_key_encode(term)))
+        cuis = pickle.loads(self.cui_db.get(term.encode()))
         print(cuis)
 
         # NOTE: To make it work with QuickerUMLS DB format.
         matches = set()
         for cui, is_preferred in {cuis}:
             print(cui)
-            sty = self.semtypes_db.get(db_key_encode(cui))
+            sty = self.semtypes_db.get(cui.encode())
             print(sty)
             if sty is not None:
                 matches.add((cui,
@@ -423,7 +419,7 @@ class CuiSemTypesDB:
         # matches = (
         #     (
         #         cui,
-        #         pickle.loads(self.semtypes_db.get(db_key_encode(cui))),
+        #         pickle.loads(self.semtypes_db.get(cui.encode())),
         #         is_preferred
         #     )
         #     for cui, is_preferred in cuis

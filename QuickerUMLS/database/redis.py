@@ -1,6 +1,7 @@
 import redis
 from .base import BaseDatabase
 from typing import Union, List, Any
+from QuickerUMLS.serializer import Serializer
 
 
 class RedisDatabase(BaseDatabase):
@@ -17,8 +18,11 @@ class RedisDatabase(BaseDatabase):
             Run 'execute' command to submit commands in pipe.
             Default is False.
 
+        kwargs (Dict[str, Any]): Option forwaring, see `class:Serializer`.
+
     Note:
-        * Redis accepts keys/fields objects as either str or bytes.
+        * Redis treats keys/fields of 'str, bytes, and int'
+          types interchangeably.
     """
 
     def __init__(self, **kwargs):
@@ -34,7 +38,8 @@ class RedisDatabase(BaseDatabase):
         # NOTE: Redis pipeline object is used only for 'set' operations
         # and requires invoking 'execute' to commit queued operations.
         self._dbp = self._db.pipeline() if self._pipe else self._db
-        super().__init__(**kwargs)
+
+        self.serializer = kwargs.get('serializer', Serializer(**kwargs))
 
     @property
     def host(self):
@@ -53,11 +58,15 @@ class RedisDatabase(BaseDatabase):
         return self._pipe
 
     def _resolve_set(self, key, value,
-                     extend=False,
+                     replace=True,
                      unique=False) -> Union[List[Any], None]:
-        if self.exists(key) and extend:
+        """Resolve final key/value to be used based on key/value's
+        existence and value's uniqueness."""
+        if self.exists(key) and not replace:
             prev_value = self.get(key)
-            if unique and value in prev_value:
+            if isinstance(prev_value, dict):
+                prev_value = []
+            elif unique and value in prev_value:
                 return
             prev_value.append(value)
             value = prev_value
@@ -66,11 +75,15 @@ class RedisDatabase(BaseDatabase):
         return self.serializer.dumps(value)
 
     def _resolve_hset(self, key, field, value,
-                      extend=False,
+                      replace=True,
                       unique=False) -> Union[List[Any], None]:
-        if self.hexists(key, field) and extend:
+        """Resolve final key/value to be used based on key/value's
+        existence and value's uniqueness."""
+        if self.hexists(key, field) and not replace:
             prev_value = self.hget(key, field)
-            if unique and value in prev_value:
+            if prev_value is None:
+                prev_value = []
+            elif unique and value in prev_value:
                 return
             prev_value.append(value)
             value = prev_value
@@ -78,11 +91,21 @@ class RedisDatabase(BaseDatabase):
             value = [value]
         return self.serializer.dumps(value)
 
+    def __iter__(self):
+        return (self.serializer.loads(key) for key in self._db.scan_iter())
+
     def get(self, key):
-        value = self._db.get(key)
+        try:
+            value = self._db.get(key)
+        except redis.exceptions.ResponseError:
+            # NOTE: Assume key is a hash name, so return a field/value mapping.
+            # Setting a hash map using this syntax is not supported
+            # because it is ambiguous if a dictionary is the value or
+            # the field/value mapping.
+            return {field: self.hget(key, field) for field in self.hkeys(key)}
+
         if value is not None:
-            value = self.serializer.loads(value)
-        return value
+            return self.serializer.loads(value)
 
     def set(self, key, value, **kwargs):
         value = self._resolve_set(key, value, **kwargs)
@@ -90,10 +113,15 @@ class RedisDatabase(BaseDatabase):
             self._dbp.set(key, value)
 
     def mget(self, keys):
-        return list(map(
-            self.serializer.loads,
-            filter(lambda v: v is not None, self._db.mget(keys))
-        ))
+        values = self._db.mget(keys)
+        for i, value in enumerate(values):
+            if value is not None:
+                values[i] = self.serializer.loads(value)
+            else:
+                # NOTE: mget() returns None if key is a hash name, so
+                # check if key is a hash name.
+                values[i] = self.get(keys[i])
+        return values
 
     def mset(self, mapping, **kwargs):
         _mapping = {}
@@ -105,21 +133,34 @@ class RedisDatabase(BaseDatabase):
             self._dbp.mset(_mapping)
 
     def hget(self, key, field):
-        value = self._db.hget(key, field)
+        try:
+            value = self._db.hget(key, field)
+        except redis.exceptions.ResponseError:
+            return
         if value is not None:
-            value = self.serializer.loads(value)
-        return value
+            return self.serializer.loads(value)
 
     def hset(self, key, field, value, **kwargs):
-        value = self._resolve_hset(key, value, **kwargs)
+        value = self._resolve_hset(key, field, value, **kwargs)
         if value is not None:
-            self._dbp.hset(key, field, value)
+            try:
+                self._dbp.hset(key, field, value)
+            except redis.exceptions.ResponseError:
+                self.delete([key])
+                self._dbp.hset(key, field, value)
 
     def hmget(self, key, fields):
-        return list(map(
-            self.serializer.loads,
-            filter(lambda v: v is not None, self._db.hmget(key, fields))
-        ))
+        try:
+            values = self._db.hmget(key, fields)
+        except redis.exceptions.ResponseError:
+            # NOTE: If key already exists and is not a hash name,
+            # error is triggered. Return a None for each field to have
+            # the same behavior as when key does not exists.
+            return len(fields) * [None]
+        for i, value in enumerate(values):
+            if value is not None:
+                values[i] = self.serializer.loads(value)
+        return values
 
     def hmset(self, key, mapping, **kwargs):
         _mapping = {}
@@ -136,11 +177,23 @@ class RedisDatabase(BaseDatabase):
     def hkeys(self, key):
         return list(map(self.serializer.loads, self._db.hkeys(key)))
 
+    def len(self):
+        return self._db.dbsize()
+
+    def hlen(self, key):
+        try:
+            return self._db.hlen(key)
+        except redis.exceptions.ResponseError:
+            return 0
+
     def exists(self, key):
         return bool(self._db.exists(key))
 
     def hexists(self, key, field):
-        return bool(self._db.hexists(key, field))
+        try:
+            return bool(self._db.hexists(key, field))
+        except redis.exceptions.ResponseError:
+            return False
 
     def delete(self, keys):
         for key in keys:
@@ -150,17 +203,30 @@ class RedisDatabase(BaseDatabase):
         for field in fields:
             self._db.hdel(key, field)
 
+    def execute(self):
+        if self.pipe:
+            self._dbp.execute()
+
     def close(self):
         """Redis object is disconnected automatically when object
         goes out of scope."""
         self.execute()
+        self.save()
 
     def flush(self):
         self._db.flushdb()
 
-    def execute(self):
-        if self.pipe:
-            self._dbp.execute()
+    def save(self):
+        self._db.save()
+
+    def config(self, mapping={}):
+        if len(mapping) == 0:
+            info = self._db.info()
+            info.update(self._db.config_get())
+            return info
+        else:
+            for key, value in mapping.items():
+                self._db.config_set(key, value)
 
 
 # class RedisSearcher:
@@ -181,6 +247,8 @@ class RedisDatabase(BaseDatabase):
 #             # NOTE: Optimization idea is to remove duplicate features.
 #             # Probably this should be handled by the feature extractor.
 #             # For now, let us assume that features are unique.
+#             # NOTE: Optimization idea is to use a cache for hkeys to
+#             # prevent hitting database as much.
 #             prev_features = self.db.hkeys(len(features))
 #
 #             # NOTE: Decode previous features, so that we only manage strings.
@@ -189,15 +257,28 @@ class RedisDatabase(BaseDatabase):
 #
 #             for feature in features:
 #                 if feature in prev_features:
-#                     strings = self.lookup_strings_by_feature_set_size_and_feature(len(features), feature)
+#                     strings = \
+#                         self.lookup_strings_by_feature_set_size_and_feature(
+#                             len(features),
+#                             feature
+#                         )
 #                     if string not in strings:
 #                         strings.add(string)
-#                         self._db.hmset(len(features), {feature: self.serializer.serialize(strings)})
+#                         self._db.hmset(
+#                             len(features),
+#                             {feature: self.serializer.serialize(strings)}
+#                         )
 #                 else:
-#                     self._db.hmset(len(features), {feature: self.serializer.serialize(set((string,)))})
+#                     self._db.hmset(
+#                         len(features),
+#                         {feature: self.serializer.serialize(set((string,)))}
+#                     )
 #         else:
 #             for feature in features:
-#                 self._db.hmset(len(features), {feature: self.serializer.serialize(set((string,)))})
+#                 self._db.hmset(
+#                     len(features),
+#                     {feature: self.serializer.serialize(set((string,)))}
+#                 )
 #         self._db.execute()
 #
 #     def lookup_strings_by_feature_set_size_and_feature(self, size, feature):
@@ -208,7 +289,8 @@ class RedisDatabase(BaseDatabase):
 #     def all(self):
 #         strings = set()
 #         for key in self.db.keys():
-#             for values in map(self.serializer.deserialize, self.db.hvals(key)):
+#             for values in map(self.serializer.deserialize,
+#                               self.db.hvals(key)):
 #                 strings.update(values)
 #         return strings
 #

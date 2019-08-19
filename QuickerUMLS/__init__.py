@@ -34,3 +34,5 @@ __copyright__ = """2019 Eduardo Ponce and Kris Brown
 
 
 from .quickumls import QuickUMLS
+from .database.redis import RedisDatabase
+from .database.dict import DictDatabase
