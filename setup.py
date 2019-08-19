@@ -98,6 +98,7 @@ setup(
         'QuickerUMLS.database',
         'QuickerUMLS.serializer',
         'QuickerUMLS.web',
+        'QuickerUMLS.simstring',
     ],
     install_requires=install_requirements,
     setup_requires=setup_requirements,

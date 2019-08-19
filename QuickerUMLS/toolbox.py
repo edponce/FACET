@@ -3,8 +3,8 @@ import pickle
 import shutil
 import unicodedata
 import plyvel as leveldb
-from simstring import simstring
 from typing import Set, Tuple
+from QuickerUMLS.simstring import simstring
 
 
 def safe_unicode(s):

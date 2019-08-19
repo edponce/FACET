@@ -96,7 +96,7 @@ ENV/
 cache/
 
 #Simstring folder
-simstring/
+QuickerUMLS/simstring/
 
 # Ignored test file
 test.py
