@@ -1,9 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Any, List, Dict, Union, Iterable, Iterator
+from typing import Any, List, Dict, Tuple, Union, Iterable, Iterator
+
+
+__all__ = ['BaseDatabase']
 
 
 class BaseDatabase(ABC):
-    """Interface to database.
+    """Interface to key/value store database.
 
     Notes:
         * Keys/fields should be of string datatype. Implementations of
@@ -13,12 +16,15 @@ class BaseDatabase(ABC):
         * If needed, values should be serialized and deserialized by the
           implementation of this interface.
 
-        * All values are represented as lists.
+        * All values are represented as either lists or dictionaries.
+          Dictionaries exclusively represent field/values corresponding
+          to a hash map.
     """
 
-    def __getitem__(self,
-                    key: Union[str, Iterable[str]],
-                    ) -> Union[List[Any], None, List[Union[List[Any], None]]]:
+    def __getitem__(
+        self,
+        key: Union[str, Iterable[str]],
+    ) -> Union[List[Any], None, List[Union[List[Any], None]]]:
         return self.get(key)
 
     def __setitem__(self, key: str, value: Any):
@@ -39,57 +45,36 @@ class BaseDatabase(ABC):
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, *exc_info):
         self.close()
 
-    def get(self,
-            keys: Union[str, Iterable[str]],
-            fields: Union[str, Iterable[str]] = None
-            ) -> Union[List[Any], None, List[Union[List[Any], None]]]:
+    def get(
+        self,
+        keys: Union[str, Iterable[str]],
+        fields: Union[str, Iterable[str]] = None,
+    ) -> Union[List[Any], None, List[Union[List[Any], None]]]:
+        result = None
         if isinstance(keys, str):
             if fields is None:
-                return self._get(keys)
+                result = self._get(keys)
             elif isinstance(fields, str):
-                return self._hget(keys, fields)
+                result = self._hget(keys, fields)
             else:
                 # Assume 'fields' is an iterable
-                return self._hmget(keys, fields)
+                result = self._hmget(keys, fields)
         elif fields is None:
             # Assume 'keys' is an iterable
-            return self._mget(keys)
+            result = self._mget(keys)
+        return result
 
-    @abstractmethod
-    def _get(self,
-             key: str
-             ) -> Union[List[Any], None]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def _mget(self,
-              keys: Iterable[str]
-              ) -> List[Union[List[Any], None]]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def _hget(self,
-              key: str,
-              field: str
-              ) -> Union[List[Any], None]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def _hmget(self,
-               key: str,
-               fields: Iterable[str]
-               ) -> List[Union[List[Any], None]]:
-        raise NotImplementedError
-
-    def set(self,
-            key_or_map: Union[str, Dict[str, Any]],
-            val_or_field_or_map: Union[Any, str, Dict[str, Any]] = None,
-            value: Any = None,
-            *,
-            replace=True, unique=False):
+    def set(
+        self,
+        key_or_map: Union[str, Dict[str, Any]],
+        val_or_field_or_map: Union[Any, str, Dict[str, Any]] = None,
+        value: Any = None,
+        *,
+        replace=True, unique=False,
+    ):
         """
         Args:
             replace (bool): If set, replace value, else add value to
@@ -107,61 +92,102 @@ class BaseDatabase(ABC):
             if value is None:
                 if isinstance(val_or_field_or_map, dict):
                     # Assume 'value' is a mapping
-                    return self._hmset(key_or_map, val_or_field_or_map)
+                    self._hmset(key_or_map, val_or_field_or_map)
                 else:
-                    return self._set(key_or_map, val_or_field_or_map)
+                    self._set(key_or_map, val_or_field_or_map)
             else:
                 # Assume 'val_or_field_or_map' is a field
-                return self._hset(key_or_map, val_or_field_or_map, value)
+                self._hset(key_or_map, val_or_field_or_map, value)
         elif (isinstance(key_or_map, dict)
               and val_or_field_or_map is None
               and value is None):
-            return self._mset(key_or_map)
-
-    @abstractmethod
-    def _set(self, key: str, value: Any, *,
-             replace=True, unique=False):
-        raise NotImplementedError
-
-    @abstractmethod
-    def _mset(self, mapping: Dict[str, Any], *,
-              replace=True, unique=False):
-        raise NotImplementedError
-
-    @abstractmethod
-    def _hset(self, key: str, field: str, value: Any, *,
-              replace=True, unique=False):
-        raise NotImplementedError
-
-    @abstractmethod
-    def _hmset(self, key: str, mapping: Dict[str, Any], *,
-               replace=True, unique=False):
-        raise NotImplementedError
+            self._mset(key_or_map)
 
     def keys(self, key: str = None) -> List[str]:
-        if key is None:
-            return self._keys()
+        return self._keys() if key is None else self._hkeys(key)
+
+    def len(self, key: str = None) -> int:
+        return self._len() if key is None else self._hlen(key)
+
+    def items(self) -> Iterator[Tuple[str, List[Any]]]:
+        for key in self._keys():
+            yield key, self._get(key)
+
+    def exists(self, key: str, field: str = None) -> bool:
+        return (
+            self._exists(key) if field is None else self._hexists(key, field)
+        )
+
+    def delete(
+        self,
+        keys: Union[Iterable[str], str],
+        fields: Iterable[str] = None,
+    ):
+        if fields is None:
+            self._delete(keys)
         else:
-            return self._hkeys(key)
+            self._hdelete(keys, fields)
+
+    @abstractmethod
+    def _get(self, key: str) -> Union[List[Any], None]:
+        pass
+
+    @abstractmethod
+    def _mget(self, keys: Iterable[str]) -> List[Union[List[Any], None]]:
+        pass
+
+    @abstractmethod
+    def _hget(self, key: str, field: str) -> Union[List[Any], None]:
+        pass
+
+    @abstractmethod
+    def _hmget(
+        self,
+        key: str,
+        fields: Iterable[str]
+    ) -> List[Union[List[Any], None]]:
+        pass
+
+    @abstractmethod
+    def _set(
+        self, key: str, value: Any, *,
+        replace=True, unique=False,
+    ):
+        pass
+
+    @abstractmethod
+    def _mset(
+        self, mapping: Dict[str, Any], *,
+        replace=True, unique=False,
+    ):
+        pass
+
+    @abstractmethod
+    def _hset(
+        self, key: str, field: str, value: Any, *,
+        replace=True, unique=False,
+    ):
+        pass
+
+    @abstractmethod
+    def _hmset(
+        self, key: str, mapping: Dict[str, Any], *,
+        replace=True, unique=False,
+    ):
+        pass
 
     @abstractmethod
     def _keys(self) -> List[str]:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def _hkeys(self, key: str) -> List[str]:
-        raise NotImplementedError
-
-    def len(self, key: str = None) -> int:
-        if key is None:
-            return self._len()
-        else:
-            return self._hlen(key)
+        pass
 
     @abstractmethod
     def _len(self) -> int:
         """Returns the total number of keys in database."""
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def _hlen(self, key: str) -> int:
@@ -169,65 +195,53 @@ class BaseDatabase(ABC):
         If key is not a hash name, then return 0
         If key does not exists, then return 0.
         """
-        raise NotImplementedError
-
-    def exists(self, key: str, field: str = None) -> bool:
-        if field is None:
-            return self._exists(key)
-        else:
-            return self._hexists(key, field)
+        pass
 
     @abstractmethod
     def _exists(self, key: str) -> bool:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def _hexists(self, key: str, field: str) -> bool:
-        """
+        """Check existence of a hash name.
         If key is not a hash name, then return false.
         """
-        raise NotImplementedError
-
-    def delete(self,
-               keys: Union[Iterable[str], str],
-               fields: Iterable[str] = None):
-        if fields is None:
-            self._delete(keys)
-        else:
-            self._hdelete(keys, fields)
+        pass
 
     @abstractmethod
     def _delete(self, keys: Iterable[str]):
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def _hdelete(self, key: str, fields: Iterable[str]):
-        raise NotImplementedError
+        pass
 
     @abstractmethod
-    def execute(self):
+    def sync(self):
         """Submit queued commands.
-        Not all databases support this functionality."""
-        raise NotImplementedError
+        Not all databases support this functionality.
+        """
+        pass
 
     @abstractmethod
     def close(self):
         """Close database connection."""
-        raise NotImplementedError
+        pass
 
     @abstractmethod
-    def flush(self):
+    def clear(self):
         """Delete all keys in database."""
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def save(self, **kwargs):
-        raise NotImplementedError
+        pass
 
-    @abstractmethod
-    def config(self,
-               mapping: Dict[str, Any] = {}) -> Union[Dict[str, Any], None]:
+    def config(
+        self,
+        mapping: Dict[str, Any] = {},
+    ) -> Union[Dict[str, Any], None]:
         """Get/set configuration of database.
         If mapping is empty, return configuration, else set configuration.
         """
-        raise NotImplementedError
+        pass

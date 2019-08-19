@@ -1,7 +1,10 @@
 import redis
 from .base import BaseDatabase
-from typing import Union, List, Any
+from typing import Union, Tuple, List, Any
 from QuickerUMLS.serializer import Serializer
+
+
+__all__ = ['RedisDatabase']
 
 
 class RedisDatabase(BaseDatabase):
@@ -15,28 +18,32 @@ class RedisDatabase(BaseDatabase):
         db (int): Database ID, see Redis documentation. Default is 0.
 
         pipe (bool): If set, queue 'set-related' commands to Redis database.
-            Run 'execute' command to submit commands in pipe.
+            Run 'sync' command to submit commands in pipe.
             Default is False.
 
-        kwargs (Dict[str, Any]): Option forwaring, see `class:Serializer`.
+        kwargs (Dict[str, Any]): Option forwarding, see `class:Serializer`.
 
     Notes:
         * Redis treats keys/fields of 'str, bytes, and int'
           types interchangeably.
     """
 
-    def __init__(self, **kwargs):
-        self._host = kwargs.get('host', 'localhost')
-        self._port = kwargs.get('port', 6379)
-        self._db_id = kwargs.get('db', 0)
-        self._is_pipe = kwargs.get('pipe', False)
+    def __init__(self, host='localhost', *, port=6379, db=0, **kwargs):
+        self._host = host
+        self._port = port
+        self._db_id = db
+
+        # Connect to database
         self._db = redis.Redis(
             host=self._host,
             port=self._port,
             db=self._db_id,
+            **kwargs,
         )
+
         # NOTE: Redis pipeline object is used only for 'set' operations
-        # and requires invoking 'execute' to commit queued operations.
+        # and requires invoking 'sync' to commit queued operations.
+        self._is_pipe = kwargs.get('pipe', False)
         self._dbp = self._db.pipeline() if self._is_pipe else self._db
 
         self.serializer = kwargs.get('serializer', Serializer(**kwargs))
@@ -90,9 +97,11 @@ class RedisDatabase(BaseDatabase):
         try:
             value = self._db.hget(key, field)
         except redis.exceptions.ResponseError:
-            return
-        if value is not None:
-            return self.serializer.loads(value)
+            value = None
+        else:
+            if value is not None:
+                value = self.serializer.loads(value)
+        return value
 
     def _hmget(self, key, fields):
         try:
@@ -101,10 +110,11 @@ class RedisDatabase(BaseDatabase):
             # NOTE: If key already exists and is not a hash name,
             # error is triggered. Return None for each field to have
             # the same behavior as when key does not exists.
-            return len(fields) * [None]
-        for i, value in enumerate(values):
-            if value is not None:
-                values[i] = self.serializer.loads(value)
+            values = len(fields) * [None]
+        else:
+            for i, value in enumerate(values):
+                if value is not None:
+                    values[i] = self.serializer.loads(value)
         return values
 
     def _resolve_set(self, key, value,
@@ -117,7 +127,7 @@ class RedisDatabase(BaseDatabase):
             if isinstance(prev_value, dict):
                 prev_value = []
             elif unique and value in prev_value:
-                return
+                return None
             prev_value.append(value)
             value = prev_value
         else:
@@ -134,7 +144,7 @@ class RedisDatabase(BaseDatabase):
             if prev_value is None:
                 prev_value = []
             elif unique and value in prev_value:
-                return
+                return None
             prev_value.append(value)
             value = prev_value
         else:
@@ -180,7 +190,7 @@ class RedisDatabase(BaseDatabase):
         try:
             fields = self._db.hkeys(key)
         except redis.exceptions.ResponseError:
-            return []
+            fields = []
         return list(map(self.serializer.loads, fields))
 
     def _len(self):
@@ -188,18 +198,20 @@ class RedisDatabase(BaseDatabase):
 
     def _hlen(self, key):
         try:
-            return self._db.hlen(key)
+            _len = self._db.hlen(key)
         except redis.exceptions.ResponseError:
-            return 0
+            _len = 0
+        return _len
 
     def _exists(self, key):
         return bool(self._db.exists(key))
 
     def _hexists(self, key, field):
         try:
-            return bool(self._db.hexists(key, field))
+            valid = bool(self._db.hexists(key, field))
         except redis.exceptions.ResponseError:
-            return False
+            valid = False
+        return valid
 
     def _delete(self, keys):
         for key in keys:
@@ -207,22 +219,24 @@ class RedisDatabase(BaseDatabase):
 
     def _hdelete(self, key, fields):
         for field in fields:
-            try:
+            if self._hexists(key, field):
                 self._db.hdel(key, field)
-            except redis.exceptions.ResponseError:
-                pass
 
-    def execute(self):
+    def sync(self):
         if self.is_pipe:
             self._dbp.execute()
 
     def close(self):
         """Redis object is disconnected automatically when object
         goes out of scope."""
-        self.execute()
+        self.sync()
         self.save()
+        # NOTE: Need to find how to disconnect from database.
+        # Temporary fix is to detach database handles.
+        self._db = None
+        self._dbp = None
 
-    def flush(self):
+    def clear(self):
         self._db.flushdb()
 
     def save(self, **kwargs):
