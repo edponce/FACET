@@ -27,7 +27,9 @@ clean:
 	rm -rf "$(PKGDIR)"/__pycache__ "$(PKGDIR)"/*.pyc
 	rm -rf "$(TESTDIR)"/__pycache__ "$(TESTDIR)"/*.pyc
 	rm -rf dist build
-	$(MAKE) -C "$(DOCDIR)" clean
 
 docs:
 	$(MAKE) -C "$(DOCDIR)" html
+
+clean_docs:
+	$(MAKE) -C "$(DOCDIR)" clean

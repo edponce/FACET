@@ -1,6 +1,6 @@
-=========================
-QuickerUMLS Documentation
-=========================
+===================
+FACET Documentation
+===================
 
 .. toctree::
     :maxdepth: 2
