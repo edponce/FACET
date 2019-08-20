@@ -246,15 +246,17 @@ class QuickUMLS:
             or tok.text in type(self).UNICODE_DASHES
         )
 
-    def _is_ok_semtype(self, target_semtypes):
-        if ACCEPTED_SEMTYPES is None:
-            ok = True
-        else:
-            if isinstance(target_semtypes, str):
-                ok = target_semtypes in ACCEPTED_SEMTYPES
-            else:
-                ok = any(sem in ACCEPTED_SEMTYPES for sem in target_semtypes)
-        return ok
+    def _filter_semtypes(self, semtypes):
+        if isinstance(semtypes, str):
+            semtypes = [semtypes]
+        valid_semtypes = semtypes
+        if ACCEPTED_SEMTYPES is not None:
+            valid_semtypes = [
+                (semtype, ACCEPTED_SEMTYPES[semtype])
+                for semtype in semtypes
+                if semtype in ACCEPTED_SEMTYPES
+            ]
+        return valid_semtypes
 
     def _is_longer_than_min(self, span):
         return (span.end_char - span.start_char) >= self.min_match_length
@@ -348,7 +350,8 @@ class QuickUMLS:
                 # Access/retrieve from CuiSem database
                 cuisem_match = sorted(self.cuisem_db.read(candidate))
                 for cui, semtypes, preferred in cuisem_match:
-                    if not self._is_ok_semtype(semtypes):
+                    semtypes = self._filter_semtypes(semtypes)
+                    if len(semtypes) == 0:
                         continue
 
                     # Remove previously matched CUI if current match
@@ -415,7 +418,8 @@ class QuickUMLS:
                 # Access/retrieve from CuiSem database
                 cuisem_match = sorted(self.cuisem_db.read(candidate))
                 for cui, semtypes, preferred in cuisem_match:
-                    if not self._is_ok_semtype(semtypes):
+                    semtypes = self._filter_semtypes(semtypes)
+                    if len(semtypes) == 0:
                         continue
 
                     # Remove previously matched CUI if current match
@@ -596,6 +600,8 @@ class QuickUMLS:
             if VERBOSE > 0:
                 self._print_status(doc, _matches)
 
+            # NOTE: Matches are not checked for duplication if placed
+            # in the same key.
             matches[source].extend(_matches)
 
         if PROFILE:
@@ -929,7 +935,8 @@ class QuickUMLS:
 
             cuisem_match = sorted(cuisem_match)
             for cui, semtypes, preferred in cuisem_match:
-                if not self._is_ok_semtype(semtypes):
+                semtypes = self._filter_semtypes(semtypes)
+                if len(semtypes) == 0:
                     continue
 
                 if prev_cui is not None and prev_cui == cui:

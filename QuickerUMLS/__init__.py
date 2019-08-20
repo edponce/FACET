@@ -34,6 +34,17 @@ __copyright__ = """2019 Eduardo Ponce and Kris Brown
 
 
 from .quickumls import QuickUMLS
-from .database.redis import RedisDatabase
-from .database.dict import DictDatabase
+from .database import (
+    DictDatabase,
+    RedisDatabase,
+)
+from .simstring import (
+    DiceSimilarity,
+    ExactSimilarity,
+    CosineSimilarity,
+    JaccardSimilarity,
+    OverlapSimilarity,
+    NgramExtractor,
+)
+from .serializer import PickleSerializer
 from .simstring import simstring

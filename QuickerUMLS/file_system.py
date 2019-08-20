@@ -51,6 +51,10 @@ def corpus_generator(corpora: str,
                      The source identifier for raw text is '_text'.
                      The source identifier for other is their file system name.
     """
+    # NOTE: For files, it returns one line at a time, preventing multi-word
+    # concepts that span multiple lines to be identified. Solution is to
+    # return a batch of lines with initial boundary overlapping last line
+    # from previous batch.
     if not is_iterable(corpora):
         corpora = (corpora,)
 

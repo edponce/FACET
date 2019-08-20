@@ -202,8 +202,8 @@ class RedisDatabase(BaseDatabase):
             self._dbp.execute()
 
     def close(self):
-        """Redis object is disconnected automatically when object
-        goes out of scope."""
+        # NOTE: Redis object is disconnected automatically when object
+        # goes out of scope.
         self.sync()
         self.save()
 
@@ -212,72 +212,3 @@ class RedisDatabase(BaseDatabase):
 
     def save(self, **kwargs):
         self._db.save()
-
-
-# class RedisSearcher:
-#     def __init__(self,
-#                  feature_extractor,
-#                  host=os.environ.get('REDIS_HOST', 'localhost'),
-#                  port=os.environ.get('REDIS_PORT', 6379),
-#                  database=os.environ.get('REDIS_DB', 0),
-#                  **kwargs):
-#         self.feature_extractor = feature_extractor
-#         self.db = redis.Redis(host=host, port=port, db=database)
-#         self._db = self.db.pipeline()
-#         self.serializer = kwargs.get('serializer', Serializer())
-#
-#     def add(self, string):
-#         features = self.feature_extractor.features(string)
-#         if self.db.exists(len(features)):
-#             # NOTE: Optimization idea is to remove duplicate features.
-#             # Probably this should be handled by the feature extractor.
-#             # For now, let us assume that features are unique.
-#             # NOTE: Optimization idea is to use a cache for hkeys to
-#             # prevent hitting database as much.
-#             prev_features = self.db.hkeys(len(features))
-#
-#             # NOTE: Decode previous features, so that we only manage strings.
-#             # Also, use set for fast membership test.
-#             prev_features = set(map(bytes.decode, prev_features))
-#
-#             for feature in features:
-#                 if feature in prev_features:
-#                     strings = \
-#                         self.lookup_strings_by_feature_set_size_and_feature(
-#                             len(features),
-#                             feature
-#                         )
-#                     if string not in strings:
-#                         strings.add(string)
-#                         self._db.hmset(
-#                             len(features),
-#                             {feature: self.serializer.serialize(strings)}
-#                         )
-#                 else:
-#                     self._db.hmset(
-#                         len(features),
-#                         {feature: self.serializer.serialize(set((string,)))}
-#                     )
-#         else:
-#             for feature in features:
-#                 self._db.hmset(
-#                     len(features),
-#                     {feature: self.serializer.serialize(set((string,)))}
-#                 )
-#         self._db.execute()
-#
-#     def lookup_strings_by_feature_set_size_and_feature(self, size, feature):
-#         # NOTE: Redis returns a list
-#         res = self.db.hmget(size, feature)[0]
-#         return self.serializer.deserialize(res) if res is not None else set()
-#
-#     def all(self):
-#         strings = set()
-#         for key in self.db.keys():
-#             for values in map(self.serializer.deserialize,
-#                               self.db.hvals(key)):
-#                 strings.update(values)
-#         return strings
-#
-#     def clear(self):
-#         self.db.flushdb()

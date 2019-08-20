@@ -1,5 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Any, List, Dict, Tuple, Union, Iterable, Iterator
+from typing import (
+    Any, List, Dict, Tuple, Union, Iterable, Iterator, NoReturn,
+)
+
+# NOTE: Do not store single values as lists, only if they get extended.
+# Use 'is_iterable' to check if value is a list. But how do we check if
+# a value is not a list itself. Possible solution, subclass list.
 
 
 __all__ = ['BaseDatabase']
@@ -27,10 +33,10 @@ class BaseDatabase(ABC):
     ) -> Union[List[Any], None, List[Union[List[Any], None]]]:
         return self.get(key)
 
-    def __setitem__(self, key: str, value: Any):
+    def __setitem__(self, key: str, value: Any) -> NoReturn:
         self.set(key, value)
 
-    def __delitem__(self, key: str):
+    def __delitem__(self, key: str) -> NoReturn:
         self.delete([key])
 
     def __contains__(self, key: str) -> bool:
@@ -42,14 +48,15 @@ class BaseDatabase(ABC):
     def __len__(self) -> int:
         return self.len()
 
-    def __enter__(self):
+    def __enter__(self) -> 'BaseDatabase':
         return self
 
-    def __exit__(self, *exc_info):
+    def __exit__(self, *exc_info) -> NoReturn:
         self.close()
 
     @property
     def config(self) -> Dict[str, Any]:
+        """Get configuraton information of database."""
         return {}
 
     def get(
@@ -57,6 +64,7 @@ class BaseDatabase(ABC):
         keys: Union[str, Iterable[str]],
         fields: Union[str, Iterable[str]] = None,
     ) -> Union[List[Any], None, List[Union[List[Any], None]]]:
+        """Access values from database."""
         result = None
         if isinstance(keys, str):
             if fields is None:
@@ -78,14 +86,15 @@ class BaseDatabase(ABC):
         value: Any = None,
         *,
         replace=True, unique=False,
-    ):
-        """
+    ) -> NoReturn:
+        """Insert values into database.
+
         Args:
             replace (bool): If set, replace value, else add value to
                 existing ones. Default is true.
 
             unique (bool): If set, do not allow duplicate values.
-                Used in conjunction with `attr:replace`.
+                Used in conjunction with *replace* parameter.
 
         Notes:
               The second parameter is ambiguous between '_set' and
@@ -108,16 +117,20 @@ class BaseDatabase(ABC):
             self._mset(key_or_map)
 
     def keys(self, key: str = None) -> List[str]:
+        """Get all keys in database."""
         return self._keys() if key is None else self._hkeys(key)
 
     def len(self, key: str = None) -> int:
+        """Get numbers of keys in database or given key."""
         return self._len() if key is None else self._hlen(key)
 
     def items(self) -> Iterator[Tuple[str, List[Any]]]:
+        """Get an iterator of key/value pairs."""
         for key in self._keys():
             yield key, self._get(key)
 
     def exists(self, key: str, field: str = None) -> bool:
+        """Check if a key or field exist in the database."""
         return (
             self._exists(key) if field is None else self._hexists(key, field)
         )
@@ -126,7 +139,8 @@ class BaseDatabase(ABC):
         self,
         keys: Union[Iterable[str], str],
         fields: Iterable[str] = None,
-    ):
+    ) -> NoReturn:
+        """Remove keys or fields from the database."""
         if fields is None:
             self._delete(keys)
         else:
@@ -190,28 +204,28 @@ class BaseDatabase(ABC):
     def _set(
         self, key: str, value: Any, *,
         replace=True, unique=False,
-    ):
+    ) -> NoReturn:
         pass
 
     @abstractmethod
     def _mset(
         self, mapping: Dict[str, Any], *,
         replace=True, unique=False,
-    ):
+    ) -> NoReturn:
         pass
 
     @abstractmethod
     def _hset(
         self, key: str, field: str, value: Any, *,
         replace=True, unique=False,
-    ):
+    ) -> NoReturn:
         pass
 
     @abstractmethod
     def _hmset(
         self, key: str, mapping: Dict[str, Any], *,
         replace=True, unique=False,
-    ):
+    ) -> NoReturn:
         pass
 
     @abstractmethod
@@ -247,39 +261,31 @@ class BaseDatabase(ABC):
         pass
 
     @abstractmethod
-    def _delete(self, keys: Iterable[str]):
+    def _delete(self, keys: Iterable[str]) -> NoReturn:
         pass
 
     @abstractmethod
-    def _hdelete(self, key: str, fields: Iterable[str]):
+    def _hdelete(self, key: str, fields: Iterable[str]) -> NoReturn:
         pass
 
     @abstractmethod
-    def sync(self):
+    def sync(self) -> NoReturn:
         """Submit queued commands.
         Not all databases support this functionality.
         """
         pass
 
     @abstractmethod
-    def close(self):
+    def close(self) -> NoReturn:
         """Close database connection."""
         pass
 
     @abstractmethod
-    def clear(self):
+    def clear(self) -> NoReturn:
         """Delete all keys in database."""
         pass
 
     @abstractmethod
-    def save(self, **kwargs):
-        pass
-
-    def config(
-        self,
-        mapping: Dict[str, Any] = {},
-    ) -> Union[Dict[str, Any], None]:
-        """Get/set configuration of database.
-        If mapping is empty, return configuration, else set configuration.
-        """
+    def save(self, **kwargs: Dict[str, Any]) -> NoReturn:
+        """Save database, if supported."""
         pass

@@ -35,14 +35,14 @@ class DictDatabase(BaseDatabase):
 
         * Keys/fields are treated as ordinary 'str'.
     """
-    MODES = {
+    _MODES = {
         'r': 'read',
         'w': 'write',
         'c': 'read/write',
         'n': 'overwrite, read/write',
     }
 
-    CONTROLS = {
+    _CONTROLS = {
         'f': 'fast, no sync',
         's': 'sync',
         'u': 'no lock',
@@ -79,8 +79,8 @@ class DictDatabase(BaseDatabase):
         return {
             'name': self._name,
             'dir': self._dir,
-            'mode': type(self).MODES[self._flag[0]],
-            'control': type(self).CONTROLS[
+            'mode': type(self)._MODES[self._flag[0]],
+            'control': type(self)._CONTROLS[
                 self._flag[1] if len(self._flag) > 1 else ''
             ],
             'pipe': self._is_pipe,

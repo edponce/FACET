@@ -6,6 +6,12 @@ __all__ = ['PickleSerializer']
 
 
 class PickleSerializer(BaseSerializer):
+    """Pickle serializer.
+
+    Args:
+        protocol (int): Protocol version to use.
+            Default is pickle.HIGHEST_PROTOCOL.
+    """
 
     def __init__(self, **kwargs):
         self._protocol = kwargs.get('protocol', pickle.HIGHEST_PROTOCOL)
