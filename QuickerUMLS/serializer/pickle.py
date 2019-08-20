@@ -2,6 +2,9 @@ import pickle
 from .base import BaseSerializer
 
 
+__all__ = ['PickleSerializer']
+
+
 class PickleSerializer(BaseSerializer):
 
     def __init__(self, **kwargs):

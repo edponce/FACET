@@ -3,6 +3,9 @@ from typing import List, Tuple
 from QuickerUMLS.helpers import is_iterable
 
 
+__all__ = ['unpack_dir', 'corpus_generator']
+
+
 def unpack_dir(adir: str, hidden=False, recursive=False) -> List[str]:
     """Unpack directories into a list of filenames.
 
@@ -29,7 +32,7 @@ def unpack_dir(adir: str, hidden=False, recursive=False) -> List[str]:
 
 def corpus_generator(corpora: str,
                      phony=False, **kwargs) -> Tuple[str, str]:
-    """Match concepts found in a vocabulary to terms in corpora.
+    """Extracts text from corpora.
 
     Args:
         corpora (str): Text data to process. Valid values are:

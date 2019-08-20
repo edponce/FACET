@@ -3,6 +3,9 @@ from typing import Any
 from abc import ABC, abstractmethod
 
 
+__all__ = ['BaseSerializer']
+
+
 class BaseSerializer(ABC):
 
     def __init__(self, **kwargs):
@@ -29,11 +32,11 @@ class BaseSerializer(ABC):
 
     @abstractmethod
     def _serialize(cls, obj: Any) -> bytes:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def _deserialize(cls, obj: bytes) -> Any:
-        raise NotImplementedError
+        pass
 
     def dumps(self, obj: Any) -> bytes:
         """Serialize arbitrary argument."""
