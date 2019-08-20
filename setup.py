@@ -99,6 +99,7 @@ setup(
         'QuickerUMLS.serializer',
         'QuickerUMLS.web',
         'QuickerUMLS.simstring',
+        'QuickerUMLS.simstring.similarity',
     ],
     install_requires=install_requirements,
     setup_requires=setup_requirements,
