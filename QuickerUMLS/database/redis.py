@@ -1,6 +1,6 @@
+import copy
 import redis
 from .base import BaseDatabase
-from typing import Union, Tuple, List, Any
 from QuickerUMLS.serializer import Serializer
 
 
@@ -28,7 +28,8 @@ class RedisDatabase(BaseDatabase):
           types interchangeably.
     """
 
-    def __init__(self, host='localhost', *, port=6379, db=0, **kwargs):
+    def __init__(self, host='localhost', *,
+                 port=6379, db=0, pipe=False, **kwargs):
         self._host = host
         self._port = port
         self._db_id = db
@@ -43,7 +44,7 @@ class RedisDatabase(BaseDatabase):
 
         # NOTE: Redis pipeline object is used only for 'set' operations
         # and requires invoking 'sync' to commit queued operations.
-        self._is_pipe = kwargs.get('pipe', False)
+        self._is_pipe = pipe
         self._dbp = self._db.pipeline() if self._is_pipe else self._db
 
         self.serializer = kwargs.get('serializer', Serializer(**kwargs))
@@ -61,8 +62,15 @@ class RedisDatabase(BaseDatabase):
         return self._db_id
 
     @property
-    def is_pipe(self):
-        return self._is_pipe
+    def config(self):
+        info = copy.deepcopy(self._db.info())
+        info.update(self._db.config_get())
+        return info
+
+    # @config.setter
+    # def config(self, mapping):
+    #     for key, value in mapping.items():
+    #         self._db.config_set(key, value)
 
     def __iter__(self):
         return (self.serializer.loads(key) for key in self._db.scan_iter())
@@ -117,57 +125,24 @@ class RedisDatabase(BaseDatabase):
                     values[i] = self.serializer.loads(value)
         return values
 
-    def _resolve_set(self, key, value,
-                     replace=True,
-                     unique=False) -> Union[List[Any], None]:
-        """Resolve final key/value to be used based on key/value's
-        existence and value's uniqueness."""
-        if self._exists(key) and not replace:
-            prev_value = self._get(key)
-            if isinstance(prev_value, dict):
-                prev_value = []
-            elif unique and value in prev_value:
-                return None
-            prev_value.append(value)
-            value = prev_value
-        else:
-            value = [value]
-        return self.serializer.dumps(value)
-
-    def _resolve_hset(self, key, field, value,
-                      replace=True,
-                      unique=False) -> Union[List[Any], None]:
-        """Resolve final key/value to be used based on key/value's
-        existence and value's uniqueness."""
-        if self._hexists(key, field) and not replace:
-            prev_value = self._hget(key, field)
-            if prev_value is None:
-                prev_value = []
-            elif unique and value in prev_value:
-                return None
-            prev_value.append(value)
-            value = prev_value
-        else:
-            value = [value]
-        return self.serializer.dumps(value)
-
     def _set(self, key, value, **kwargs):
         value = self._resolve_set(key, value, **kwargs)
         if value is not None:
-            self._dbp.set(key, value)
+            self._dbp.set(key, self.serializer.dumps(value))
 
     def _mset(self, mapping, **kwargs):
         _mapping = {}
         for key, value in mapping.items():
             value = self._resolve_set(key, value, **kwargs)
             if value is not None:
-                _mapping[key] = value
+                _mapping[key] = self.serializer.dumps(value)
         if len(_mapping) > 0:
             self._dbp.mset(_mapping)
 
     def _hset(self, key, field, value, **kwargs):
         value = self._resolve_hset(key, field, value, **kwargs)
         if value is not None:
+            value = self.serializer.dumps(value)
             try:
                 self._dbp.hset(key, field, value)
             except redis.exceptions.ResponseError:
@@ -179,7 +154,7 @@ class RedisDatabase(BaseDatabase):
         for field, value in mapping.items():
             value = self._resolve_hset(key, field, value, **kwargs)
             if value is not None:
-                _mapping[field] = value
+                _mapping[field] = self.serializer.dumps(value)
         if len(_mapping) > 0:
             self._dbp.hmset(key, _mapping)
 
@@ -223,7 +198,7 @@ class RedisDatabase(BaseDatabase):
                 self._db.hdel(key, field)
 
     def sync(self):
-        if self.is_pipe:
+        if self._is_pipe:
             self._dbp.execute()
 
     def close(self):
@@ -231,23 +206,12 @@ class RedisDatabase(BaseDatabase):
         goes out of scope."""
         self.sync()
         self.save()
-        # NOTE: Need to find how to disconnect from database.
-        # Temporary fix is to detach database handles.
-        self._db = None
-        self._dbp = None
 
     def clear(self):
         self._db.flushdb()
 
     def save(self, **kwargs):
         self._db.save()
-
-    def config(self, mapping={}, **kwargs):
-        if len(mapping) == 0:
-            return [self._db.config_get(), self._db.info()]
-        else:
-            for key, value in mapping.items():
-                self._db.config_set(key, value)
 
 
 # class RedisSearcher:

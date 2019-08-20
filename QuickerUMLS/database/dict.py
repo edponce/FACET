@@ -1,9 +1,7 @@
 import os
 import pickle
 import shelve
-import collections
 from .base import BaseDatabase
-from typing import Union, List, Any
 
 
 __all__ = ['DictDatabase']
@@ -13,17 +11,20 @@ class DictDatabase(BaseDatabase):
     """Python dictionary database interface.
 
     Args:
-        db_file (str): Database filename.
 
-        pipe (bool): If set, queue 'set-related' commands to cached database.
-            Run 'sync' command to submit commands in pipe.
-            Default is False.
+        db (str): Database directory and name. The path is created
+            if it does not exists. Default is current working directory.
+            The database name is used as prefix for database files.
 
         flag (str): Database open mode. Valid modes are 'r' = read,
             'w' = write, 'c' = read/write/create, and 'n' = new.
             Default is 'c'. Additional characters can be appended to the
             flag for more control. Valid values are 'f' = fast/no sync,
-            's' = sync, and 'u' = lock.
+            's' = sync, and 'u' = no lock.
+
+        pipe (bool): If set, queue 'set-related' commands to cached database.
+            Run 'sync' command to submit commands in pipe.
+            Default is False.
 
         kwargs (Dict[str, Any]): Option forwarding, see 'pickle'.
             E.g., 'protocol' and 'encoding'.
@@ -34,27 +35,59 @@ class DictDatabase(BaseDatabase):
 
         * Keys/fields are treated as ordinary 'str'.
     """
+    MODES = {
+        'r': 'read',
+        'w': 'write',
+        'c': 'read/write',
+        'n': 'overwrite, read/write',
+    }
 
-    def __init__(self, db_file, **kwargs):
-        self._db_file = db_file
-        self._is_pipe = kwargs.get('pipe', False)
-        if 'protocol' not in kwargs:
-            kwargs['protocol'] = pickle.HIGHEST_PROTOCOL
+    CONTROLS = {
+        'f': 'fast, no sync',
+        's': 'sync',
+        'u': 'no lock',
+        '': '',
+    }
+
+    def __init__(self,
+                 db, *,
+                 flag='c',
+                 pipe=False,
+                 **kwargs):
+        db_dir, db_name = os.path.split(db)
+        if not db_name:
+            raise ValueError('missing database filename, no basename')
+        db_dir = os.path.abspath(db_dir) if db_dir else os.getcwd()
+        os.makedirs(db_dir, exist_ok=True)
+        self._dir = db_dir
+        self._name = db_name
+        self._flag = flag
+        self._is_pipe = pipe
 
         # Connect to database
         self._db = shelve.open(
-            self._db_file,
+            os.path.join(self._dir, self._name),
+            flag=self._flag,
             writeback=self._is_pipe,
+            protocol=kwargs.get('protocol', pickle.HIGHEST_PROTOCOL),
             **kwargs,
         )
 
     @property
-    def db_file(self):
-        return self._db_file
-
-    @property
-    def is_pipe(self):
-        return self._is_pipe
+    def config(self):
+        db_file = os.path.join(self._dir, self._name + '.dat')
+        return {
+            'name': self._name,
+            'dir': self._dir,
+            'mode': type(self).MODES[self._flag[0]],
+            'control': type(self).CONTROLS[
+                self._flag[1] if len(self._flag) > 1 else ''
+            ],
+            'pipe': self._is_pipe,
+            'used_memory': (os.path.getsize(db_file)
+                            if os.path.exists(db_file) else 0),
+            'keys': len(self),
+        }
 
     def _is_hash_name(self, key: str) -> bool:
         """Detect if a key is a hash name.
@@ -79,40 +112,6 @@ class DictDatabase(BaseDatabase):
                 if field in mapping:
                     values[i] = mapping[field]
         return values
-
-    def _resolve_set(self, key, value,
-                     replace=True,
-                     unique=False) -> Union[List[Any], None]:
-        """Resolve final key/value to be used based on key/value's
-        existence and value's uniqueness."""
-        if self._exists(key) and not replace:
-            prev_value = self.get(key)
-            if isinstance(prev_value, dict):
-                prev_value = []
-            elif unique and value in prev_value:
-                return None
-            prev_value.append(value)
-            value = prev_value
-        else:
-            value = [value]
-        return value
-
-    def _resolve_hset(self, key, field, value,
-                      replace=True,
-                      unique=False) -> Union[List[Any], None]:
-        """Resolve final key/value to be used based on key/value's
-        existence and value's uniqueness."""
-        if self._hexists(key, field) and not replace:
-            prev_value = self._hget(key, field)
-            if prev_value is None:
-                prev_value = []
-            elif unique and value in prev_value:
-                return None
-            prev_value.append(value)
-            value = prev_value
-        else:
-            value = [value]
-        return value
 
     def _set(self, key, value, **kwargs):
         value = self._resolve_set(key, value, **kwargs)

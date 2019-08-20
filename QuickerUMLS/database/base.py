@@ -48,6 +48,10 @@ class BaseDatabase(ABC):
     def __exit__(self, *exc_info):
         self.close()
 
+    @property
+    def config(self) -> Dict[str, Any]:
+        return {}
+
     def get(
         self,
         keys: Union[str, Iterable[str]],
@@ -127,6 +131,40 @@ class BaseDatabase(ABC):
             self._delete(keys)
         else:
             self._hdelete(keys, fields)
+
+    def _resolve_set(self, key, value,
+                     replace=True,
+                     unique=False) -> Union[List[Any], None]:
+        """Resolve final key/value to be used based on key/value's
+        existence and value's uniqueness."""
+        if self._exists(key) and not replace:
+            prev_value = self._get(key)
+            if isinstance(prev_value, dict):
+                prev_value = []
+            elif unique and value in prev_value:
+                return None
+            prev_value.append(value)
+            value = prev_value
+        else:
+            value = [value]
+        return value
+
+    def _resolve_hset(self, key, field, value,
+                      replace=True,
+                      unique=False) -> Union[List[Any], None]:
+        """Resolve final key/value to be used based on key/value's
+        existence and value's uniqueness."""
+        if self._hexists(key, field) and not replace:
+            prev_value = self._hget(key, field)
+            if prev_value is None:
+                prev_value = []
+            elif unique and value in prev_value:
+                return None
+            prev_value.append(value)
+            value = prev_value
+        else:
+            value = [value]
+        return value
 
     @abstractmethod
     def _get(self, key: str) -> Union[List[Any], None]:
