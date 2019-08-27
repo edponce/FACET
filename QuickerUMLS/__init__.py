@@ -1,13 +1,4 @@
-"""QuickerUMLS package.
-
-Todo:
-    Improve handling of module imports vs special attributes if using
-    non-standard libraries. Currently applicable when running tox environments
-    that do not include the install_requirements.txt:
-        * Use try-except in __init__.py (bad hack)
-        * Use explicit values in setup.py and doc/conf.py
-        * Include install_requirements.txt in tox environment (e.g., doc)
-"""
+"""Facet package."""
 
 
 __title__ = "QuickerUMLS"
@@ -48,3 +39,7 @@ from .simstring import (
 )
 from .serializer import PickleSerializer
 from .simstring import simstring
+
+# Defaults
+Serializer = PickleSerializer
+Databse = DictDatabase
