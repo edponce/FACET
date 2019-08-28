@@ -19,19 +19,12 @@ class DictDatabase(BaseDatabase):
             is used as prefix for database files. If None or empty
             string, an in-memory dictionary is used. Default is None.
 
-        flag (str): (For persistent mode only) Database open mode.
-            Valid modes are 'r' = read, 'w' = write,
-            'c' = read/write/create, and 'n' = new. Default is 'c'.
-            Additional characters can be appended to the flag for more
-            control. Valid values are 'f' = fast/no sync, 's' = sync,
-            and 'u' = no lock.
-
         pipe (bool): (For persistent mode only) If set, queue 'set'
             operations to cached database. Run 'sync' command to submit
             commands in pipe. Default is False.
 
         kwargs (Dict[str, Any]): (For persistent mode only) Option
-            forwarding, see 'pickle'. E.g., 'protocol' and 'encoding'.
+            forwarding. For example, 'flag' and 'protocol'.
 
     Notes:
         * For persistent mode the underlying database is managed by a
@@ -39,23 +32,8 @@ class DictDatabase(BaseDatabase):
 
         * Keys/fields are treated as ordinary 'str'.
     """
-    _MODES = {
-        'r': 'read',
-        'w': 'write',
-        'c': 'read/write',
-        'n': 'new, read/write',
-    }
-
-    _CONTROLS = {
-        'f': 'fast, no sync',
-        's': 'sync',
-        'u': 'no lock',
-        None: None,
-    }
-
     def __init__(self,
                  db=None, *,
-                 flag='c',
                  pipe=False,
                  **kwargs):
         if db:
@@ -70,7 +48,6 @@ class DictDatabase(BaseDatabase):
             # Connect to database
             self._db = shelve.open(
                 os.path.join(db_dir, db_name),
-                flag=flag,
                 writeback=pipe,
                 protocol=kwargs.get('protocol', pickle.HIGHEST_PROTOCOL),
                 **kwargs,
@@ -79,7 +56,6 @@ class DictDatabase(BaseDatabase):
             # In-memory dictionary
             db_dir = None
             db_name = None
-            flag = 'n'
             pipe = False
             persistent = False
 
@@ -88,23 +64,17 @@ class DictDatabase(BaseDatabase):
 
         self._dir = db_dir
         self._name = db_name
-        self._flag = flag
         self._is_pipe = pipe
         self._persistent = persistent
 
     @property
     def config(self):
+        db_file = None
         if self._persistent:
             db_file = os.path.join(self._dir, self._name + '.dat')
-        else:
-            db_file = None
         return {
             'name': self._name,
             'dir': self._dir,
-            'mode': type(self)._MODES[self._flag[0]],
-            'control': type(self)._CONTROLS[
-                self._flag[1] if len(self._flag) > 1 else None
-            ],
             'pipe': self._is_pipe,
             'used_memory': (os.path.getsize(db_file)
                             if self._persistent and os.path.exists(db_file)
@@ -209,8 +179,6 @@ class DictDatabase(BaseDatabase):
             self._db.sync()
 
     def close(self):
-        # NOTE: For in-memory dictionary, should we disconnect database
-        # handle?
         if self._persistent:
             self._db.close()
 
