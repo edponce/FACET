@@ -1,7 +1,7 @@
 import copy
 import redis
 from .base import BaseDatabase
-from QuickerUMLS.serializer import Serializer
+from QuickerUMLS.serializer import PickleSerializer
 
 
 __all__ = ['RedisDatabase']
@@ -21,7 +21,7 @@ class RedisDatabase(BaseDatabase):
             Run 'sync' command to submit commands in pipe.
             Default is False.
 
-        kwargs (Dict[str, Any]): Option forwarding, see `class:Serializer`.
+        kwargs (Dict[str, Any]): Option forwarding, see 'serializer' classes.
 
     Notes:
         * Redis treats keys/fields of 'str, bytes, and int'
@@ -47,7 +47,7 @@ class RedisDatabase(BaseDatabase):
         self._is_pipe = pipe
         self._dbp = self._db.pipeline() if self._is_pipe else self._db
 
-        self.serializer = kwargs.get('serializer', Serializer(**kwargs))
+        self.serializer = kwargs.get('serializer', PickleSerializer(**kwargs))
 
     @property
     def host(self):
