@@ -6,15 +6,21 @@ __all__ = ['ExactSimilarity']
 
 
 class ExactSimilarity(BaseSimilarity):
+    """Exact similarity.
+
+    Conditions:
+
+        * exact(x,y) = x == y, no alpha
+    """
 
     def min_features(self, length, alpha):
-        return int(math.ceil(alpha * alpha * length))
+        return int(length)
 
     def max_features(self, length, alpha):
-        return int(math.floor(length / (alpha * alpha)))
+        return int(length)
 
     def min_common_features(self, lengthA, lengthB, alpha):
-        return int(math.ceil(alpha * math.sqrt(lengthA * lengthB)))
+        return int(max(lengthA, lengthB))
 
     def similarity(self, featuresA, featuresB):
         fa = set(featuresA)

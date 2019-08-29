@@ -5,4 +5,7 @@ from .similarity import (
     JaccardSimilarity,
     OverlapSimilarity,
 )
-from .ngram import NgramExtractor
+from .ngram import (
+    WordFeatures,
+    CharacterFeatures,
+)

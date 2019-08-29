@@ -8,15 +8,11 @@ __all__ = ['BaseSimilarity']
 class BaseSimilarity(ABC):
 
     @abstractmethod
-    def min_features(self,
-                     length: int,
-                     alpha: float) -> int:
+    def min_features(self, length: int, alpha: float) -> int:
         pass
 
     @abstractmethod
-    def max_features(self,
-                     length: int,
-                     alpha: float) -> int:
+    def max_features(self, length: int, alpha: float) -> int:
         pass
 
     @abstractmethod
