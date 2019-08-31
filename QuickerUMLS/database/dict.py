@@ -113,23 +113,19 @@ class DictDatabase(BaseDatabase):
 
     def _mset(self, mapping, **kwargs):
         for key, value in mapping.items():
-            value = self._resolve_set(key, value, **kwargs)
-            if value is not None:
-                self._db[key] = value
+            self._set(key, value, **kwargs)
 
     def _hset(self, key, field, value, **kwargs):
         value = self._resolve_hset(key, field, value, **kwargs)
         if value is not None:
-            self._db[key] = {field: value}
+            if key in self._db:
+                self._db[key].update({field: value})
+            else:
+                self._db[key] = {field: value}
 
     def _hmset(self, key, mapping, **kwargs):
-        _mapping = {}
         for field, value in mapping.items():
-            value = self._resolve_hset(key, field, value, **kwargs)
-            if value is not None:
-                _mapping[field] = value
-        if len(_mapping) > 0:
-            self._db[key] = _mapping
+            self._hset(key, field, value, **kwargs)
 
     def _keys(self):
         return list(self._db.keys())
@@ -139,8 +135,8 @@ class DictDatabase(BaseDatabase):
         if self._exists(key):
             mapping = self._db[key]
             if isinstance(mapping, dict):
-                fields = self._db[key].keys()
-        return list(fields)
+                fields = list(self._db[key].keys())
+        return fields
 
     def _len(self):
         return len(self._db)
@@ -170,6 +166,7 @@ class DictDatabase(BaseDatabase):
                 del self._db[key]
 
     def _hdelete(self, key, fields):
+        # NOTE: What happens if all fields for a key are deleted?
         for field in fields:
             if self._hexists(key, field):
                 del self._db[key][field]

@@ -84,8 +84,7 @@ class BaseDatabase(ABC):
         self,
         key_or_map: Union[str, Dict[str, Any]],
         val_or_field_or_map: Union[Any, str, Dict[str, Any]] = None,
-        value: Any = None,
-        *,
+        value: Any = None, *,
         replace=True, unique=False,
     ) -> NoReturn:
         """Insert values into database.
@@ -103,19 +102,38 @@ class BaseDatabase(ABC):
               To resolve this, when value is a mapping use '_set'.
         """
         if isinstance(key_or_map, str):
+            # 'key_or_map' is a key
             if value is None:
                 if isinstance(val_or_field_or_map, dict):
-                    # Assume 'value' is a mapping
-                    self._hmset(key_or_map, val_or_field_or_map)
+                    # 'val_or_field_or_map' is a field/value mapping
+                    self._hmset(
+                        key_or_map,
+                        val_or_field_or_map,
+                        replace=replace,
+                        unique=unique,
+                    )
                 else:
-                    self._set(key_or_map, val_or_field_or_map)
+                    # 'val_or_field_or_map' is a value
+                    self._set(
+                        key_or_map,
+                        val_or_field_or_map,
+                        replace=replace,
+                        unique=unique,
+                    )
             else:
-                # Assume 'val_or_field_or_map' is a field
-                self._hset(key_or_map, val_or_field_or_map, value)
+                # 'val_or_field_or_map' is a field
+                self._hset(
+                    key_or_map,
+                    val_or_field_or_map,
+                    value,
+                    replace=replace,
+                    unique=unique,
+                )
         elif (isinstance(key_or_map, dict)
               and val_or_field_or_map is None
               and value is None):
-            self._mset(key_or_map)
+            # 'key_or_map' is a key/value mapping
+            self._mset(key_or_map, replace=replace, unique=unique)
 
     def keys(self, key: str = None) -> List[str]:
         """Get all keys in database."""
@@ -147,7 +165,7 @@ class BaseDatabase(ABC):
         else:
             self._hdelete(keys, fields)
 
-    def _resolve_set(self, key, value,
+    def _resolve_set(self, key, value, *,
                      replace=True,
                      unique=False) -> Union[List[Any], None]:
         """Resolve final key/value to be used based on key/value's
@@ -164,7 +182,7 @@ class BaseDatabase(ABC):
             value = [value]
         return value
 
-    def _resolve_hset(self, key, field, value,
+    def _resolve_hset(self, key, field, value, *,
                       replace=True,
                       unique=False) -> Union[List[Any], None]:
         """Resolve final key/value to be used based on key/value's
@@ -269,14 +287,12 @@ class BaseDatabase(ABC):
     def _hdelete(self, key: str, fields: Iterable[str]) -> NoReturn:
         pass
 
-    @abstractmethod
     def sync(self) -> NoReturn:
         """Submit queued commands.
         Not all databases support this functionality.
         """
         pass
 
-    @abstractmethod
     def close(self) -> NoReturn:
         """Close database connection."""
         pass
@@ -286,7 +302,6 @@ class BaseDatabase(ABC):
         """Delete all keys in database."""
         pass
 
-    @abstractmethod
     def save(self, **kwargs: Dict[str, Any]) -> NoReturn:
         """Save database, if supported."""
         pass

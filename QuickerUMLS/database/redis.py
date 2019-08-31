@@ -86,7 +86,6 @@ class RedisDatabase(BaseDatabase):
             return {
                 field: self._hget(key, field) for field in self._hkeys(key)
             }
-
         if value is not None:
             return self.serializer.loads(value)
 
@@ -146,6 +145,7 @@ class RedisDatabase(BaseDatabase):
             try:
                 self._dbp.hset(key, field, value)
             except redis.exceptions.ResponseError:
+                # NOTE: Assume key is not a hash name.
                 self._delete([key])
                 self._dbp.hset(key, field, value)
 
@@ -165,6 +165,7 @@ class RedisDatabase(BaseDatabase):
         try:
             fields = self._db.hkeys(key)
         except redis.exceptions.ResponseError:
+            # NOTE: Assume key is not a hash name.
             fields = []
         return list(map(self.serializer.loads, fields))
 
@@ -175,6 +176,7 @@ class RedisDatabase(BaseDatabase):
         try:
             _len = self._db.hlen(key)
         except redis.exceptions.ResponseError:
+            # NOTE: Assume key is not a hash name.
             _len = 0
         return _len
 
@@ -185,6 +187,7 @@ class RedisDatabase(BaseDatabase):
         try:
             valid = bool(self._db.hexists(key, field))
         except redis.exceptions.ResponseError:
+            # NOTE: Assume key is not a hash name.
             valid = False
         return valid
 
@@ -193,6 +196,7 @@ class RedisDatabase(BaseDatabase):
             self._db.delete(key)
 
     def _hdelete(self, key, fields):
+        # NOTE: What happens if all fields for a key are deleted?
         for field in fields:
             if self._hexists(key, field):
                 self._db.hdel(key, field)
@@ -201,11 +205,10 @@ class RedisDatabase(BaseDatabase):
         if self._is_pipe:
             self._dbp.execute()
 
-    def close(self):
-        # NOTE: Redis object is disconnected automatically when object
-        # goes out of scope.
-        self.sync()
-        self.save()
+    # NOTE: Redis object is disconnected automatically when object
+    # goes out of scope.
+    # def close(self):
+    #     pass
 
     def clear(self):
         self._db.flushdb()
