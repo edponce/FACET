@@ -1,32 +1,21 @@
-from abc import ABC, abstractmethod
+from QuickerUMLS import Database
+from QuickerUMLS import CharacterFeatures
+from typing import Any
 
 
-__all__ = ['BaseSearcher', 'DatabaseSearcher']
+__all__ = ['DatabaseSearcher']
 
 
-class BaseSearcher(ABC):
-    @abstractmethod
-    def __init__(self, db, feature_extractor):
-        pass
+class DatabaseSearcher:
 
-    @abstractmethod
-    def add(self, string):
-        pass
-
-    @abstractmethod
-    def lookup_strings_by_feature_set_size_and_feature(self, size, feature):
-        pass
-
-
-class DatabaseSearcher(BaseSearcher):
-    def __init__(self,
-                 db, *,
-                 feature_extractor=None):
-        self.db = db
-        self.feature_extractor = feature_extractor
+    def __init__(self, **kwargs):
+        self._db = kwargs.get('db', Database())
+        self._fe = kwargs.get('feature_extractor', CharacterFeatures())
 
     def add(self, string):
-        features = self.feature_extractor.features(string)
+        """Insert string and features of given text into database.
+        """
+        features = self.fe.get_features(string)
         if self.db.exists(str(len(features))):
             # NOTE: Optimization idea is to remove duplicate features.
             # Probably this should be handled by the feature extractor.
@@ -51,5 +40,7 @@ class DatabaseSearcher(BaseSearcher):
         self.db.sync()
 
     def lookup_strings_by_feature_set_size_and_feature(self, size, feature):
+        """Get text corresponding to query features.
+        """
         res = self.db.get(size, feature)[0]
         return res if res is not None else set()

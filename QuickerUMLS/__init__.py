@@ -30,16 +30,19 @@ from .database import (
     RedisDatabase,
 )
 from .simstring import (
+    Simstring,
+    WordFeatures,
     DiceSimilarity,
     ExactSimilarity,
     CosineSimilarity,
     JaccardSimilarity,
     OverlapSimilarity,
-    NgramExtractor,
+    CharacterFeatures,
 )
 from .serializer import PickleSerializer
-from .simstring import simstring
 
 # Defaults
 Serializer = PickleSerializer
-Databse = DictDatabase
+Database = DictDatabase
+FeatureExtractor = CharacterFeatures
+Similarity = CosineSimilarity

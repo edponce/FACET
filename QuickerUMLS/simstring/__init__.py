@@ -9,3 +9,4 @@ from .ngram import (
     WordFeatures,
     CharacterFeatures,
 )
+from .simstring import Simstring
