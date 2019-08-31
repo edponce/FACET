@@ -1,5 +1,4 @@
 include *.rst
 include LICENSE
 include *_requirements.txt
-include QuickerUMLS/simstring/*.so
 recursive-include docs *.py *.rst Makefile
