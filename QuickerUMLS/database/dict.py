@@ -15,27 +15,31 @@ class DictDatabase(BaseDatabase):
     Args:
 
         db (str): Database directory and name for persistent dictionary.
+            The underlying database is managed by a file-backed dictionary.
             The path is created if it does not exists. The database name
             is used as prefix for database files. If None or empty
             string, an in-memory dictionary is used. Default is None.
 
-        pipe (bool): (For persistent mode only) If set, queue 'set'
-            operations to cached database. Run 'sync' command to submit
-            commands in pipe. Default is False.
+        flag (str): (For persistent mode only) Access mode for database.
+            Valid values are: 'r' = read-only, 'w' = read/write',
+            'c' = read/write/create if not exists, 'n' = new read/write.
+            Default is 'c'.
 
-        kwargs (Dict[str, Any]): (For persistent mode only) Option
-            forwarding. For example, 'flag' and 'protocol'.
+        protocol (int): (For persistent mode only) Pickle serialization
+            protocol to use. Default is 'pickle.HIGHEST_PROTOCOL'.
 
-    Notes:
-        * For persistent mode the underlying database is managed by a
-          file-backed dictionary and values are serialized by 'pickle'.
-
-        * Keys/fields are treated as ordinary 'str'.
+        max_cache_size (int): (For persistent mode only) Maximum number of
+            database modifications allowed before syncing cache to disk.
     """
-    def __init__(self,
-                 db=None, *,
-                 pipe=False,
-                 **kwargs):
+
+    def __init__(
+        self,
+        db=None,
+        *,
+        flag='c',
+        protocol=pickle.HIGHEST_PROTOCOL,
+        max_cache_size=100,
+    ):
         if db:
             # Persistent dictionary
             db_dir, db_name = os.path.split(db)
@@ -44,28 +48,32 @@ class DictDatabase(BaseDatabase):
             db_dir = os.path.abspath(db_dir) if db_dir else os.getcwd()
             os.makedirs(db_dir, exist_ok=True)
             persistent = True
-
-            # Connect to database
+            # NOTE: Enable writeback because it allows natural operations
+            # on mutable entries, but consumes more memory and makes
+            # sync/close operations take longer. Writeback queues operations
+            # to database cache. Use sync command to empty the cache and
+            # synchronize with disk. Sync is automatically called when
+            # the database is closed.
             self._db = shelve.open(
                 os.path.join(db_dir, db_name),
-                writeback=pipe,
-                protocol=kwargs.get('protocol', pickle.HIGHEST_PROTOCOL),
-                **kwargs,
+                writeback=True,
+                flag=flag,
+                protocol=protocol,
             )
         else:
             # In-memory dictionary
             db_dir = None
             db_name = None
-            pipe = False
             persistent = False
-
-            # Connect to database
             self._db = {}
 
         self._dir = db_dir
         self._name = db_name
-        self._is_pipe = pipe
         self._persistent = persistent
+        # NOTE: For persistent database, to manage database cache more
+        # effectively, sync every N modifications.
+        self._max_cache_size = max_cache_size
+        self._cache_size = 0
 
     @property
     def config(self):
@@ -75,12 +83,25 @@ class DictDatabase(BaseDatabase):
         return {
             'name': self._name,
             'dir': self._dir,
-            'pipe': self._is_pipe,
             'used_memory': (os.path.getsize(db_file)
                             if self._persistent and os.path.exists(db_file)
                             else sys.getsizeof(self._db)),
             'keys': len(self),
         }
+
+    def _auto_sync(self, n):
+        """(For persistent mode only) Check if cache database needs to be
+        sync'ed to disk.
+
+        Args:
+            n (int): Number of new modifications to use for check.
+        """
+        if n > 0:
+            if self._cache_size + n >= self._max_cache_size:
+                self._db.sync()
+                self._cache_size = 0
+            else:
+                self._cache_size += n
 
     def _is_hash_name(self, key: str) -> bool:
         """Detect if a key is a hash name.
@@ -112,6 +133,8 @@ class DictDatabase(BaseDatabase):
         value = self._resolve_set(key, value, **kwargs)
         if value is not None:
             self._db[key] = value
+            if self._persistent:
+                self._auto_sync(1)
 
     def _mset(self, mapping, **kwargs):
         for key, value in mapping.items():
@@ -124,6 +147,8 @@ class DictDatabase(BaseDatabase):
                 self._db[key].update({field: value})
             else:
                 self._db[key] = {field: value}
+            if self._persistent:
+                self._auto_sync(1)
 
     def _hmset(self, key, mapping, **kwargs):
         for field, value in mapping.items():
@@ -148,19 +173,25 @@ class DictDatabase(BaseDatabase):
         return self._is_hash_name(key) and field in self._db[key]
 
     def _delete(self, keys):
-        for key in filter(self._exists, keys):
+        for i, key in enumerate(filter(self._exists, keys), start=1):
             del self._db[key]
+        if self._persistent:
+            self._auto_sync(i)
 
     def _hdelete(self, key, fields):
         if self._is_hash_name(key):
-            for field in filter(lambda f: f in self._db[key], fields):
+            for i, field in enumerate(filter(lambda f: f in self._db[key],
+                                             fields),
+                                      start=1):
                 del self._db[key][field]
             # NOTE: Delete key if it has no fields remaining
             if len(self._db[key]) == 0:
                 del self._db[key]
+            if self._persistent:
+                self._auto_sync(i)
 
     def sync(self):
-        if self._persistent and self._is_pipe:
+        if self._persistent:
             self._db.sync()
 
     def close(self):
