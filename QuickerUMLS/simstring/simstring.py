@@ -45,7 +45,7 @@ class Simstring:
             # affect the numbers of features extracted.
             {feature: string for feature in set(map(str.lower, features))},
             replace=False,
-            unique=True
+            unique=True,
         )
 
     def _get_strings(self, size: int, feature: str) -> List[str]:
@@ -64,7 +64,7 @@ class Simstring:
         string: str,
         *,
         alpha: float = 0.7,
-        rank: bool = False,
+        rank: bool = True,
     ) -> Tuple[List[str], List[float]]:
         features = self._fe.get_features(string.lower())
         min_features = self._measure.min_features(len(features), alpha)
@@ -72,12 +72,14 @@ class Simstring:
         similar_strings = [
             similar_string
             for candidate_feature_size in range(min_features, max_features + 1)
-            for similar_string in self._overlap_join(features, candidate_feature_size, alpha)
+            for similar_string in self._overlap_join(features,
+                                                     candidate_feature_size,
+                                                     alpha)
         ]
         similarities = [
             self._measure.similarity(
                 features,
-                self._fe.get_features(similar_string)
+                self._fe.get_features(similar_string),
             )
             for similar_string in similar_strings
         ]
@@ -87,7 +89,7 @@ class Simstring:
                 *sorted(
                     zip(similar_strings, similarities),
                     key=lambda v: v[1],
-                    reverse=True
+                    reverse=True,
                 )
             ))
         return list(zip(similar_strings, similarities))
@@ -99,25 +101,42 @@ class Simstring:
             candidate_feature_size,
             alpha,
         )
+
+        # Sort features based on ascending number of strings for each feature.
         sorted_features = sorted(
             features,
-            key=lambda x: len(self._get_strings(candidate_feature_size, x))
+            key=lambda x: len(self._get_strings(candidate_feature_size, x)),
         )
+
         candidate_string_to_matched_count = defaultdict(int)
         results = []
 
+        # Populate dictionary with frequency of each candidate string
+        # corresponding to sorted_features[:len(features) - tau + 1].
         for feature in sorted_features[:query_feature_size - tau + 1]:
             for s in self._get_strings(candidate_feature_size, feature):
                 candidate_string_to_matched_count[s] += 1
 
+        # For each candidate string with frequency
         for s in candidate_string_to_matched_count.keys():
+
+            # For each index corresponding to
+            # [len(features) - tau + 1:len(features)]
             for i in range(query_feature_size - tau + 1, query_feature_size):
                 feature = sorted_features[i]
+
+                # Update dictionary with frequency candidate strings using
+                # the sorted_features[len(features) - tau + 1:len(features)]
                 if s in self._get_strings(candidate_feature_size, feature):
                     candidate_string_to_matched_count[s] += 1
+
+                # If candidate string has enough frequency count, select it.
                 if candidate_string_to_matched_count[s] >= tau:
                     results.append(s)
                     break
+
+                # Check if a limit is reached where no further candidates will
+                # have enough frequency counts.
                 remaining_feature_count = query_feature_size - i - 1
                 if candidate_string_to_matched_count[s] + remaining_feature_count < tau:
                     break
