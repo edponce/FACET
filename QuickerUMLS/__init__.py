@@ -39,7 +39,11 @@ from .simstring import (
     OverlapSimilarity,
     CharacterFeatures,
 )
-from .serializer import PickleSerializer
+from .serializer import (
+    PickleSerializer,
+    StringSerializer,
+    StringSJSerializer,
+)
 
 # Defaults
 Serializer = PickleSerializer

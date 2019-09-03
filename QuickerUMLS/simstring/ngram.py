@@ -12,10 +12,10 @@ class NgramFeatures(ABC):
     Args:
         n (int): Size of features.
 
-        boundary (str): Character to use as placeholder for boundary features.
+        boundary (str): Character/word to use as padding for boundary features.
     """
 
-    def __init__(self, n=3, *, boundary=''):
+    def __init__(self, *, n: int = 2, boundary: str = ' '):
         self.n = n
         self.boundary = boundary
 
@@ -34,20 +34,16 @@ class NgramFeatures(ABC):
 class CharacterFeatures(NgramFeatures):
     """Extract character N-gram features."""
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
     def get_features(self, text) -> List[str]:
-        _text = self.boundary + text + self.boundary
+        _boundary = self.boundary * (self.n - 1)
+        _text = _boundary + text + _boundary
         return type(self)._extract_features(self.n, _text)
 
 
 class WordFeatures(NgramFeatures):
     """Extract word N-gram features."""
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def get_features(self, text, *, delimiter=' ') -> List[List[str]]:
-        _text = [self.boundary] + text.split(delimiter) + [self.boundary]
+    def get_features(self, text, *, delimiter: str = ' ') -> List[List[str]]:
+        _boundary = [self.boundary] * (self.n - 1)
+        _text = _boundary + text.split(delimiter) + _boundary
         return type(self)._extract_features(self.n, _text)

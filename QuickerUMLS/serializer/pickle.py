@@ -17,8 +17,8 @@ class PickleSerializer(BaseSerializer):
         self._protocol = kwargs.get('protocol', pickle.HIGHEST_PROTOCOL)
         super().__init__(**kwargs)
 
-    def _serialize(self, obj):
+    def dumps(self, obj):
         return pickle.dumps(obj, protocol=self._protocol)
 
-    def _deserialize(self, obj):
+    def loads(self, obj):
         return pickle.loads(obj)
