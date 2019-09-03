@@ -38,7 +38,7 @@ class BaseDatabase(ABC):
         self.set(key, value)
 
     def __delitem__(self, key: str) -> NoReturn:
-        self.delete([key])
+        self.delete(key)
 
     def __contains__(self, key: str) -> bool:
         return self.exists(key)
@@ -161,8 +161,12 @@ class BaseDatabase(ABC):
     ) -> NoReturn:
         """Remove keys or fields from the database."""
         if fields is None:
+            if isinstance(keys, str):
+                keys = [keys]
             self._delete(keys)
         else:
+            if isinstance(fields, str):
+                fields = [fields]
             self._hdelete(keys, fields)
 
     def _resolve_set(self, key, value, *,

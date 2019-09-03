@@ -21,11 +21,14 @@ class RedisDatabase(BaseDatabase):
             Run 'sync' command to submit commands in pipe.
             Default is False.
 
-        kwargs (Dict[str, Any]): Option forwarding, see 'serializer' classes.
+        kwargs (Dict[str, Any]): Option forwarding, see 'Redis' class.
 
     Notes:
         * Redis treats keys/fields of 'str, bytes, and int'
-          types interchangeably.
+          types interchangeably, but this interface accepts keys/fields
+          of 'str' type and arbitrary values.
+
+        * Redis Python API returns keys as 'bytes', so we use str.decode.
     """
 
     def __init__(self, host='localhost', *,
@@ -47,7 +50,7 @@ class RedisDatabase(BaseDatabase):
         self._is_pipe = pipe
         self._dbp = self._db.pipeline() if self._is_pipe else self._db
 
-        self.serializer = kwargs.get('serializer', PickleSerializer(**kwargs))
+        self._serializer = kwargs.get('serializer', PickleSerializer())
 
     @property
     def host(self):
@@ -73,7 +76,7 @@ class RedisDatabase(BaseDatabase):
     #         self._db.config_set(key, value)
 
     def __iter__(self):
-        return (self.serializer.loads(key) for key in self._db.scan_iter())
+        return map(lambda key: key.decode(), self._db.scan_iter())
 
     def _get(self, key):
         try:
@@ -87,13 +90,14 @@ class RedisDatabase(BaseDatabase):
                 field: self._hget(key, field) for field in self._hkeys(key)
             }
         if value is not None:
-            return self.serializer.loads(value)
+            value = self._serializer.loads(value)
+        return value
 
     def _mget(self, keys):
         values = self._db.mget(keys)
         for i, value in enumerate(values):
             if value is not None:
-                values[i] = self.serializer.loads(value)
+                values[i] = self._serializer.loads(value)
             else:
                 # NOTE: '_mget' returns None if key is a hash name, so
                 # check if key is a hash name.
@@ -104,10 +108,9 @@ class RedisDatabase(BaseDatabase):
         try:
             value = self._db.hget(key, field)
         except redis.exceptions.ResponseError:
-            value = None
-        else:
-            if value is not None:
-                value = self.serializer.loads(value)
+            return None
+        if value is not None:
+            value = self._serializer.loads(value)
         return value
 
     def _hmget(self, key, fields):
@@ -117,31 +120,30 @@ class RedisDatabase(BaseDatabase):
             # NOTE: If key already exists and is not a hash name,
             # error is triggered. Return None for each field to have
             # the same behavior as when key does not exists.
-            values = len(fields) * [None]
-        else:
-            for i, value in enumerate(values):
-                if value is not None:
-                    values[i] = self.serializer.loads(value)
+            return len(fields) * [None]
+        for i, value in enumerate(values):
+            if value is not None:
+                values[i] = self._serializer.loads(value)
         return values
 
     def _set(self, key, value, **kwargs):
         value = self._resolve_set(key, value, **kwargs)
         if value is not None:
-            self._dbp.set(key, self.serializer.dumps(value))
+            self._dbp.set(key, self._serializer.dumps(value))
 
     def _mset(self, mapping, **kwargs):
         _mapping = {}
         for key, value in mapping.items():
             value = self._resolve_set(key, value, **kwargs)
             if value is not None:
-                _mapping[key] = self.serializer.dumps(value)
+                _mapping[key] = self._serializer.dumps(value)
         if len(_mapping) > 0:
             self._dbp.mset(_mapping)
 
     def _hset(self, key, field, value, **kwargs):
         value = self._resolve_hset(key, field, value, **kwargs)
         if value is not None:
-            value = self.serializer.dumps(value)
+            value = self._serializer.dumps(value)
             try:
                 self._dbp.hset(key, field, value)
             except redis.exceptions.ResponseError:
@@ -154,52 +156,51 @@ class RedisDatabase(BaseDatabase):
         for field, value in mapping.items():
             value = self._resolve_hset(key, field, value, **kwargs)
             if value is not None:
-                _mapping[field] = self.serializer.dumps(value)
+                _mapping[field] = self._serializer.dumps(value)
         if len(_mapping) > 0:
             self._dbp.hmset(key, _mapping)
 
     def _keys(self):
-        return list(map(self.serializer.loads, self._db.keys()))
+        return list(map(lambda key: key.decode(), self._db.keys()))
 
     def _hkeys(self, key):
         try:
             fields = self._db.hkeys(key)
         except redis.exceptions.ResponseError:
             # NOTE: Assume key is not a hash name.
-            fields = []
-        return list(map(self.serializer.loads, fields))
+            return []
+        return list(map(lambda field: field.decode(), fields))
 
     def _len(self):
         return self._db.dbsize()
 
     def _hlen(self, key):
         try:
-            _len = self._db.hlen(key)
+            return self._db.hlen(key)
         except redis.exceptions.ResponseError:
             # NOTE: Assume key is not a hash name.
-            _len = 0
-        return _len
+            return 0
 
     def _exists(self, key):
         return bool(self._db.exists(key))
 
     def _hexists(self, key, field):
         try:
-            valid = bool(self._db.hexists(key, field))
+            return bool(self._db.hexists(key, field))
         except redis.exceptions.ResponseError:
             # NOTE: Assume key is not a hash name.
-            valid = False
-        return valid
+            return False
 
     def _delete(self, keys):
         for key in keys:
             self._db.delete(key)
 
     def _hdelete(self, key, fields):
-        # NOTE: What happens if all fields for a key are deleted?
-        for field in fields:
-            if self._hexists(key, field):
-                self._db.hdel(key, field)
+        for field in filter(lambda f: self._hexists(key, f), fields):
+            self._db.hdel(key, field)
+        # NOTE: Delete key if it has no fields remaining
+        if self._hlen(key) == 0:
+            self._db.delete(key)
 
     def sync(self):
         if self._is_pipe:
@@ -214,4 +215,5 @@ class RedisDatabase(BaseDatabase):
         self._db.flushdb()
 
     def save(self, **kwargs):
+        """Save Redis server data to disk (blocking operation)."""
         self._db.save()

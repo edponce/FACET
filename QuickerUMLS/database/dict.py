@@ -84,27 +84,29 @@ class DictDatabase(BaseDatabase):
 
     def _is_hash_name(self, key: str) -> bool:
         """Detect if a key is a hash name.
-        Hash maps use a 'defaultdict' for representing fields/values.
+        Hash maps use a dictionary for representing fields/values.
         """
-        return isinstance(self._db[key], dict) if self._exists(key) else False
+        return self._exists(key) and isinstance(self._db[key], dict)
 
     def _get(self, key):
-        return self._db[key] if self._exists(key) else None
+        return self._db.get(key)
 
     def _mget(self, keys):
         return [self._get(key) for key in keys]
 
     def _hget(self, key, field):
-        return self._db[key][field] if self._is_hash_name(key) else None
+        return (
+            self._db[key].get(field)
+            if self._is_hash_name(key)
+            else None
+        )
 
     def _hmget(self, key, fields):
-        values = len(fields) * [None]
-        if self._is_hash_name(key):
-            mapping = self._db[key]
-            for i, field in enumerate(fields):
-                if field in mapping:
-                    values[i] = mapping[field]
-        return values
+        return (
+            [self._db[key].get(field) for field in fields]
+            if self._is_hash_name(key)
+            else len(fields) * [None]
+        )
 
     def _set(self, key, value, **kwargs):
         value = self._resolve_set(key, value, **kwargs)
@@ -131,45 +133,31 @@ class DictDatabase(BaseDatabase):
         return list(self._db.keys())
 
     def _hkeys(self, key):
-        fields = []
-        if self._exists(key):
-            mapping = self._db[key]
-            if isinstance(mapping, dict):
-                fields = list(self._db[key].keys())
-        return fields
+        return list(self._db[key].keys()) if self._is_hash_name(key) else []
 
     def _len(self):
         return len(self._db)
 
     def _hlen(self, key):
-        _len = 0
-        if self._exists(key):
-            mapping = self._db[key]
-            if isinstance(mapping, dict):
-                _len = len(mapping)
-        return _len
+        return len(self._db[key]) if self._is_hash_name(key) else 0
 
     def _exists(self, key):
         return key in self._db
 
     def _hexists(self, key, field):
-        valid = False
-        if self._exists(key):
-            mapping = self._db[key]
-            if isinstance(mapping, dict) and field in mapping:
-                valid = True
-        return valid
+        return self._is_hash_name(key) and field in self._db[key]
 
     def _delete(self, keys):
-        for key in keys:
-            if self._exists(key):
-                del self._db[key]
+        for key in filter(self._exists, keys):
+            del self._db[key]
 
     def _hdelete(self, key, fields):
-        # NOTE: What happens if all fields for a key are deleted?
-        for field in fields:
-            if self._hexists(key, field):
+        if self._is_hash_name(key):
+            for field in filter(lambda f: f in self._db[key], fields):
                 del self._db[key][field]
+            # NOTE: Delete key if it has no fields remaining
+            if len(self._db[key]) == 0:
+                del self._db[key]
 
     def sync(self):
         if self._persistent and self._is_pipe:
