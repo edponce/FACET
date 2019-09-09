@@ -9,11 +9,28 @@ __all__ = ['Simstring']
 
 
 class Simstring:
+    """Implementation of Simstring algorithm.
+
+    Args:
+        database (BaseDatabase): Database instance for storage.
+            Default is DictDatabase.
+
+        feature_extractor (NgramFeatures): N-gram feature extractor instance.
+            Default is CharacterFeatures.
+
+        similarity (BaseSimilarity): Instance of similarity measure.
+            Default is CosineSimilarity.
+
+        case (str): Character to control string casing during insert/search.
+            Valid values are 'L' (lower), 'U' (upper), or None (no casing).
+            Default is 'L'.
+    """
 
     def __init__(self, **kwargs):
         self._db = kwargs.get('database', DictDatabase())
         self._fe = kwargs.get('feature_extractor', CharacterFeatures())
         self._measure = kwargs.get('similarity', CosineSimilarity())
+        self._case = kwargs.get('case', 'L')
         # self._cache_enabled = kwargs.get('enable_cache', False)
 
         # NOTE: Keep a multilevel dictionary in memory containing
@@ -51,6 +68,13 @@ class Simstring:
         string = self._db.get(str(size), feature)
         return string if string is not None else []
 
+    def _strcase(self, string: str):
+        if self._case in ('l', 'L'):
+            string = string.lower()
+        elif self._case in ('u', 'U'):
+            string = string.upper()
+        return string
+
     def insert(self, string: str) -> NoReturn:
         """Insert string into database."""
         features = self._fe.get_features(string)
@@ -58,7 +82,7 @@ class Simstring:
             str(len(features)),
             # NOTE: Create set here to remove duplicates and not
             # affect the numbers of features extracted.
-            {feature: string for feature in set(map(str.lower, features))},
+            {feature: string for feature in set(map(self._strcase, features))},
             replace=False,
             unique=True,
         )
@@ -70,7 +94,7 @@ class Simstring:
         alpha: float = 0.7,
         rank: bool = True,
     ) -> Union[List[Tuple[str, float]], List[str]]:
-        query_features = self._fe.get_features(query_string.lower())
+        query_features = self._fe.get_features(self._strcase(query_string))
         min_features = self._measure.min_features(len(query_features), alpha)
         max_features = self._measure.max_features(len(query_features), alpha)
         similar_strings = [
@@ -79,7 +103,7 @@ class Simstring:
             for similar_string in self._overlap_join(
                 query_features,
                 candidate_feature_size,
-                # tau
+                # tau = min_common_features()
                 self._measure.min_common_features(
                     len(query_features),
                     candidate_feature_size,
@@ -91,7 +115,7 @@ class Simstring:
         similarities = [
             self._measure.similarity(
                 query_features,
-                self._fe.get_features(similar_string.lower()),
+                self._fe.get_features(self._strcase(similar_string)),
             )
             for similar_string in similar_strings
         ]
