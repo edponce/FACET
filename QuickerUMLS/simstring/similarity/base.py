@@ -6,6 +6,11 @@ __all__ = ['BaseSimilarity']
 
 
 class BaseSimilarity(ABC):
+    """Interface for similarity measures.
+
+    Notes:
+        * Is a pure abstract class.
+    """
 
     @abstractmethod
     def min_features(self, length: int, alpha: float) -> int:

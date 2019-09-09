@@ -29,12 +29,27 @@ class Simstring:
         #     self._cache_enabled = True
         # self._cache_size = 0
 
-    @property
-    def db(self):
-        # NOTE: Allow access to database so that methods of interest
-        # can be controlled externally. For example, 'sync' (for
-        # pipe-enabled databases), 'close', and 'save'.
-        return self._db
+    # def _cache_string(
+    #     self,
+    #     size: int,
+    #     feature: str,
+    #     string: str,
+    # ) -> NoReturn:
+    #     _size = str(size)
+    #     self._cache_db.set(
+    #         _size,
+    #         feature,
+    #         string,
+    #         replace=False,
+    #         unique=True,
+    #     )
+    #     # NOTE: Need to limit cache size, which items to remove?
+    #     self._cache_size += 1
+
+    def _get_strings(self, size: int, feature: str) -> List[str]:
+        """Get strings corresponding to feature size and query feature."""
+        string = self._db.get(str(size), feature)
+        return string if string is not None else []
 
     def insert(self, string: str) -> NoReturn:
         """Insert string into database."""
@@ -48,96 +63,84 @@ class Simstring:
             unique=True,
         )
 
-    def _get_strings(self, size: int, feature: str) -> List[str]:
-        """Get strings corresponding to feature size and query feature."""
-        string = self._db.get(str(size), feature)
-        return string if string is not None else []
-
-    # def _cache_string(self, size: int, feature: str, string: str) -> NoReturn:
-    #     _size = str(size)
-    #     self._cache_db.set(_size, feature, string, replace=False, unique=True)
-    #     # NOTE: Need to limit cache size, which items to remove?
-    #     self._cache_size += 1
-
     def search(
         self,
-        string: str,
+        query_string: str,
         *,
         alpha: float = 0.7,
         rank: bool = True,
-    ) -> Tuple[List[str], List[float]]:
-        features = self._fe.get_features(string.lower())
-        min_features = self._measure.min_features(len(features), alpha)
-        max_features = self._measure.max_features(len(features), alpha)
+    ) -> Union[List[Tuple[str, float]], List[str]]:
+        query_features = self._fe.get_features(query_string.lower())
+        min_features = self._measure.min_features(len(query_features), alpha)
+        max_features = self._measure.max_features(len(query_features), alpha)
         similar_strings = [
             similar_string
             for candidate_feature_size in range(min_features, max_features + 1)
-            for similar_string in self._overlap_join(features,
-                                                     candidate_feature_size,
-                                                     alpha)
+            for similar_string in self._overlap_join(
+                query_features,
+                candidate_feature_size,
+                # tau
+                self._measure.min_common_features(
+                    len(query_features),
+                    candidate_feature_size,
+                    alpha,
+                )
+            )
         ]
+
         similarities = [
             self._measure.similarity(
-                features,
-                self._fe.get_features(similar_string),
+                query_features,
+                self._fe.get_features(similar_string.lower()),
             )
             for similar_string in similar_strings
         ]
+        strings_and_similarities = list(zip(similar_strings, similarities))
+        if rank and len(strings_and_similarities) > 1:
+            strings_and_similarities = sorted(
+                strings_and_similarities,
+                key=lambda ss: ss[1],
+                reverse=True,
+            )
+        return strings_and_similarities
 
-        if rank:
-            similar_strings, similarities = map(list, zip(
-                *sorted(
-                    zip(similar_strings, similarities),
-                    key=lambda v: v[1],
-                    reverse=True,
-                )
-            ))
-        return list(zip(similar_strings, similarities))
-
-    def _overlap_join(self, features, candidate_feature_size, alpha):
-        query_feature_size = len(features)
-        tau = self._measure.min_common_features(
-            query_feature_size,
-            candidate_feature_size,
-            alpha,
+    def _overlap_join(self, query_features, candidate_feature_size, tau):
+        strings = {
+            feature: self._get_strings(candidate_feature_size, feature)
+            for feature in query_features
+        }
+        query_features = sorted(
+            query_features,
+            key=lambda feature: len(strings[feature]),
         )
 
-        # Sort features based on ascending number of strings for each feature.
-        sorted_features = sorted(
-            features,
-            key=lambda x: len(self._get_strings(candidate_feature_size, x)),
-        )
+        # Use tau parameter to split sorted features
+        tau_split = len(query_features) - tau + 1
 
-        candidate_string_to_matched_count = defaultdict(int)
-        results = []
+        # Frequency dictionary of strings in first half of tau-limited features
+        strings_frequency = defaultdict(int)
+        for feature in query_features[:tau_split]:
+            for string in strings[feature]:
+                strings_frequency[string] += 1
 
-        # Populate dictionary with frequency of each candidate string
-        # corresponding to sorted_features[:len(features) - tau + 1].
-        for feature in sorted_features[:query_feature_size - tau + 1]:
-            for s in self._get_strings(candidate_feature_size, feature):
-                candidate_string_to_matched_count[s] += 1
-
-        # For each candidate string with frequency
-        for s in candidate_string_to_matched_count.keys():
-
-            # For each index corresponding to
-            # [len(features) - tau + 1:len(features)]
-            for i in range(query_feature_size - tau + 1, query_feature_size):
-                feature = sorted_features[i]
-
-                # Update dictionary with frequency candidate strings using
-                # the sorted_features[len(features) - tau + 1:len(features)]
-                if s in self._get_strings(candidate_feature_size, feature):
-                    candidate_string_to_matched_count[s] += 1
+        # For strings in frequency dictionary, add frequency in second half
+        # of tau-limited features.
+        candidate_strings = []
+        for string in strings_frequency.keys():
+            for i, feature in enumerate(query_features[tau_split:],
+                                        start=tau_split):
+                if string in strings[feature]:
+                    strings_frequency[string] += 1
 
                 # If candidate string has enough frequency count, select it.
-                if candidate_string_to_matched_count[s] >= tau:
-                    results.append(s)
+                if strings_frequency[string] >= tau:
+                    candidate_strings.append(string)
                     break
 
                 # Check if a limit is reached where no further candidates will
                 # have enough frequency counts.
-                remaining_feature_count = query_feature_size - i - 1
-                if candidate_string_to_matched_count[s] + remaining_feature_count < tau:
+                remaining_feature_count = len(query_features) - i - 1
+                if strings_frequency[string] + remaining_feature_count < tau:
                     break
-        return results
+
+        return candidate_strings
