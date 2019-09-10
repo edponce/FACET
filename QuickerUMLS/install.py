@@ -1,293 +1,230 @@
 import os
 import sys
 import time
-import pandas
-import shutil
-import argparse
 import collections
 from unidecode import unidecode
-from QuickerUMLS.toolbox import CuiSemTypesDB, SimstringDBWriter
+from QuickerUMLS.simstring import Simstring
+from QuickerUMLS.database import DictDatabase
+from QuickerUMLS.helpers import (
+    # data_to_dict,
+    iter_data,
+    is_iterable,
+)
 from QuickerUMLS.umls_constants import (
     HEADERS_MRCONSO,
     HEADERS_MRSTY,
-    LANGUAGES,
     ACCEPTED_SEMTYPES,
 )
-from QuickerUMLS.helpers import iter_data, data_to_dict
+from typing import (
+    Any,
+    Union,
+    List,
+    Dict,
+    Callable,
+    Iterable,
+    Generator,
+    NoReturn,
+)
 
 
-# 0 = No status info
-# 1 = Processing rate
-# 2 = Data structures info
-VERBOSE = 1
-nrows = None
+__all__ = ['FACET']
 
 
-########################################################################
-# Internal Configuration
-########################################################################
-CONCEPTS_FILE = 'MRCONSO.RRF'
-SEMANTIC_TYPES_FILE = 'MRSTY.RRF'
-SIMSTRING_DB = 'umls-simstring.db'
-LEVEL_DB = 'cui-semtypes.db'
+VERBOSE = True
 
 
-########################################################################
-# Converter functions
-########################################################################
-def lowercase_str(term):
-    return term.lower()
+class FACET:
+    """FACET UMLS installation tool.
 
+    Args:
+        conso_db (BaseDatabase): Handle to database instance for CONCEPT-CUI
+            storage.
 
-def normalize_unicode_str(term):
-    return unidecode(term)
+        cuisty_db (BaseDatabase): Handle to database instance for CUI-STY
+            storage.
 
+        simstring (Simstring): Handle to Simstring instance.
+            The database handle should differ from the internal Simstring
+            database handle (to prevent collisions with N-grams).
+    """
 
-def is_preferred(ispref):
-    return True if ispref == 'Y' else False
-########################################################################
+    def __init__(
+        self,
+        *,
+        conso_db: 'BaseDatabase' = DictDatabase(),
+        cuisty_db: 'BaseDatabase' = DictDatabase(),
+        simstring: 'Simstring' = Simstring(),
+    ):
+        self._conso_db = conso_db
+        self._cuisty_db = cuisty_db
+        self._ss = simstring
 
+    def _load_conso(self, afile: str, **kwargs) -> Generator:
+        def configure_converters() -> Dict[str, List[Callable]]:
+            """Converter functions are used to process dataset during load
+            operations.
 
-# NOTE: Stores CUI-Semantic Type mapping
-# cui: [sty, ...]
-def dump_cuisty(data,
-                db_dir,
-                bulk_size=1000,
-                status_step=100000):
-    # Profile
-    prev_time = time.time()
+            Converter functions should only take a single parameter
+            (or use lambda and preset extra parameters).
+            """
+            converters = collections.defaultdict(list)
+            # Optional
+            if 'str' not in converters:
+                converters['str'].append(str.lower)
+                converters['str'].append(unidecode)
+            # Permanent
+            if 'ispref' not in converters:
+                converters['ispref'].append(lambda v: True if v == 'Y' else False)
+            return converters
 
-    # Database connection
-    # db = CuiSemTypesDB(db_dir)
+        language = kwargs.get('language', ['ENG'])
+        if not is_iterable(language):
+            language = [language]
 
-    # NOTE: Do we need really to extract items?
-    if isinstance(data, dict):
-        data = data.items()
+        # NOTE: This version is returns a dictionary data structure
+        # which is necessary if semantic types are going to be used as a
+        # filter for CUIs. See NOTE in loading of semantic types.
+        # return data_to_dict(
+        return iter_data(
+            afile,
+            ['str', 'cui'],  # key
+            ['ispref'],      # values
+            headers=HEADERS_MRCONSO,
+            valids={'lat': language},
+            converters=configure_converters(),
+            unique_keys=True,
+            nrows=kwargs.get('nrows', None),
+        )
 
-    with UMLSDB(db_dir) as db:
-        bulk_data = []
-        for i, cui_sty in enumerate(data, start=1):
-            if len(bulk_data) == bulk_size:
-                db.bulk_insert_sty(bulk_data)
-                bulk_data = []
-            else:
-                bulk_data.append(cui_sty)
+    def _load_sty(
+        self,
+        afile: str,
+        *,
+        conso: Dict[Any, Any] = None,
+        **kwargs
+    ) -> Generator:
+        valids={'sty': ACCEPTED_SEMTYPES}
+        if conso is not None:
+            # NOTE: This version only considers CUIs that are found in the
+            # concepts ('conso') data structure. It requires that the 'conso'
+            # variable is in dictionary form. Although this approach increases
+            # the installation time, it reduces the database size.
+            valids['cui'] = {k[1] for k in conso.keys()}
+        # return data_to_dict(
+        return iter_data(
+            afile,
+            ['cui'],  # key
+            ['sty'],  # values
+            headers=HEADERS_MRSTY,
+            valids=valids,
+            nrows=kwargs.get('nrows', None),
+        )
 
-            if VERBOSE > 0 and i % status_step == 0:
-                curr_time = time.time()
-                print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / (bulk_size * (status_step / bulk_size))} s/batch')
-                prev_time = curr_time
+    def _dump_conso(
+        self,
+        data: Iterable[Any],
+        *,
+        bulk_size: int = 1000,
+        status_step: int = 10000,
+    ) -> NoReturn:
+        """Stores Term-CUI,Preferred mapping, term: [(CUI,pref), ...]."""
+        # Profile
+        prev_time = time.time()
 
-        # Flush remaining ones
-        if len(bulk_data) > 0:
-            db.bulk_insert_sty(bulk_data)
-
-            if VERBOSE > 0:
-                curr_time = time.time()
-                print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / len(bulk_data)} s/batch')
-
-
-# NOTE: Stores Term-CUI,Preferred mapping
-# term: [(CUI,pref), ...]
-def dump_conso(data,
-               db_dir,
-               bulk_size=1000,
-               status_step=100000):
-    # Profile
-    prev_time = time.time()
-
-    # Database connection
-    # cuisty_db = CuiSemTypesDB(db_dir)
-
-    # NOTE: Do we need really to extract items?
-    if isinstance(conso, dict):
-        data = data.items()
-
-    with UMLSDB(db_dir) as db:
-        terms = set()
-        bulk_data = []
         for i, ((term, cui), preferred) in enumerate(data, start=1):
-            terms.add(term)
+            self._ss.insert(term)
+            self._conso_db.set(term, (cui, preferred), replace=False, unique=True)
 
-            if len(bulk_data) == bulk_size:
-                db.safe_bulk_insert_cui(bulk_data)
-                bulk_data = []
-            else:
-                bulk_data.append((term, cui, preferred))
-
-            if VERBOSE > 0 and i % status_step == 0:
+            if VERBOSE and i % status_step == 0:
                 curr_time = time.time()
-                print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / (bulk_size * (status_step / bulk_size))} s/batch')
+                print(f'{i}: {curr_time - prev_time} s, '
+                      f'{(curr_time - prev_time) / (bulk_size * (status_step / bulk_size))} s/batch')
                 prev_time = curr_time
 
-        # Flush remaining ones
-        if len(bulk_data) > 0:
-            db.safe_bulk_insert_cui(bulk_data)
+        if VERBOSE:
+            print(f'Num terms: {i}')
 
-            if VERBOSE > 0:
+    def _dump_cuisty(
+        self,
+        data: Iterable[Any],
+        *,
+        bulk_size: int = 1000,
+        status_step: int = 10000,
+    ) -> NoReturn:
+        """Stores CUI-Semantic Type mapping, cui: [sty, ...]."""
+        # Profile
+        prev_time = time.time()
+
+        for i, (cui, sty) in enumerate(data, start=1):
+            self._cuisty_db.set(cui, sty, replace=False, unique=True)
+
+            if VERBOSE and i % status_step == 0:
                 curr_time = time.time()
-                print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / len(bulk_data)} s/batch')
-
-    if VERBOSE > 1:
-        print(f'Num terms: {i}')
-        print(f'Num unique terms: {len(terms)}')
-        print(f'Size of Simstring terms: {sys.getsizeof(terms)}')
-
-    return terms
-
-
-def dump_terms(terms,
-               db_dir,
-               bulk_size=1,
-               status_step=100000):
-    prev_time = time.time()
-    with SimstringDBWriter(db_dir) as db:
-        for i, term in enumerate(terms, start=1):
-            db.write(term)
-            if VERBOSE > 0 and i % status_step == 0:
-                curr_time = time.time()
-                print(f'{i}: {curr_time - prev_time} s, {(curr_time - prev_time) / (bulk_size * (status_step / bulk_size))} s/batch')
+                print(f'{i}: {curr_time - prev_time} s, '
+                      f'{(curr_time - prev_time) / (bulk_size * (status_step / bulk_size))} s/batch')
                 prev_time = curr_time
 
+        if VERBOSE:
+            print(f'Num CUIs: {i}')
 
-def driver(opts):
-    # UMLS files
-    mrconso_file = os.path.join(opts.umls_dir, CONCEPTS_FILE)
-    mrsty_file = os.path.join(opts.umls_dir, SEMANTIC_TYPES_FILE)
+    def install(
+        self,
+        umls_dir: str,
+        *,
+        mrconso: str = 'MRCONSO.RRF',
+        mrsty: str = 'MRSTY.RRF',
+        **kwargs
+    ) -> NoReturn:
+        """
+        Args:
+            umls_dir (str): Directory of UMLS RRF files.
 
-    # Create install directory
-    if not os.path.exists(opts.install_dir) or not os.path.isdir(opts.install_dir):
-        os.makedirs(opts.install_dir)
+            mrconso (str): UMLS concepts file.
+                Default is MRCONSO.RRF.
 
-    # Set converter functions
-    converters = collections.defaultdict(list)
-    if opts.lowercase:
-        converters['str'].append(lowercase_str)
-    if opts.normalize_unicode:
-        converters['str'].append(normalize_unicode_str)
-    converters['ispref'].append(is_preferred)
+            mrsty (str): UMLS semantic types file.
+                Default is MRSTY.RRF.
 
-    print('Loading/parsing concepts...')
-    start = time.time()
-    conso = iter_data(mrconso_file, ['str', 'cui'], ['ispref'], headers=HEADERS_MRCONSO, valids={'lat': opts.language}, converters=converters, unique_keys=True, nrows=nrows)
+        Kwargs:
+            language (Union[str, List[str]]): Extract concepts of the
+                specified languages. Default is 'ENG'.
 
-    # NOTE: This version is the same as above with the only difference
-    # that it returns a dictionary data structure which is necessary
-    # if semantic types are going to use it as a filter for CUIs.
-    # See NOTE in loading of semantic types.
-    # conso = data_to_dict(mrconso_file, ['str', 'cui'], ['ispref'], headers=HEADERS_MRCONSO, valids={'lat': opts.language}, converters=converters, nrows=nrows)
-    curr_time = time.time()
-    print(f'Loading/parsing concepts: {curr_time - start} s')
+            bulk_size (int): Size of chunks to use for dumping data into
+                databases. Default is 1000.
 
-    print('Writing concepts...')
-    start = time.time()
-    cuisty_dir = os.path.join(opts.install_dir, LEVEL_DB)
-    terms = dump_conso(conso, cuisty_dir)
-    curr_time = time.time()
-    print(f'Writing concepts: {curr_time - start} s')
+            status_step (int): Print status message after this number of
+                records is dumped to databases. Default is 10000.
+        """
+        t1 = time.time()
 
-    print('Writing Simstring database...')
-    start = time.time()
-    simstring_dir = os.path.join(opts.install_dir, SIMSTRING_DB)
-    dump_terms(terms, simstring_dir)
-    curr_time = time.time()
-    print(f'Writing Simstring database: {curr_time - start} s')
+        print('Loading/parsing concepts...')
+        start = time.time()
+        mrconso_file = os.path.join(umls_dir, mrconso)
+        conso = self._load_conso(mrconso_file, **kwargs)
+        curr_time = time.time()
+        print(f'Loading/parsing concepts: {curr_time - start} s')
 
-    print('Loading/parsing semantic types...')
-    start = time.time()
-    cuisty = iter_data(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valids={'sty': ACCEPTED_SEMTYPES}, nrows=nrows)
+        print('Writing concepts...')
+        start = time.time()
+        self._dump_conso(conso, **kwargs)
+        curr_time = time.time()
+        print(f'Writing concepts: {curr_time - start} s')
 
-    # NOTE: These versions only considers CUIs that are found in the
-    # concepts ('conso') data structure. It requires that the 'conso'
-    # variable is in dictionary form. Although this approach reduces the
-    # installation time, it reduces the database size.
-    # cuisty = iter_data(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valids={'cui': {k[1] for k in conso.keys()}, 'sty': ACCEPTED_SEMTYPES}, nrows=nrows)
-    # cuisty = data_to_dict(mrsty_file, ['cui'], ['sty'], headers=HEADERS_MRSTY, valids={'cui': {k[1] for k in conso.keys()}, 'sty': ACCEPTED_SEMTYPES}, nrows=nrows)
-    curr_time = time.time()
-    print(f'Loading/parsing semantic types: {curr_time - start} s')
+        print('Loading/parsing semantic types...')
+        start = time.time()
+        mrsty_file = os.path.join(umls_dir, mrsty)
+        cuisty = self._load_sty(mrsty_file, **kwargs)
+        curr_time = time.time()
+        print(f'Loading/parsing semantic types: {curr_time - start} s')
 
-    print('Writing semantic types...')
-    start = time.time()
-    cuisty_dir = os.path.join(opts.install_dir, LEVEL_DB)
-    dump_cuisty(cuisty, cuisty_dir)
-    curr_time = time.time()
-    print(f'Writing semantic types: {curr_time - start} s')
+        print('Writing semantic types...')
+        start = time.time()
+        self._dump_cuisty(cuisty, **kwargs)
+        curr_time = time.time()
+        print(f'Writing semantic types: {curr_time - start} s')
 
-    if VERBOSE > 1:
-        if nrows is not None and nrows <= 10:
-            print(conso)
-            print(cuisty)
-        print(f'Num unique Terms: {len(conso)}')
-        print(f'Num values in Term-CUI/Lat/IsPref dictionary: {sum(len(v) for v in conso.values())}')
-        print(f'Size of Term-CUI/Lat/IsPref dictionary: {sys.getsizeof(conso)}')
-        print(f'Num unique CUIs: {len(cuisty)}')
-        print(f'Num values in CUI-STY dictionary: {sum(len(v) for v in cuisty.values())}')
-        print(f'Size of CUI-STY dictionary: {sys.getsizeof(cuisty)}')
+        t2 = time.time()
+        print(f'Total runtime: {t2 - t1} s')
 
-
-def parse_args():
-    parser = argparse.ArgumentParser(
-        prog=__file__,
-        description='QuickerUMLS Installation Tool',
-        formatter_class=argparse.RawTextHelpFormatter
-    )
-
-    parser.add_argument(
-        '-l', '--lowercase', action='store_true',
-        help='Consider only lowercase version of tokens'
-    )
-
-    parser.add_argument(
-        '-n', '--normalize-unicode', action='store_true',
-        help='Normalize unicode strings to their closest ASCII representation'
-    )
-
-    parser.add_argument(
-        '-e', '--language', default={'ENG'}, action='append',
-        choices={k for k, v in LANGUAGES.items() if v is not None},
-        help='Extract concepts of the specified language'
-    )
-
-    parser.add_argument(
-        '-u', '--umls-dir', required=True,
-        help='Directory of UMLS RRF files'
-    )
-
-    parser.add_argument(
-        '-i', '--install-dir', required=True,
-        help='Directory for installing QuickerUMLS files'
-    )
-
-    args = parser.parse_args()
-
-    if not os.path.exists(args.install_dir):
-        print(f'Creating install directory: {args.install_dir}')
-        os.makedirs(args.install_dir)
-    elif len(os.listdir(args.install_dir)) > 0:
-        err = f"Install directory '{args.install_dir}' is not empty."
-        raise FileExistsError(err)
-        # NOTE: Only remove files that are required for installation.
-        # shutil.rmtree(args.install_dir)
-        # os.mkdir(args.install_dir)
-
-    if args.normalize_unicode:
-        flag_fp = os.path.join(args.install_dir, 'normalize-unicode.flag')
-        open(flag_fp, 'w').close()
-
-    if args.lowercase:
-        flag_fp = os.path.join(args.install_dir, 'lowercase.flag')
-        open(flag_fp, 'w').close()
-
-    flag_fp = os.path.join(args.install_dir, 'language.flag')
-    with open(flag_fp, 'w') as f:
-        f.write(os.linesep.join(args.language))
-
-    return args
-
-
-if __name__ == '__main__':
-    t1 = time.time()
-    args = parse_args()
-    driver(args)
-    t2 = time.time()
-    print(f'Total runtime: {t2 - t1} s')
+    def match(self):
+        pass

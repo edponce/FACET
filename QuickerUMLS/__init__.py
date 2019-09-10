@@ -1,4 +1,4 @@
-"""Facet package."""
+"""FACET package."""
 
 
 __title__ = "QuickerUMLS"
@@ -24,6 +24,7 @@ __copyright__ = """2019 Eduardo Ponce and Kris Brown
 # __all__ = ()
 
 
+from .install import FACET
 from .quickumls import QuickUMLS
 from .database import (
     DictDatabase,
@@ -32,12 +33,12 @@ from .database import (
 from .simstring import (
     Simstring,
     WordFeatures,
+    CharacterFeatures,
     DiceSimilarity,
     ExactSimilarity,
     CosineSimilarity,
     JaccardSimilarity,
     OverlapSimilarity,
-    CharacterFeatures,
 )
 from .serializer import (
     PickleSerializer,
