@@ -7,6 +7,12 @@ __all__ = ['BaseSerializer']
 
 
 class BaseSerializer(ABC):
+    """Interface for Serializer instances.
+
+    Notes:
+        * Follows a mixin classes approach - parent class supplies helper
+          methods that depend on augment capabilities supplied in subclass.
+    """
 
     def __init__(self, **kwargs):
         """

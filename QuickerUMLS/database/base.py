@@ -26,6 +26,9 @@ class BaseDatabase(ABC):
         * All values are represented as either lists or dictionaries.
           Dictionaries exclusively represent field/values corresponding
           to a hash map.
+
+        * Follows the framework design pattern - parent class controls
+          the execution flow and subclass provides the details.
     """
 
     def __getitem__(
@@ -85,7 +88,8 @@ class BaseDatabase(ABC):
         key_or_map: Union[str, Dict[str, Any]],
         val_or_field_or_map: Union[Any, str, Dict[str, Any]] = None,
         value: Any = None, *,
-        replace=True, unique=False,
+        replace=True,
+        unique=False,
     ) -> NoReturn:
         """Insert values into database.
 
@@ -169,9 +173,14 @@ class BaseDatabase(ABC):
                 fields = [fields]
             self._hdelete(keys, fields)
 
-    def _resolve_set(self, key, value, *,
-                     replace=True,
-                     unique=False) -> Union[List[Any], None]:
+    def _resolve_set(
+        self,
+        key,
+        value,
+        *,
+        replace=True,
+        unique=False,
+    ) -> Union[List[Any], None]:
         """Resolve final key/value to be used based on key/value's
         existence and value's uniqueness."""
         if self._exists(key) and not replace:
@@ -186,9 +195,15 @@ class BaseDatabase(ABC):
             value = [value]
         return value
 
-    def _resolve_hset(self, key, field, value, *,
-                      replace=True,
-                      unique=False) -> Union[List[Any], None]:
+    def _resolve_hset(
+        self,
+        key,
+        field,
+        value,
+        *,
+        replace=True,
+        unique=False,
+    ) -> Union[List[Any], None]:
         """Resolve final key/value to be used based on key/value's
         existence and value's uniqueness."""
         if self._hexists(key, field) and not replace:

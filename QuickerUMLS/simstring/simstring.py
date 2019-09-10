@@ -63,6 +63,10 @@ class Simstring:
     #     # NOTE: Need to limit cache size, which items to remove?
     #     self._cache_size += 1
 
+    @property
+    def database(self):
+        return self._db
+
     def _get_strings(self, size: int, feature: str) -> List[str]:
         """Get strings corresponding to feature size and query feature."""
         string = self._db.get(str(size), feature)
