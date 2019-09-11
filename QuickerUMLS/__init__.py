@@ -3,7 +3,7 @@
 
 __title__ = "QuickerUMLS"
 __name__ = "QuickerUMLS"
-__version__ = "0.8"
+__version__ = "0.9"
 __description__ = """High-performance tool for concept extraction
                      from medical narratives."""
 __keywords__ = [
@@ -24,8 +24,11 @@ __copyright__ = """2019 Eduardo Ponce and Kris Brown
 # __all__ = ()
 
 
-from .install import FACET
 from .quickumls import QuickUMLS
+from .install import (
+    Installer,
+    Matcher,
+)
 from .database import (
     DictDatabase,
     RedisDatabase,
