@@ -37,7 +37,8 @@ def valid_item(
 
 def valid_items_from_dict(
     keys: Iterable[Any],
-    items: Iterable[Any], *,
+    items: Iterable[Any],
+    *,
     valids: Union[Dict[Any, Any], Iterable[Any]] = None,
     invalids: Union[Dict[Any, Any], Iterable[Any]] = None,
 ) -> bool:
@@ -122,12 +123,13 @@ def filter_indices_and_values(
 def iter_data(
     data,
     keys,
-    values, *,
+    values,
+    *,
     headers=None,
     valids=None,
     invalids=None,
     unique_keys=False,
-    **kwargs,
+    **kwargs
 ):
     """Generator for data.
 
@@ -362,7 +364,12 @@ def data_to_dict(
     return data
 
 
-def unpack_dir(adir: str, hidden=False, recursive=False) -> List[str]:
+def unpack_dir(
+    adir: str,
+    *,
+    hidden: bool = False,
+    recursive: bool = False,
+) -> List[str]:
     """Unpack directories into a list of filenames.
 
     Args:
@@ -372,7 +379,7 @@ def unpack_dir(adir: str, hidden=False, recursive=False) -> List[str]:
 
         recursive (bool): If set, unpack files recursively.
 
-    Returns (List): List of filenames.
+    Returns (List[str]): List of filenames.
     """
     files = []
     for file_or_dir in os.listdir(adir):
@@ -386,8 +393,12 @@ def unpack_dir(adir: str, hidden=False, recursive=False) -> List[str]:
     return files
 
 
-def corpus_generator(corpora: str,
-                     phony=False, **kwargs) -> Tuple[str, str]:
+def corpus_generator(
+    corpora: Union[str, Iterable[str]],
+    *,
+    phony=False,
+    **kwargs
+) -> Tuple[str, str]:
     """Extracts text from corpora.
 
     Args:
@@ -401,9 +412,10 @@ def corpus_generator(corpora: str,
             as file system objects when name collisions occur.
             Default is false.
 
-        kwargs (Dict): Options passed directory to 'unpack_dir()'.
+    Kwargs:
+        Options passed directory to 'unpack_dir'.
 
-    Returns (Tuple): Corpus source and corpus content.
+    Returns (Tuple[str, str]): Corpus source and corpus content.
                      The source identifier for raw text is '_text'.
                      The source identifier for other is their file system name.
     """
