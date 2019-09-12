@@ -50,7 +50,7 @@ if PROFILE:
 class Installer:
     """FACET installation tool.
 
-    Args:
+    Kwargs:
         conso_db (BaseDatabase): Handle to database instance for CONCEPT-CUI
             storage.
 
@@ -62,24 +62,23 @@ class Installer:
             database handle (to prevent collisions with N-grams).
     """
 
-    def __init__(
-        self,
-        *,
-        conso_db: 'BaseDatabase' = DictDatabase(),
-        cuisty_db: 'BaseDatabase' = DictDatabase(),
-        simstring: 'Simstring' = Simstring(),
-    ):
-        self._conso_db = conso_db
-        self._cuisty_db = cuisty_db
-        self._ss = simstring
+    def __init__(self, **kwargs):
+        self._conso_db = kwargs.get('conso_db', DictDatabase())
+        self._cuisty_db = kwargs.get('cuisty_db', DictDatabase())
+        self._ss = kwargs.get('simstring', Simstring())
 
-    def _load_conso(self, afile: str, **kwargs) -> 'Generator':
+    def _load_conso(
+        self,
+        afile: str,
+        *,
+        language: Union[str, Iterable[str]] = ['ENG'],
+        nrows: Union[int, None] = None,
+    ) -> 'Generator':
         """
         Args:
             afile (str): File with contents to load.
 
-        Kwargs:
-            language (Union[str, List[str]]): Extract concepts of the
+            language (Union[str, Iterable[str]]): Extract concepts of the
                 specified languages. Default is 'ENG'.
 
             nrows (Union[int, None]): Maximum number of records to load
@@ -101,11 +100,10 @@ class Installer:
             converters['ispref'].append(lambda v: True if v == 'Y' else False)
             return converters
 
-        language = kwargs.get('language', ['ENG'])
         if not is_iterable(language):
             language = [language]
 
-        # NOTE: This version is returns a dictionary data structure
+        # NOTE: This version returns a dictionary data structure
         # which is necessary if semantic types are going to be used as a
         # filter for CUIs. See NOTE in loading of semantic types.
         # return data_to_dict(
@@ -117,7 +115,7 @@ class Installer:
             valids={'lat': language},
             converters=configure_converters(),
             unique_keys=True,
-            nrows=kwargs.get('nrows'),
+            nrows=nrows,
         )
 
     def _load_sty(
@@ -125,7 +123,7 @@ class Installer:
         afile: str,
         *,
         conso: Dict[Iterable[Any], Any] = None,
-        **kwargs
+        nrows: Union[int, None] = None,
     ) -> 'Generator':
         """
         Args:
@@ -134,7 +132,6 @@ class Installer:
             conso (Dict[Iterable[Any], Any]): Mapping with concepts as first
                 element of keys.
 
-        Kwargs:
             nrows (Union[int, None]): Maximum number of records to load from
                 file. Default is None (all records).
         """
@@ -152,7 +149,7 @@ class Installer:
             ['sty'],  # values
             headers=HEADERS_MRSTY,
             valids=valids,
-            nrows=kwargs.get('nrows'),
+            nrows=nrows,
         )
 
     def _dump_conso(
@@ -252,12 +249,14 @@ class Installer:
             Options passed directly to '_load_conso, _load_cuisty, _dump_conso,
             _dump_cuisty'.
         """
+        nrows = kwargs.pop('nrows', None)
+
         t1 = time.time()
 
         print('Loading/parsing concepts...')
         start = time.time()
         mrconso_file = os.path.join(umls_dir, mrconso)
-        conso = self._load_conso(mrconso_file, **kwargs)
+        conso = self._load_conso(mrconso_file, nrows=nrows)
         curr_time = time.time()
         print(f'Loading/parsing concepts: {curr_time - start} s')
 
@@ -270,7 +269,7 @@ class Installer:
         print('Loading/parsing semantic types...')
         start = time.time()
         mrsty_file = os.path.join(umls_dir, mrsty)
-        cuisty = self._load_sty(mrsty_file, **kwargs)
+        cuisty = self._load_sty(mrsty_file, nrows=nrows)
         curr_time = time.time()
         print(f'Loading/parsing semantic types: {curr_time - start} s')
 
@@ -463,9 +462,9 @@ class Matcher:
         ngrams: Iterable[Any],
         *,
         alpha: float = 0.7,
-        normalize_unicode: bool = True,
+        # normalize_unicode: bool = True,
         # lowercase: bool = False,
-    ) -> List[Dict[str, Any]]:
+    ) -> List[List[Dict[str, Any]]]:
         """
         Args:
             ngrams (Iterable[int, int, str]): Parsed N-grams with span.
@@ -475,56 +474,45 @@ class Matcher:
         """
         matches = []
         for begin, end, ngram in ngrams:
-            ngram_normalized = ngram
-
-            if normalize_unicode:
-                ngram_normalized = unidecode(ngram_normalized)
+            # NOTE: Normalization should be done by the tokenizer not here.
+            # ngram_normalized = ngram
+            # if normalize_unicode:
+            #     ngram_normalized = unidecode(ngram_normalized)
 
             # NOTE: Case matching is controlled by Simstring.
             # if lowercase:
             #     ngram_normalized = ngram_normalized.lower()
 
+            # NOTE: Simstring results do not need to be sorted because
+            # we sort matches based on similarity and preference.
             ngram_matches = []
-            prev_cui = None
-            for candidate, similarity in self._ss.search(ngram_normalized,
-                                                         alpha=alpha):
-                for cui, preferred in self._conso_db.get(candidate):
+            for candidate, similarity in self._ss.search(ngram,
+                                                         alpha=alpha,
+                                                         rank=False):
+                for cui, pref in filter(None, self._conso_db.get(candidate)):
+                    # NOTE: Using ACCEPTED_SEMTYPES will always result
+                    # in true. If not so, should we include the match
+                    # with a semtype=None or skip it?
                     semtypes = self._cuisty_db.get(cui)
-                    if ACCEPTED_SEMTYPES is not None:
-                        semtypes = list(
-                            filter(lambda x: x in ACCEPTED_SEMTYPES, semtypes)
-                        )
-
-                    # Remove previously matched CUI if current match
-                    # is more similar.
-                    # Requires matches to be ordered by CUIs.
-                    if prev_cui is not None and prev_cui == cui:
-                        if similarity > ngram_matches[-1]['similarity']:
-                            ngram_matches.pop(-1)
-                        else:
-                            continue
-
-                    prev_cui = cui
-                    ngram_matches.append({
-                        'begin': begin,
-                        'end': end,
-                        'ngram': ngram,
-                        'term': candidate,
-                        'cui': cui,
-                        'similarity': similarity,
-                        'semantic_types': semtypes,
-                        'preferred': preferred
-                    })
+                    if semtypes is not None:
+                        ngram_matches.append({
+                            'begin': begin,
+                            'end': end,
+                            'ngram': ngram,
+                            'term': candidate,
+                            'similarity': similarity,
+                            'cui': cui,
+                            'semantic_types': semtypes,
+                            'preferred': pref,
+                        })
 
             # Sort matches by similarity and preference
             if len(ngram_matches) > 0:
-                matches.append(
-                    sorted(
-                        ngram_matches,
-                        key=lambda m: m['similarity'] + m['preferred'],
-                        reverse=True
-                    )
+                ngram_matches.sort(
+                    key=lambda x: x['similarity'] + int(x['preferred']),
+                    reverse=True
                 )
+                matches.append(ngram_matches)
         return matches
 
     def _formatter(
