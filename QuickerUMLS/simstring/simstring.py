@@ -115,7 +115,6 @@ class Simstring:
                 )
             )
         ]
-
         similarities = [
             self._measure.similarity(
                 query_features,
@@ -124,12 +123,8 @@ class Simstring:
             for similar_string in similar_strings
         ]
         strings_and_similarities = list(zip(similar_strings, similarities))
-        if rank and len(strings_and_similarities) > 1:
-            strings_and_similarities = sorted(
-                strings_and_similarities,
-                key=lambda ss: ss[1],
-                reverse=True,
-            )
+        if rank:
+            strings_and_similarities.sort(key=lambda ss: ss[1], reverse=True)
         return strings_and_similarities
 
     def _overlap_join(self, query_features, candidate_feature_size, tau):
@@ -137,10 +132,7 @@ class Simstring:
             feature: self._get_strings(candidate_feature_size, feature)
             for feature in query_features
         }
-        query_features = sorted(
-            query_features,
-            key=lambda feature: len(strings[feature]),
-        )
+        query_features.sort(key=lambda feature: len(strings[feature]))
 
         # Use tau parameter to split sorted features
         tau_split = len(query_features) - tau + 1
