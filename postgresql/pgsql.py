@@ -41,8 +41,6 @@ class PostgreSQL:
             used by URI then use either the key/value form or the
             'conn_info' mapping.
 
-        logger (loggin.Logger): Logger object to use for database queries.
-
     Kwargs:
         conn_info (Dict[str, str]): Connection parameters as key/value
             pairs.
@@ -66,13 +64,7 @@ class PostgreSQL:
           use '\\ ' to represent a blank space.
     """
 
-    def __init__(
-        self,
-        dsn=None,
-        *,
-        logger: 'logging.Logger' = logger,
-        **conn_info
-    ):
+    def __init__(self, dsn=None, **conn_info):
         # NOTE: psycopg2 does not supports the 'passfile' parameter, so
         # set the corresponding environment variable.
         if 'passfile' in conn_info:
@@ -241,7 +233,7 @@ class PostgreSQLStream(PostgreSQL):
     Query results are returned as a generator of tuples.
     """
 
-    def __init__(self, dsn=None, *, logger=logger, **conn_info):
+    def __init__(self, dsn=None, **conn_info):
         self._named_cursors = {}
         super().__init__(dsn, **conn_info)
 
