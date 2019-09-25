@@ -122,7 +122,10 @@ class Simstring:
             )
             for similar_string in similar_strings
         ]
-        strings_and_similarities = list(zip(similar_strings, similarities))
+        strings_and_similarities = list(
+            filter(lambda ss: ss[1] >= alpha,
+                   zip(similar_strings, similarities))
+        )
         if rank:
             strings_and_similarities.sort(key=lambda ss: ss[1], reverse=True)
         return strings_and_similarities
