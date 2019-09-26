@@ -1,8 +1,8 @@
 """FACET package."""
 
 
-__title__ = "QuickerUMLS"
-__name__ = "QuickerUMLS"
+__title__ = "FACET"
+__name__ = "FACET"
 __version__ = "0.9"
 __description__ = """High-performance tool for concept extraction
                      from medical narratives."""
@@ -24,11 +24,8 @@ __copyright__ = """2019 Eduardo Ponce and Kris Brown
 # __all__ = ()
 
 
-from .quickumls import QuickUMLS
-from .install import (
-    Installer,
-    Matcher,
-)
+from .install import Installer
+from .match import Facet
 from .database import (
     DictDatabase,
     RedisDatabase,
@@ -48,9 +45,14 @@ from .serializer import (
     StringSerializer,
     StringSJSerializer,
 )
+from .tokenizer import (
+    SplitTokenizer,
+    SpacyTokenizer,
+)
 
 # Defaults
 Serializer = PickleSerializer
 Database = DictDatabase
 FeatureExtractor = CharacterFeatures
 Similarity = CosineSimilarity
+Tokenizer = SpacyTokenizer

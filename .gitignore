@@ -108,3 +108,4 @@ cache/
 **/*.log
 data/
 ref/
+tmp/

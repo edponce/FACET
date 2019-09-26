@@ -381,6 +381,7 @@ def unpack_dir(
 
     Returns (List[str]): List of filenames.
     """
+    # NOTE: Probably better to use os.walk().
     files = []
     for file_or_dir in os.listdir(adir):
         fd = os.path.join(adir, file_or_dir)
@@ -419,10 +420,6 @@ def corpus_generator(
                      The source identifier for raw text is '_text'.
                      The source identifier for other is their file system name.
     """
-    # NOTE: For files, it returns one line at a time, preventing multi-word
-    # concepts that span multiple lines to be identified. Solution is to
-    # return a batch of lines with initial boundary overlapping last line
-    # from previous batch.
     if not is_iterable(corpora):
         corpora = (corpora,)
 
@@ -443,6 +440,6 @@ def corpus_generator(
         elif os.path.isfile(corpus):
             if os.path.basename(corpus).startswith('.'):
                 continue
+            # NOTE: For files, return the entire content.
             with open(corpus) as fd:
-                for line in fd:
-                    yield corpus, line
+                yield corpus, fd.read()
