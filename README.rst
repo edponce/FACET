@@ -16,33 +16,75 @@
 
 |
 
-QuickerUMLS
-===========
+FACET - Framework for Annotation and Concept Extraction in Text
+===============================================================
 
-QuickerUMLS is an extension of `QuickUMLS`_ tool providing faster, scalable,
-and flexible concept extraction from medical narratives.
+FACET is an extension of `QuickUMLS`_ and `SimstringPure`_ tools providing
+faster, scalable, and flexible concept extraction from medical narratives.
+Uses the simple and efficient CP-Merge approach of `Simstring`_ algorithm.
 
-Before Starting and System Initialize
--------------------------------------
-
-1. Python installation should include C headers (python3-dev).
-2. Run all the setup scripts in 'setup' directory.
-   * setup_simstring.sh
-   * setup_spacy.sh
-   * setup_umls.sh: download UMLS and initialize the system (see 'Initialize System')
-3. Install package, pip install -e .
-4. Check installation
-   >>> python3 QuickerUMLS/install.py -h
-
-Description of the NLM UMLS files is available at https://www.ncbi.nlm.nih.gov/books/NBK9685.
+.. _QuickUMLS: https://github.com/Georgetown-IR-Lab/QuickUMLS
+.. _SimstringPure: https://pypi.org/project/simstring-pure
+.. _Simstring: http://www.chokkan.org/software/simstring
 
 
-Database Initialization
------------------------
+Features
+--------
 
-1. Create Simstring and LevelDB UMLS database (
->>> python3 QuickerUMLS/install.py --lowercase --normalize-unicode --umls-dir /path/to/UMLS/RRF/files --install-dir /path/to/install/UMLS/database
->>> python3 QuickerUMLS/install.py -l -n -u /path/to/UMLS/RRF/files -i /path/to/database/installation
+* Easy install process ( I know this is vague)
+* Utilizes Redis for faster UMLS key lookup
+* Adds multiprocessing for:
+  * Processing batches of notes
+  * Process batches of n-grams from each note
+* Stores extracted annotations in an easy to analyze format
+  * Should this be OMOP ID’d annotations?
+* Can evaluate the quality of extracted terms for accuracy based on publicly available medical data sets
+* Can evaluate the quality of extracted terms for accuracy based on comparison with an equivalent cTAKES pipeline
+* New features are fully tested.  Old features as well
+* Integrated into a continuous-integration pipeline system in version control
+* First release will have a demo with VA. So this needs to have a clean API, impressive performance, and demonstrable value over other tools.
+   * Easy config
+   * Easy to use programmatically
+   * Easy to scale up or run locally
+
+
+Installation
+------------
+
+1. You can install requirements manually, pip install -r requirements.
+2. In order to use spaCy, download the relevant corpus, python3 -m spacy download en.
+3. You require to have a valid UMLS installation on disk. To install UMLS, you
+   must first obtain a `UMLS license`_ from the National Library of Medicine,
+   then download all `UMLS files`_. Finally, you can install UMLS using the
+   `MetamorphoSys`_ tool. The installation can be removed once the system has
+   been initialized.
+
+.. _UMLS license: https://uts.nlm.nih.gov/license.html
+.. _UMLS files: https://www.nlm.nih.gov/research/umls/licensedcontent/umlsknowledgesources.html
+.. _MetamorphoSys: https://www.nlm.nih.gov/research/umls/implementation_resources/metamorphosys/help.html
+
+
+Databases Initialization
+------------------------
+
+FACET supports the following databases for backend storage. Note that different
+databases can be used in the same installation.
+* Redis - requires DSN information.
+* Python dictionary (in-memory) - fast performance, but increases main process storage and does not persists after system shutdown.
+* Python dictionary (file backed) - fast performance, but increases main process storage. Persists after system shutdown.
+
+1. Create databases for data (UMLS MRCONSO and MRSTY) and Simstring. This process takes approximately 30 minutes.
+>>> python3 facet/install.py --lowercase --normalize-unicode --umls-dir /path/to/UMLS/RRF/files --install-dir /path/to/install/UMLS/database
+>>> python3 facet/install.py -l -n -u /path/to/UMLS/RRF/files -i /path/to/database/installation
+
+* <umls_installation_path> is the directory of the UMLS installation (in particular, we need MRCONSO.RRF and MRSTY.RRF).
+* <destination_path> is the directory where the QuickUMLS data files will be installed.
+* -L, --lowercase: Fold all concept terms to lowercase before being processed. This option typically increases recall, but it might reduce precision.
+* -U, --normalize-unicode: Expressions with non-ASCII characters are converted to the closest combination of ASCII characters.
+* -E, --language: Specify the language to consider for UMLS concepts (defuault is English). For a complete list of languages, see `NLM language table`_.
+
+
+.. _NLM language table: https://www.nlm.nih.gov/research/umls/knowledge_sources/metathesaurus/release/abbreviations.html#LAT
 
 The following are results for UMLS 2018-AA (8,015,988 concepts).
 
@@ -101,6 +143,8 @@ Set 'best_match' to 'False' if you want to return overlapping candidates.
 Set 'ignore_syntax' to 'True' to disable all heuristics introduced in Soldaini
 and Goharian 2016.
 
+.. _Hazardous or Poisonous Substance: https://metamap.nlm.nih.gov/Docs/SemanticTypes_2018AB.txt
+
 
 Benchmarks
 ==========
@@ -152,44 +196,13 @@ Legend:
 * make_token_sequences_par2_batch - uses multiprocessing.pool.ThreadPool with multiple apply_async that operate on batches (64) of data. Partial results from list are combined into the final result.
 
 
-QuickUMLS
-=========
+Redis
+=====
 
-Before Starting
----------------
+Redis database perform queries using a single-thread at a time (lock).
 
-1. Python installation should include C headers (python3-dev).
-2. You can install requirements manually, pip install -r requirements.
-3. In order to use spaCy, download the relevant corpus, python3 -m spacy download en.
-4. You require to have a valid UMLS installation on disk. To install UMLS, you
-   must first obtain a `UMLS license`_ from the National Library of Medicine,
-   then download all `UMLS files`_. Finally, you can install UMLS using the
-   `MetamorphoSys`_ tool. The installation can be removed once the system has
-   been initialized.
-
-Initialize system
------------------
-
-1. Download and compile `Simstring`_, bash setup_simstring.sh 3.
-2. Initialize the system by running, python install.py <umls_installation_path> <destination_path>. This process takes between between 30 minutes and forever.
-   * <umls_installation_path> is the directory of the UMLS installation (in particular, we need MRCONSO.RRF and MRSTY.RRF).
-   * <destination_path> is the directory where the QuickUMLS data files will be installed.
-
-     - -L, --lowercase: Fold all concept terms to lowercase before being processed.
-       This option typically increases recall, but it might reduce precision.
-     - -U, --normalize-unicode: Expressions with non-ASCII characters are converted
-       to the closest combination of ASCII characters.
-     - -E, --language: Specify the language to consider for UMLS concepts (defuault
-       is English). For a complete list of languages, see `NLM language table`_.
-
-
-.. _QuickUMLS: https://github.com/Georgetown-IR-Lab/QuickUMLS
-.. _UMLS license: https://uts.nlm.nih.gov/license.html
-.. _UMLS files: https://www.nlm.nih.gov/research/umls/licensedcontent/umlsknowledgesources.html
-.. _MetamorphoSys: https://www.nlm.nih.gov/research/umls/implementation_resources/metamorphosys/help.html
-.. _Simstring: http://www.chokkan.org/software/simstring
-.. _NLM language table: https://www.nlm.nih.gov/research/umls/knowledge_sources/metathesaurus/release/abbreviations.html#LAT
-.. _Hazardous or Poisonous Substance: https://metamap.nlm.nih.gov/Docs/SemanticTypes_2018AB.txt
+* Install Redis server/client packages in computer system (e.g., apt install redis-server).
+* Install redis-py Python package (pip install redis).
 
 
 Plyvel and LevelDB
@@ -227,18 +240,6 @@ Plyvel API:
         b.put(b'key', b'value')
 
 
-Pickle
-======
-
-Pickling objects may reduce their storage use when writing to a database or transferring data.
-
->>> import sys
->>> import pickle
->>> d = {'a': 1, 'b': 2}
->>> sys.getsizeof(d)  # 240 bytes
->>> sys.getsizeof(pickle.dumps(d))  # 61 bytes
-
-
 spaCy
 =====
 
@@ -246,33 +247,3 @@ spaCy
 >>> nlp = spacy.load('en')
 >>> doc = nlp('very long text ...')
 >>> ValueError: [E088] Text of length 1639120 exceeds maximum of 1000000. The v2.x parser and NER models require roughly 1GB of temporary memory per 100,000 characters in the input. This means long texts may cause memory allocation errors. If you're not using the parser or NER, it's probably safe to increase the `nlp.max_length` limit. The limit is in number of characters, so you can check whether your inputs are too long by checking `len(text)`.
-
-
-Are Python lists thread-safe?
-=============================
-
-Lists themselves are thread-safe. In CPython the GIL protects against concurrent accesses to them, and other implementations take care to use a fine-grained lock or a synchronized datatype for their list implementations. However, while lists themselves can't go corrupt by attempts to concurrently access, the lists's data is not protected.
-
-
-Python Multi-threading/processing
-=================================
-
-concurrent.futures.ThreadPoolExecutor
--------------------------------------
-
-If max_workers is None or not given, it will default to the number of processors on the machine, multiplied by 5, assuming that ThreadPoolExecutor is often used to overlap I/O instead of CPU work
-
-
-threading
----------
-
-CPython implementation detail: In CPython, due to the Global Interpreter Lock, only one thread can execute Python code at once (even though certain performance-oriented libraries might overcome this limitation). If you want your application to make better use of the computational resources of multi-core machines, you are advised to use multiprocessing or concurrent.futures.ProcessPoolExecutor. However, threading is still an appropriate model if you want to run multiple I/O-bound tasks simultaneously.
-
-
-Redis
-=====
-
-Redis database perform queries using a single-thread at a time (lock).
-
-* Install Redis server/client packages in computer system (e.g., apt install redis-server).
-* Install redis-py Python package (pip install redis).
