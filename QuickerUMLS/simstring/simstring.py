@@ -12,7 +12,7 @@ class Simstring:
     """Implementation of Simstring algorithm.
 
     Args:
-        database (BaseDatabase): Database instance for storage.
+        db (BaseDatabase): Database instance for storage.
             Default is DictDatabase.
 
         feature_extractor (NgramFeatures): N-gram feature extractor instance.
@@ -26,11 +26,18 @@ class Simstring:
             Default is 'L'.
     """
 
-    def __init__(self, **kwargs):
-        self._db = kwargs.get('database', DictDatabase())
-        self._fe = kwargs.get('feature_extractor', CharacterFeatures())
-        self._measure = kwargs.get('similarity', CosineSimilarity())
-        self._case = kwargs.get('case', 'L')
+    def __init__(
+        self,
+        *,
+        db: 'BaseDatabase' = DictDatabase(),
+        feature_extractor: 'NgramFeatures' = CharacterFeatures(),
+        similarity: 'BaseSimilarity' = CosineSimilarity(),
+        case: str = 'L',
+    ):
+        self._db = db
+        self._fe = feature_extractor
+        self._measure = similarity
+        self._case = case
         # self._cache_enabled = kwargs.get('enable_cache', False)
 
         # NOTE: Keep a multilevel dictionary in memory containing
@@ -64,7 +71,7 @@ class Simstring:
     #     self._cache_size += 1
 
     @property
-    def database(self):
+    def db(self):
         return self._db
 
     def _get_strings(self, size: int, feature: str) -> List[str]:

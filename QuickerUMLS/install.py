@@ -1,13 +1,6 @@
 import os
-import sys
-import csv
 import time
-import json
-import spacy
-import pickle
-import dicttoxml
 import collections
-import xml.dom.minidom
 from unidecode import unidecode
 from QuickerUMLS.simstring import Simstring
 from QuickerUMLS.database import DictDatabase
@@ -15,24 +8,23 @@ from QuickerUMLS.helpers import (
     # data_to_dict,
     iter_data,
     is_iterable,
-    unpack_dir,
     corpus_generator,
 )
 from QuickerUMLS.umls_constants import (
-    HEADERS_MRCONSO,
     HEADERS_MRSTY,
+    HEADERS_MRCONSO,
     ACCEPTED_SEMTYPES,
 )
 from typing import (
     Any,
-    Union,
     List,
     Dict,
     Tuple,
+    Union,
     Callable,
     Iterable,
-    Generator,
     NoReturn,
+    Generator,
 )
 
 
@@ -62,10 +54,16 @@ class Installer:
             database handle (to prevent collisions with N-grams).
     """
 
-    def __init__(self, **kwargs):
-        self._conso_db = kwargs.get('conso_db', DictDatabase())
-        self._cuisty_db = kwargs.get('cuisty_db', DictDatabase())
-        self._ss = kwargs.get('simstring', Simstring())
+    def __init__(
+        self,
+        *,
+        conso_db: 'BaseDatabase',
+        cuisty_db: 'BaseDatabase',
+        simstring: 'Simstring',
+    ):
+        self._conso_db = conso_db
+        self._cuisty_db = cuisty_db
+        self._ss = simstring
 
     def _load_conso(
         self,

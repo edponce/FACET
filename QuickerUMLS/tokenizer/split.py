@@ -1,3 +1,4 @@
+import re
 from .base import BaseTokenizer
 
 
@@ -57,9 +58,10 @@ class SplitTokenizer(BaseTokenizer):
         self._stopwords = type(self)._STOPWORDS
 
     def sentencize(self, text):
-        return [text]
+        yield text
 
     def tokenize(self, text):
-        return [(0, 0, token)
-                for token in text.split()
-                if token not in type(self)._STOPWORDS]
+        for match in re.finditer(r'\w+', text):
+            token = match.group(0)
+            if token not in type(self)._STOPWORDS:
+                yield (0, 0, token)

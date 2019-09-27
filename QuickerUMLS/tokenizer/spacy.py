@@ -1,4 +1,3 @@
-import time
 import spacy
 from .base import BaseTokenizer
 from typing import Set, Tuple, Generator
@@ -34,13 +33,8 @@ class SpacyTokenizer(BaseTokenizer):
         self._nlp.Defaults.stop_words = stopwords
 
     def sentencize(self, text) -> Generator['spacy.Span', None, None]:
-        # Creates a spaCy Doc object
         # len(Doc) == number of words
-        t1 = time.time()
         doc = self._nlp(text)
-        t2 = time.time()
-        print(f'Num words: {len(doc)}')
-        print(f'spaCy parse: {t2 - t1} s')
         return doc.sents
 
     def tokenize(

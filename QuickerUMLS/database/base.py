@@ -3,11 +3,6 @@ from typing import (
     Any, List, Dict, Tuple, Union, Iterable, Iterator, NoReturn,
 )
 
-# NOTE: Do not store single values as lists, only if they get extended.
-# Use 'is_iterable' to check if value is a list. But how do we check if
-# a value is not a list itself. Possible solution but ugly is to subclass list
-# as a means to distinguish between our list object and any other list objects.
-
 
 __all__ = ['BaseDatabase']
 
