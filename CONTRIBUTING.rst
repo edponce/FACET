@@ -12,10 +12,11 @@ the details of this workflow in git.
 All types of contributions are welcomed. A guide for developers will be made
 available soon.
 
-Meanwhile:
-    * Clone repository
-    * Make improvements, add features, or fix bugs
-    * Make pull requests
+Meanwhile,
+
+* Clone repository
+* Make improvements, add features, and/or fix bugs
+* Make pull requests
 
 
 .. _`gitflow workflow`: https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow

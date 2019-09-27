@@ -31,33 +31,39 @@ Uses the simple and efficient CP-Merge approach of `Simstring`_ algorithm.
 Features
 --------
 
-* Easy install process ( I know this is vague)
+* Easy install process
 * Utilizes Redis for faster UMLS key lookup
 * Adds multiprocessing for:
+
   * Processing batches of notes
   * Process batches of n-grams from each note
+
 * Stores extracted annotations in an easy to analyze format
+
   * Should this be OMOP ID’d annotations?
+
 * Can evaluate the quality of extracted terms for accuracy based on publicly available medical data sets
 * Can evaluate the quality of extracted terms for accuracy based on comparison with an equivalent cTAKES pipeline
-* New features are fully tested.  Old features as well
+* New features are fully tested. Old features as well
 * Integrated into a continuous-integration pipeline system in version control
 * First release will have a demo with VA. So this needs to have a clean API, impressive performance, and demonstrable value over other tools.
-   * Easy config
-   * Easy to use programmatically
-   * Easy to scale up or run locally
+
+  * Easy config
+  * Easy to use programmatically
+  * Easy to scale up or run locally
 
 
 Installation
 ------------
 
-1. You can install requirements manually, pip install -r requirements.
-2. In order to use spaCy, download the relevant corpus, python3 -m spacy download en.
-3. You require to have a valid UMLS installation on disk. To install UMLS, you
+#. You can install requirements manually, pip install -r requirements.
+#. In order to use spaCy, download the relevant corpus, python3 -m spacy download en.
+#. You require to have a valid UMLS installation on disk. To install UMLS, you
    must first obtain a `UMLS license`_ from the National Library of Medicine,
    then download all `UMLS files`_. Finally, you can install UMLS using the
    `MetamorphoSys`_ tool. The installation can be removed once the system has
    been initialized.
+
 
 .. _UMLS license: https://uts.nlm.nih.gov/license.html
 .. _UMLS files: https://www.nlm.nih.gov/research/umls/licensedcontent/umlsknowledgesources.html
@@ -69,30 +75,37 @@ Databases Initialization
 
 FACET supports the following databases for backend storage. Note that different
 databases can be used in the same installation.
+
 * Redis - requires DSN information.
 * Python dictionary (in-memory) - fast performance, but increases main process storage and does not persists after system shutdown.
 * Python dictionary (file backed) - fast performance, but increases main process storage. Persists after system shutdown.
 
-1. Create databases for data (UMLS MRCONSO and MRSTY) and Simstring. This process takes approximately 30 minutes.
->>> python3 facet/install.py --lowercase --normalize-unicode --umls-dir /path/to/UMLS/RRF/files --install-dir /path/to/install/UMLS/database
->>> python3 facet/install.py -l -n -u /path/to/UMLS/RRF/files -i /path/to/database/installation
+Create databases for data (UMLS MRCONSO and MRSTY) and Simstring. This process takes approximately 30 minutes.
 
-* <umls_installation_path> is the directory of the UMLS installation (in particular, we need MRCONSO.RRF and MRSTY.RRF).
-* <destination_path> is the directory where the QuickUMLS data files will be installed.
-* -L, --lowercase: Fold all concept terms to lowercase before being processed. This option typically increases recall, but it might reduce precision.
-* -U, --normalize-unicode: Expressions with non-ASCII characters are converted to the closest combination of ASCII characters.
-* -E, --language: Specify the language to consider for UMLS concepts (defuault is English). For a complete list of languages, see `NLM language table`_.
+    >>> python3 facet/install.py --lowercase --normalize-unicode --umls-dir /path/to/UMLS/RRF/files --install-dir /path/to/install/UMLS/database
+    >>> python3 facet/install.py -l -n -u /path/to/UMLS/RRF/files -i /path/to/database/installation
+
+
+-u dir, --umls-dir=dir  Directory of the UMLS installation (in particular, we need MRCONSO.RRF and MRSTY.RRF).
+-i dir, --install-dir=dir  Directory where the QuickUMLS data files will be installed.
+-L, --lowercase  Fold all concept terms to lowercase before being processed. This option typically increases recall, but it might reduce precision.
+-U, --normalize-unicode  Expressions with non-ASCII characters are converted to the closest combination of ASCII characters.
+-E, --language  Specify the language to consider for UMLS concepts (defuault is English). For a complete list of languages, see `NLM language table`_.
 
 
 .. _NLM language table: https://www.nlm.nih.gov/research/umls/knowledge_sources/metathesaurus/release/abbreviations.html#LAT
 
 The following are results for UMLS 2018-AA (8,015,988 concepts).
 
-Loading concepts: 2.05e-05 sec
-Writing concepts: 247.99 sec
-Loading semantic types: 6.43e-06 sec
-Writing Simstring database: 468.66 sec
-Writing semantic types: 9.87 sec
+=====================  ===========
+Task                   Runtime (s)
+=====================  ===========
+Load concepts          2.05e-05
+Write concepts         247.99
+Load semantic types    6.43e-06
+Write Simstring DB     468.66
+Write semantic types   9.87
+=====================  ===========
 
 
 =====================  ===========  ====================
@@ -146,7 +159,7 @@ and Goharian 2016.
 .. _Hazardous or Poisonous Substance: https://metamap.nlm.nih.gov/Docs/SemanticTypes_2018AB.txt
 
 
-Benchmarks
+BENCHMARKS
 ==========
 
 Tests were done using UMLS 2018-AA knowledge base.
@@ -174,6 +187,7 @@ mts_p2b                           0.1          1.0              0.012         1.
 Real values represent time in seconds.
 
 Legend:
+
 * orig - original code
 * gam_pX - get_all_matches_parX
 * gam_pXb - get_all_matches_parX_batch
@@ -210,40 +224,45 @@ Plyvel and LevelDB
 
 Using plyvel (https://github.com/wbolster/plyvel) interface for LevelDB (https://github.com/google/leveldb).
 
-
 LevelDB Features:
-    * Keys and values are arbitrary byte arrays.
-    * Data is stored sorted by key.
-    * Basic operations: Put(key, value), Get(key), Delete(key).
-    * Multiple changes can be made in one atomic batch.
-    * Forward and backward iteration is supported over the data.
-    * Data is automatically compressed (Snappy compression library).
 
+* Keys and values are arbitrary byte arrays.
+* Data is stored sorted by key.
+* Basic operations: Put(key, value), Get(key), Delete(key).
+* Multiple changes can be made in one atomic batch.
+* Forward and backward iteration is supported over the data.
+* Data is automatically compressed (Snappy compression library).
 
 LevelDB Limitations:
-    * Only a single process (possibly multi-threaded) can access a particular database at a time.
-        - plyvel._plyvel.IOError: b'IO error: lock test.db/LOCK: Resource temporarily unavailable'
 
+* Only a single process (possibly multi-threaded) can access a particular database at a time.
+
+  * plyvel._plyvel.IOError: b'IO error: lock test.db/LOCK: Resource temporarily unavailable'
 
 Plyvel Info:
-    * Uses Cython, can be installed manually on system (repo contains Dockerfile). This might be good to increase performance for the target architecture.
+
+* Uses Cython, can be installed manually on system (repo contains Dockerfile). This might be good to increase performance for the target architecture.
 
 
 Plyvel API:
-    * close() - closing the database while other threads are busy accessing it may result in hard crashes. Applications should make sure not to close databases that are concurrently used from other threads.
-    * write_batch(transaction=False, sync=False) - create a WriteBatch instance for this database.
-      - transaction - whether to enable transaction-like behaviour when used in 'with' block.
-      - sync - whether to use synchronous writes
-    * class WriteBatch - batch put/delete operations. Instances of this class can be used as context managers, when the 'with' block terminates, the batch will be automatically written to the database without an explicit call to 'WriteBatch.write()'.
 
-    with db.write_batch() as b:
-        b.put(b'key', b'value')
+* close() - closing the database while other threads are busy accessing it may result in hard crashes. Applications should make sure not to close databases that are concurrently used from other threads.
+* write_batch(transaction=False, sync=False) - create a WriteBatch instance for this database.
+
+  * transaction - whether to enable transaction-like behaviour when used in 'with' block.
+  * sync - whether to use synchronous writes
+
+* class WriteBatch - batch put/delete operations. Instances of this class can be used as context managers, when the 'with' block terminates, the batch will be automatically written to the database without an explicit call to 'WriteBatch.write()'.
+
+    >>> with db.write_batch() as b:
+    >>> b.put(b'key', b'value')
 
 
 spaCy
 =====
 
->>> import spacy
->>> nlp = spacy.load('en')
->>> doc = nlp('very long text ...')
->>> ValueError: [E088] Text of length 1639120 exceeds maximum of 1000000. The v2.x parser and NER models require roughly 1GB of temporary memory per 100,000 characters in the input. This means long texts may cause memory allocation errors. If you're not using the parser or NER, it's probably safe to increase the `nlp.max_length` limit. The limit is in number of characters, so you can check whether your inputs are too long by checking `len(text)`.
+spaCy has limits into the size of text processed:
+    >>> import spacy
+    >>> nlp = spacy.load('en')
+    >>> doc = nlp('very long text ...')
+    >>> ValueError: [E088] Text of length 1639120 exceeds maximum of 1000000. The v2.x parser and NER models require roughly 1GB of temporary memory per 100,000 characters in the input. This means long texts may cause memory allocation errors. If you're not using the parser or NER, it's probably safe to increase the `nlp.max_length` limit. The limit is in number of characters, so you can check whether your inputs are too long by checking `len(text)`.

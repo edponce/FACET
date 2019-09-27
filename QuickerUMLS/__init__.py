@@ -4,8 +4,7 @@
 __title__ = "FACET"
 __name__ = "FACET"
 __version__ = "0.9"
-__description__ = """High-performance tool for concept extraction
-                     from medical narratives."""
+__description__ = """Framework for Annotation and Concept Extraction in Text"""
 __keywords__ = [
     "information extraction",
     "UMLS",
@@ -17,7 +16,7 @@ __url__ = "code.ornl.gov:REACHVET/reachvet-nlp/quicker-umls.git"
 __author__ = "Eduardo Ponce, Oak Ridge National Laboratory, Oak Ridge, TN"
 __author_email__ = "poncemojicae@ornl.gov"
 __license__ = "MIT"
-__copyright__ = """2019 Eduardo Ponce and Kris Brown
+__copyright__ = """2019 Eduardo Ponce, Kris Brown, and Edmon Begoli
                    Oak Ridge National Laboratory"""
 
 
