@@ -1,7 +1,7 @@
 import time
 import spacy
-from typing import Set, Tuple, Generator
 from .base import BaseTokenizer
+from typing import Set, Tuple, Generator
 
 
 __all__ = ['SpacyTokenizer']
@@ -15,26 +15,7 @@ class SpacyTokenizer(BaseTokenizer):
             Default is 'en'.
     """
 
-    NEGATIONS = {
-        'none', 'non', 'neither', 'nor', 'no', 'not',
-    }
-
-    UNICODE_DASHES = {
-        u'\u002d', u'\u007e', u'\u00ad', u'\u058a', u'\u05be', u'\u1400',
-        u'\u1806', u'\u2010', u'\u2011', u'\u2010', u'\u2012', u'\u2013',
-        u'\u2014', u'\u2015', u'\u2053', u'\u207b', u'\u2212', u'\u208b',
-        u'\u2212', u'\u2212', u'\u2e17', u'\u2e3a', u'\u2e3b', u'\u301c',
-        u'\u3030', u'\u30a0', u'\ufe31', u'\ufe32', u'\ufe58', u'\ufe63',
-        u'\uff0d',
-    }
-
-    def __init__(
-        self,
-        *,
-        language: 'str' = 'en',
-    ):
-        # Set up spaCy (model and stopwords)
-        start = time.time()
+    def __init__(self, *, language: 'str' = 'en'):
         try:
             self._nlp = spacy.load(language)
         except KeyError:
@@ -43,8 +24,6 @@ class SpacyTokenizer(BaseTokenizer):
         except OSError:
             err = (f"Please run 'python3 -m spacy download {language}'")
             raise OSError(err)
-        curr_time = time.time()
-        print(f'Loading spaCy model: {curr_time - start} s')
 
     @property
     def stopwords(self) -> Set[str]:
@@ -54,7 +33,7 @@ class SpacyTokenizer(BaseTokenizer):
     def stopwords(self, stopwords: Set[str]):
         self._nlp.Defaults.stop_words = stopwords
 
-    def sentencize(self, text):
+    def sentencize(self, text) -> Generator['spacy.Span', None, None]:
         # Creates a spaCy Doc object
         # len(Doc) == number of words
         t1 = time.time()
@@ -66,7 +45,7 @@ class SpacyTokenizer(BaseTokenizer):
 
     def tokenize(
         self,
-        text: 'spacy.Doc',
+        text: 'spacy.Span',
         *,
         window: int = 5,
         min_match_length: int = 3,
@@ -74,7 +53,7 @@ class SpacyTokenizer(BaseTokenizer):
     ) -> Generator[Tuple[int, int, str], None, None]:
         """
         Args:
-            sentence (spacy.Doc): Sentence to process.
+            sentence (spacy.Span): Sentence to process.
 
             window (int): Window size for processing words.
                 Default value is 5.
@@ -148,16 +127,14 @@ class SpacyTokenizer(BaseTokenizer):
     def _is_valid_begin_token(self, token) -> bool:
         return not(
             token.like_num
-            or (token.text in self._nlp.Defaults.stop_words
-                and token.lemma_ not in type(self).NEGATIONS)
             or token.pos_ in ('ADP', 'DET', 'CONJ')
+            or token.text in self._nlp.Defaults.stop_words
         )
 
     def _is_valid_middle_token(self, token) -> bool:
         return (
             not(token.is_punct or token.is_space)
             or token.is_bracket
-            or token.text in type(self).UNICODE_DASHES
         )
 
     def _is_valid_end_token(self, token) -> bool:

@@ -7,8 +7,8 @@ import collections
 import xml.dom.minidom
 from QuickerUMLS.simstring import Simstring
 from QuickerUMLS.database import DictDatabase
-from QuickerUMLS.helpers import corpus_generator
 from QuickerUMLS.tokenizer import SpacyTokenizer
+from QuickerUMLS.helpers import corpus_generator
 from typing import Any, Union, List, Dict, Iterable
 
 
@@ -33,21 +33,28 @@ class Facet:
 
         simstring (Simstring): Handle to Simstring instance.
             Simstring requires an internal database.
+
+        tokenizer (BaseTokenizer): Tokenizer instance.
+            Default is SpacyTokenizer.
     """
 
+    # NOTE: Need to remove default parameters because non-empty databases
+    # are required, but for debugging empty databases are useful.
     def __init__(
         self,
         *,
         conso_db: 'BaseDatabase' = DictDatabase(),
         cuisty_db: 'BaseDatabase' = DictDatabase(),
         simstring: 'Simstring' = Simstring(),
+        tokenizer: 'BaseTokenizer' = SpacyTokenizer(),
     ):
         self._conso_db = conso_db
         self._cuisty_db = cuisty_db
         self._ss = simstring
+        self._tokenizer = tokenizer
 
     def __call__(self, corpora: Union[str, Iterable[str]]):
-        return sefl.match(corpora)
+        return self.match(corpora)
 
     def _get_matches(
         self,
@@ -91,10 +98,10 @@ class Facet:
                             'begin': begin,
                             'end': end,
                             'ngram': ngram,
-                            'term': candidate,
+                            'concept': candidate,
                             'similarity': similarity,
                             'cui': cui,
-                            'semantic_types': semtypes,
+                            'semantic type': semtypes,
                             'preferred': pref,
                         })
 
@@ -148,8 +155,8 @@ class Facet:
             if formatter.lower() == 'csv':
                 with open(outfile, 'w', newline='') as fd:
                     keys = [
-                        'begin', 'end', 'ngram', 'term', 'cui',
-                        'similarity', 'semantic_types', 'preferred'
+                        'begin', 'end', 'ngram', 'concept', 'cui',
+                        'similarity', 'semantic type', 'preferred'
                     ]
                     writer = csv.DictWriter(fd, fieldnames=keys)
                     writer.writeheader()
@@ -169,7 +176,6 @@ class Facet:
         *,
         best_match: bool = True,
         alpha: float = 0.7,
-        tokenizer: 'BaseTokenizer' = SpacyTokenizer(),
         **kwargs
     ) -> Dict[str, List[List[Dict[str, Any]]]]:
         """
@@ -178,18 +184,15 @@ class Facet:
 
             best_match (bool):
 
-            tokenizer (BaseTokenizer): Tokenizer instance.
-                Default is SpacyTokenizer.
-
         Kwargs:
             Options passed directly to `corpus_generator`.
 
         Examples:
 
-        >>> matches = FACET().match(['file1.txt', 'file2.txt', ...])
+        >>> matches = Facet().match(['file1.txt', 'file2.txt', ...])
         >>> for terms in matches['file1.txt']:
         >>>     for term in terms:
-        >>>         print(term['concept'], term['cui'], term['semantic_types'])
+        >>>         print(term['concept'], term['cui'], term['semantic type'])
         """
         # Profile
         if PROFILE:
@@ -199,8 +202,8 @@ class Facet:
         matches = collections.defaultdict(list)
         for source, corpus in corpus_generator(corpora, **kwargs):
             start = time.time()
-            for sentence in tokenizer.sentencize(corpus):
-                ngrams = tokenizer.tokenize(sentence)
+            for sentence in self._tokenizer.sentencize(corpus):
+                ngrams = self._tokenizer.tokenize(sentence)
                 curr_time = time.time()
                 print(f'Make N-grams: {curr_time - start} s')
 
