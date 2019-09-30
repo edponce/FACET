@@ -41,6 +41,8 @@ from .simstring import (
     OverlapSimilarity,
 )
 from .serializer import (
+    JSONSerializer,
+    YAMLSerializer,
     PickleSerializer,
     StringSerializer,
     StringSJSerializer,
@@ -51,7 +53,7 @@ from .tokenizer import (
 )
 
 # Defaults
-Serializer = PickleSerializer
+Serializer = JSONSerializer
 Database = DictDatabase
 FeatureExtractor = CharacterFeatures
 Similarity = CosineSimilarity

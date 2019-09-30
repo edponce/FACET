@@ -1,7 +1,7 @@
 import copy
 import redis
 from .base import BaseDatabase
-from QuickerUMLS.serializer import PickleSerializer
+from QuickerUMLS.serializer import JSONSerializer as Serializer
 
 
 __all__ = ['RedisDatabase']
@@ -50,7 +50,7 @@ class RedisDatabase(BaseDatabase):
         self._is_pipe = pipe
         self._dbp = self._db.pipeline() if self._is_pipe else self._db
 
-        self._serializer = kwargs.get('serializer', PickleSerializer())
+        self._serializer = kwargs.get('serializer', Serializer())
 
     @property
     def host(self):
