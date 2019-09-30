@@ -1,10 +1,6 @@
-import csv
 import time
-import json
-import pickle
-import dicttoxml
 import collections
-import xml.dom.minidom
+from QuickerUMLS.formatter import Formatter
 from QuickerUMLS.simstring import Simstring
 from QuickerUMLS.database import DictDatabase
 from QuickerUMLS.tokenizer import SpacyTokenizer
@@ -38,23 +34,27 @@ class Facet:
             Default is SpacyTokenizer.
     """
 
-    # NOTE: Need to remove default parameters because non-empty databases
-    # are required, but for debugging empty databases are useful.
     def __init__(
         self,
         *,
-        conso_db: 'BaseDatabase' = DictDatabase(),
-        cuisty_db: 'BaseDatabase' = DictDatabase(),
-        simstring: 'Simstring' = Simstring(),
+        conso_db: 'BaseDatabase',
+        cuisty_db: 'BaseDatabase',
+        simstring: 'Simstring',
         tokenizer: 'BaseTokenizer' = SpacyTokenizer(),
+        formatter: 'Formatter' = Formatter(),
     ):
         self._conso_db = conso_db
         self._cuisty_db = cuisty_db
         self._ss = simstring
-        self._tokenizer = tokenizer
+        self.tokenizer = tokenizer
+        self.formatter = formatter
 
-    def __call__(self, corpora: Union[str, Iterable[str]]):
-        return self.match(corpora)
+    # def __call__(self, corpora: Union[str, Iterable[str]], **kwargs):
+    #     """
+    #     Kwargs:
+    #         Options passed directly to `match`.
+    #     """
+    #     return self.match(corpora, **kwargs)
 
     def _get_matches(
         self,
@@ -114,63 +114,7 @@ class Facet:
                 matches.append(ngram_matches)
         return matches
 
-    def _formatter(
-        self,
-        matches: Dict[str, List[Any]],
-        *,
-        formatter: str = None,
-        outfile: str = None,
-    ) -> str:
-        """
-        Args:
-            matches (Dict[str, List[Any]]): Mapping of matches and attributes.
-
-            formatter (str): Output format.
-                Valid values are 'json', 'xml', 'pickle', 'csv', and None.
-                Default is None.
-
-            outfile (str): Output file. Default is to print output.
-        """
-        if formatter is None:
-            formatted_matches = matches
-        elif formatter.lower() == 'json':
-            formatted_matches = json.JSONEncoder(indent=2).encode(matches)
-        elif formatter.lower() == 'xml':
-            formatted_matches = xml.dom.minidom.parseString(
-                dicttoxml.dicttoxml(matches, attr_type=False)
-            ).toprettyxml(indent=2 * ' ')
-        elif formatter.lower() == 'pickle':
-            formatted_matches = pickle.dumps(matches)
-        elif formatter.lower() == 'csv':
-            formatted_matches = matches
-            if outfile is None:
-                print('Warn: csv formatting only supported '
-                      'for writing to file')
-        else:
-            raise ValueError(
-                f'Error: invalid formatting, {formatter} is not supported'
-            )
-
-        if outfile is not None:
-            if formatter.lower() == 'csv':
-                with open(outfile, 'w', newline='') as fd:
-                    keys = [
-                        'begin', 'end', 'ngram', 'concept', 'cui',
-                        'similarity', 'semantic type', 'preferred'
-                    ]
-                    writer = csv.DictWriter(fd, fieldnames=keys)
-                    writer.writeheader()
-                    # NOTE: Only works if query is raw text.
-                    for text in matches['_text']:
-                        for match in text:
-                            writer.writerow(match)
-            else:
-                with open(outfile, 'w') as fd:
-                    fd.write(formatted_matches)
-        else:
-            return formatted_matches
-
-    def match(
+    def __call__(
         self,
         corpora: Union[str, Iterable[str]],
         *,
@@ -202,8 +146,8 @@ class Facet:
         matches = collections.defaultdict(list)
         for source, corpus in corpus_generator(corpora, **kwargs):
             start = time.time()
-            for sentence in self._tokenizer.sentencize(corpus):
-                ngrams = self._tokenizer.tokenize(sentence)
+            for sentence in self.tokenizer.sentencize(corpus):
+                ngrams = self.tokenizer.tokenize(sentence)
                 curr_time = time.time()
                 print(f'Make N-grams: {curr_time - start} s')
 
@@ -231,4 +175,4 @@ class Facet:
             prof.print_stats('time')
             prof.clear()
 
-        return self._formatter(matches, **kwargs)
+        return self.formatter(matches)

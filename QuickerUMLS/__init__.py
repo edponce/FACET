@@ -25,6 +25,7 @@ __copyright__ = """2019 Eduardo Ponce, Kris Brown, and Edmon Begoli
 
 from .install import Installer
 from .match import Facet
+from .formatter import Formatter
 from .database import (
     DictDatabase,
     RedisDatabase,
