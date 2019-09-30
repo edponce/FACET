@@ -1,8 +1,13 @@
-from .ngram import CharacterFeatures
-from .similarity import CosineSimilarity
-from QuickerUMLS.database import DictDatabase
-from typing import Union, List, Tuple, NoReturn
 from collections import defaultdict
+from .ngram import CharacterFeatures as Features
+from .similarity import CosineSimilarity as Similarity
+from QuickerUMLS.database import DictDatabase as Database
+from typing import (
+    List,
+    Tuple,
+    Union,
+    NoReturn,
+)
 
 
 __all__ = ['Simstring']
@@ -13,13 +18,10 @@ class Simstring:
 
     Args:
         db (BaseDatabase): Database instance for storage.
-            Default is DictDatabase.
 
         feature_extractor (NgramFeatures): N-gram feature extractor instance.
-            Default is CharacterFeatures.
 
         similarity (BaseSimilarity): Instance of similarity measure.
-            Default is CosineSimilarity.
 
         case (str): Character to control string casing during insert/search.
             Valid values are 'L' (lower), 'U' (upper), or None (no casing).
@@ -29,9 +31,9 @@ class Simstring:
     def __init__(
         self,
         *,
-        db: 'BaseDatabase' = DictDatabase(),
-        feature_extractor: 'NgramFeatures' = CharacterFeatures(),
-        similarity: 'BaseSimilarity' = CosineSimilarity(),
+        db: 'BaseDatabase' = Database(),
+        feature_extractor: 'NgramFeatures' = Features(),
+        similarity: 'BaseSimilarity' = Similarity(),
         case: str = 'L',
     ):
         self._db = db

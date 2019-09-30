@@ -1,6 +1,13 @@
 from abc import ABC, abstractmethod
 from typing import (
-    Any, List, Dict, Tuple, Union, Iterable, Iterator, NoReturn,
+    Any,
+    List,
+    Dict,
+    Tuple,
+    Union,
+    Iterable,
+    Iterator,
+    NoReturn,
 )
 
 

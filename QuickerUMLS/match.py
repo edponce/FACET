@@ -1,11 +1,15 @@
 import time
 import collections
 from QuickerUMLS.formatter import Formatter
-from QuickerUMLS.simstring import Simstring
-from QuickerUMLS.database import DictDatabase
-from QuickerUMLS.tokenizer import SpacyTokenizer
 from QuickerUMLS.helpers import corpus_generator
-from typing import Any, Union, List, Dict, Iterable
+from QuickerUMLS.tokenizer import SpacyTokenizer as Tokenizer
+from typing import (
+    Any,
+    List,
+    Dict,
+    Union,
+    Iterable,
+)
 
 
 __all__ = ['Facet']
@@ -31,7 +35,6 @@ class Facet:
             Simstring requires an internal database.
 
         tokenizer (BaseTokenizer): Tokenizer instance.
-            Default is SpacyTokenizer.
     """
 
     def __init__(
@@ -40,7 +43,7 @@ class Facet:
         conso_db: 'BaseDatabase',
         cuisty_db: 'BaseDatabase',
         simstring: 'Simstring',
-        tokenizer: 'BaseTokenizer' = SpacyTokenizer(),
+        tokenizer: 'BaseTokenizer' = Tokenizer(),
         formatter: 'Formatter' = Formatter(),
     ):
         self._conso_db = conso_db

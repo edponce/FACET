@@ -2,8 +2,6 @@ import os
 import time
 import collections
 from unidecode import unidecode
-from QuickerUMLS.simstring import Simstring
-from QuickerUMLS.database import DictDatabase
 from QuickerUMLS.helpers import (
     # data_to_dict,
     iter_data,

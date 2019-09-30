@@ -1,8 +1,14 @@
-from typing import List, Iterable
 from .base import BaseSerializer
+from typing import (
+    List,
+    Iterable,
+)
 
 
-__all__ = ['StringSerializer', 'StringSJSerializer']
+__all__ = [
+    'StringSerializer',
+    'StringSJSerializer',
+]
 
 
 class StringSerializer(BaseSerializer):

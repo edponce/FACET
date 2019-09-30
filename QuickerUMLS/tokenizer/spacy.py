@@ -1,6 +1,10 @@
 import spacy
 from .base import BaseTokenizer
-from typing import Set, Tuple, Generator
+from typing import (
+    Set,
+    Tuple,
+    Generator,
+)
 
 
 __all__ = ['SpacyTokenizer']
