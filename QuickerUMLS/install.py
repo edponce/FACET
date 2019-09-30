@@ -2,13 +2,13 @@ import os
 import time
 import collections
 from unidecode import unidecode
-from QuickerUMLS.helpers import (
+from .helpers import (
     # data_to_dict,
     iter_data,
     is_iterable,
     corpus_generator,
 )
-from QuickerUMLS.umls_constants import (
+from .umls_constants import (
     HEADERS_MRSTY,
     HEADERS_MRCONSO,
     ACCEPTED_SEMTYPES,

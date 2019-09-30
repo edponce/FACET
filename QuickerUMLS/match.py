@@ -1,8 +1,8 @@
 import time
 import collections
-from QuickerUMLS.formatter import Formatter
-from QuickerUMLS.helpers import corpus_generator
-from QuickerUMLS.tokenizer import SpacyTokenizer as Tokenizer
+from .formatter import Formatter
+from .helpers import corpus_generator
+from .tokenizer import SpacyTokenizer as Tokenizer
 from typing import (
     Any,
     List,
@@ -44,13 +44,12 @@ class Facet:
         cuisty_db: 'BaseDatabase',
         simstring: 'Simstring',
         tokenizer: 'BaseTokenizer' = Tokenizer(),
-        formatter: 'Formatter' = Formatter(),
     ):
         self._conso_db = conso_db
         self._cuisty_db = cuisty_db
         self._ss = simstring
         self.tokenizer = tokenizer
-        self.formatter = formatter
+        self.formatter = Formatter()
 
     # def __call__(self, corpora: Union[str, Iterable[str]], **kwargs):
     #     """
@@ -146,30 +145,24 @@ class Facet:
             prof = cProfile.Profile(subcalls=True, builtins=True)
             prof.enable()
 
+        t1 = time.time()
         matches = collections.defaultdict(list)
         for source, corpus in corpus_generator(corpora, **kwargs):
-            start = time.time()
             for sentence in self.tokenizer.sentencize(corpus):
                 ngrams = self.tokenizer.tokenize(sentence)
-                curr_time = time.time()
-                print(f'Make N-grams: {curr_time - start} s')
 
-                start = curr_time
                 _matches = self._get_matches(ngrams, alpha=alpha)
-                curr_time = time.time()
                 print(f'Num matches: {len(_matches)}')
-                print(f'Get all matches: {curr_time - start} s')
 
                 # if best_match:
-                #     start = curr_time
                 #     matches = self._select_terms(_matches)
-                #     curr_time = time.time()
                 #     print(f'Num best matches: {len(_matches)}')
-                #     print(f'Select terms: {curr_time - start} s')
 
                 # NOTE: Matches are not checked for duplication if placed
                 # in the same key.
                 matches[source].extend(_matches)
+        t2 = time.time()
+        print(f'Matching N-grams: {t2 - t1} s')
 
         # Profile
         if PROFILE:

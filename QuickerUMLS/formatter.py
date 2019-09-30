@@ -11,20 +11,11 @@ __all__ = ['Formatter']
 
 
 class Formatter:
-    """
-    Args:
-        format (str): Output format.
-            Valid values are 'json', 'xml', 'pickle', 'csv', and None.
-            Default is None.
+    """Format data and write to stream."""
 
-        outfile (str): Output file. Default is None (print to stdout).
-    """
-
-    def __init__(self, format: str = None, *, outfile: str = None):
+    def __init__(self):
         self._format = None
         self._outfile = None
-        self.format = format
-        self.outfile = outfile
 
     @property
     def format(self) -> str:
@@ -54,10 +45,13 @@ class Formatter:
             data (Dict[str, List[List[Dict[str, Any]]]]): Mapping of data and
                 attributes.
         """
+        # NOTE: Some of the formatters support writing to a file stream
+        # directly. This is an alternative instead of generating in-memory
+        # string and then writing to file.
         if self._format is None:
             formatted_data = data
         elif self._format == 'json':
-            formatted_data = json.JSONEncoder(indent=2).encode(data)
+            formatted_data = json.dumps(data, indent=2)
         elif self._format == 'xml':
             formatted_data = xml.dom.minidom.parseString(
                 dicttoxml.dicttoxml(data, attr_type=False)
@@ -82,6 +76,8 @@ class Formatter:
 
         if self._outfile is not None:
             with open(self._outfile, 'w') as fd:
-                fd.write(formatted_data)
-        else:
-            return formatted_data
+                # NOTE: Explicit conversion to string, if format is None we
+                # want to return the data as is and be able to write to file.
+                fd.write(str(formatted_data))
+
+        return formatted_data

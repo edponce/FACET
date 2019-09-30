@@ -63,5 +63,5 @@ class SplitTokenizer(BaseTokenizer):
     def tokenize(self, text):
         for match in re.finditer(r'\w+', text):
             token = match.group(0)
-            if token not in type(self)._STOPWORDS:
+            if token.lower() not in type(self)._STOPWORDS:
                 yield (0, 0, token)

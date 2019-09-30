@@ -12,4 +12,4 @@ class YAMLSerializer(BaseSerializer):
         return yaml.dump(obj)
 
     def loads(self, obj):
-        return yaml.safe_load(obj)
+        return yaml.load(obj)

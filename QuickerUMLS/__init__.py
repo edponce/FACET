@@ -1,8 +1,8 @@
 """FACET package."""
 
 
-__title__ = "FACET"
-__name__ = "FACET"
+__title__ = "QuickerUMLS"
+__name__ = "QuickerUMLS"
 __version__ = "0.9"
 __description__ = """Framework for Annotation and Concept Extraction in Text"""
 __keywords__ = [
@@ -20,15 +20,47 @@ __copyright__ = """2019 Eduardo Ponce, Kris Brown, and Edmon Begoli
                    Oak Ridge National Laboratory"""
 
 
-# __all__ = ()
+__all__ = [
+    'Facet',
+    'Installer',
+    'Formatter',
+    'SplitTokenizer',
+    'SpacyTokenizer',
+    'DictDatabase',
+    'RedisDatabase',
+    'JSONSerializer',
+    'YAMLSerializer',
+    'PickleSerializer',
+    'StringSerializer',
+    'StringSJSerializer',
+    'Simstring',
+    'WordFeatures',
+    'CharacterFeatures',
+    'DiceSimilarity',
+    'ExactSimilarity',
+    'CosineSimilarity',
+    'JaccardSimilarity',
+    'OverlapSimilarity',
+]
 
 
-from .install import Installer
 from .match import Facet
+from .install import Installer
 from .formatter import Formatter
+from .tokenizer import (
+    SplitTokenizer,
+    SpacyTokenizer,
+)
 from .database import (
     DictDatabase,
     RedisDatabase,
+)
+from .serializer import (
+    JSONSerializer,
+    YAMLSerializer,
+    PickleSerializer,
+    StringSerializer,
+    StringSJSerializer,
 )
 from .simstring import (
     Simstring,
@@ -40,21 +72,3 @@ from .simstring import (
     JaccardSimilarity,
     OverlapSimilarity,
 )
-from .serializer import (
-    JSONSerializer,
-    YAMLSerializer,
-    PickleSerializer,
-    StringSerializer,
-    StringSJSerializer,
-)
-from .tokenizer import (
-    SplitTokenizer,
-    SpacyTokenizer,
-)
-
-# Defaults
-Serializer = JSONSerializer
-Database = DictDatabase
-FeatureExtractor = CharacterFeatures
-Similarity = CosineSimilarity
-Tokenizer = SpacyTokenizer

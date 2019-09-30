@@ -9,7 +9,7 @@ class JSONSerializer(BaseSerializer):
     """JSON serializer."""
 
     def dumps(self, obj):
-        return json.dump(obj)
+        return json.dumps(obj)
 
     def loads(self, obj):
-        return json.load(obj)
+        return json.loads(obj)
