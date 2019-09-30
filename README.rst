@@ -56,6 +56,10 @@ Features
 Installation
 ------------
 
+#. Install Python3 development headers for host system
+
+    > apt install python3-dev
+
 #. You can install requirements manually, pip install -r requirements.
 #. In order to use spaCy, download the relevant corpus, python3 -m spacy download en.
 #. You require to have a valid UMLS installation on disk. To install UMLS, you
@@ -95,29 +99,41 @@ Create databases for data (UMLS MRCONSO and MRSTY) and Simstring. This process t
 
 .. _NLM language table: https://www.nlm.nih.gov/research/umls/knowledge_sources/metathesaurus/release/abbreviations.html#LAT
 
-The following are results for UMLS 2018-AA (8,015,988 concepts).
+The following are results for a subset of UMLS 2018-AA:
+200,110 concepts, 1,783,491 CUIs (all MRSTY.RRF).
 
-=====================  ===========
-Task                   Runtime (s)
-=====================  ===========
-Load concepts          2.05e-05
-Write concepts         247.99
-Load semantic types    6.43e-06
-Write Simstring DB     468.66
-Write semantic types   9.87
-=====================  ===========
+============================ ===========
+Task (dict)                  Runtime (s)
+============================ ===========
+Load concepts                5.48e-05
+Write concepts and Simstring 59.00
+Load semantic types          2.28e-05
+Write semantic types         10.49
+============================ ===========
+
+============================ ===========
+Task (Redis)                 Runtime (s)
+============================ ===========
+Load concepts                5.76e-05
+Write concepts and Simstring 816.18
+Load semantic types          2.38e-05
+Write semantic types         153.19
+============================ ===========
 
 
-=====================  ===========  ====================
-Task                   Runtime (s)  Comments
-=====================  ===========  ====================
-Load concepts          0.0000205    File (pandas)
-Write concepts         247.99       Level DB
-Write Simstring DB     444.90       Files (Simstring DB)
-Load semantic types    0.02         File (pandas)
-Write semantic types   10.10        Level DB
-Total install          736.32
-=====================  ===========  ====================
+The following are results for full UMLS 2018-AA:
+8,015,988 concepts, ? CUIs (all MRSTY.RRF).
+
+====================  ===========  ====================
+Task                  Runtime (s)  Comments
+====================  ===========  ====================
+Load concepts         0.0000205    File (pandas)
+Write concepts        247.99       Level DB
+Write Simstring DB    444.90       Files (Simstring DB)
+Load semantic types   0.02         File (pandas)
+Write semantic types  10.10        Level DB
+Total install         736.32
+====================  ===========  ====================
 
 
 API and Usage
