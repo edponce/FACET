@@ -259,28 +259,30 @@ def iter_data(
     # Data reader or iterator
     # NOTE: Could we benefit from using Modin.pandas? This function returns
     # a generator, but for the 'dict' version we could use DataFrames instead?
-    reader = pandas.read_csv(data,
-                             names=headers,
+    reader = pandas.read_csv(
+        data,
+        names=headers,
 
-                             # Constant-ish settings
-                             delimiter=kwargs.get('delimiter', '|'),
-                             usecols=usecols,
-                             header=None,
-                             index_col=False,
-                             na_filter=False,
+        # Constant-ish settings
+        delimiter=kwargs.get('delimiter', '|'),
+        usecols=usecols,
+        header=None,
+        index_col=False,
+        na_filter=False,
 
-                             # Extra parameters
-                             encoding=kwargs.get('encoding', 'utf-8'),
-                             converters=kwargs.get('converters'),
-                             skiprows=kwargs.get('skiprows'),
-                             nrows=kwargs.get('nrows'),
-                             dtype=kwargs.get('dtype'),
+        # Extra parameters
+        encoding=kwargs.get('encoding', 'utf-8'),
+        converters=kwargs.get('converters'),
+        skiprows=kwargs.get('skiprows'),
+        nrows=kwargs.get('nrows'),
+        dtype=kwargs.get('dtype'),
 
-                             # Performance parameters
-                             iterator=kwargs.get('iterator', True),
-                             chunksize=kwargs.get('chunksize', 100000),
-                             memory_map=kwargs.get('memory_map', True),
-                             engine=kwargs.get('engine', 'c'))
+        # Performance parameters
+        iterator=kwargs.get('iterator', True),
+        chunksize=kwargs.get('chunksize', 100000),
+        memory_map=kwargs.get('memory_map', True),
+        engine=kwargs.get('engine', 'c'),
+    )
 
     # Place the dataframe into an iterable even if not iterating and
     # chunking through the data, so that it uses the same logic
@@ -339,13 +341,17 @@ def iter_data(
 
 def data_to_dict(
     *args,
+    *,
+    unique_values=False,
     **kwargs,
 ) -> Dict[Any, Union[Any, List[Any]]]:
     """Load paired data into a dictionary.
 
     Args (see 'iter_data')
 
-    Kwargs (see 'iter_data')
+    Kwargs (see 'iter_data'):
+        unique_values (bool): Control if values can be repeated or not.
+            Only applies if 'unique_keys' is False.
 
     Examples:
         >>> data = data_to_dict('MRSTY.RRF', ['cui'], ['sty'],
@@ -362,20 +368,20 @@ def data_to_dict(
     unique_keys = kwargs.get('unique_keys', False)
     if unique_keys:
         # NOTE: Disable 'unique_keys' option for 'iter_data' because
-        # dictionary already does that.
+        # dictionary already does that. To make them semantically
+        # consistent, consider the firts appearance of a key. This is
+        # because 'iter_data' considers the first appearance of a key
+        # and dictionary updates consider the last appearance of a key.
         kwargs['unique_keys'] = False
         data = collections.defaultdict()
         for k, v in iter_data(*args, **kwargs):
-            # Assume there is a single value per key
             if k not in data:
+                # Assume there is a single value per key.
                 data[k] = v
     else:
         data = collections.defaultdict(list)
         for k, v in iter_data(*args, **kwargs):
-            # Do not duplicate values for a key
-            if k not in data:
-                data[k].append(v)
-            elif v not in data[k]:
+            if not unique_values or v not in data[k]:
                 data[k].append(v)
     return data
 
@@ -427,7 +433,6 @@ def corpus_generator(
 
         phony (bool): If set, attr:`corpora` items are not considered
             as file system objects when name collisions occur.
-            Default is false.
 
     Kwargs:
         Options passed directory to 'unpack_dir'.
