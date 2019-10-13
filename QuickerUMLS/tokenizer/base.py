@@ -1,9 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import (
-    Tuple,
-    Set,
-    Generator,
-)
+from typing import Set, Tuple, Generator
 
 
 __all__ = ['BaseTokenizer']
@@ -17,7 +13,8 @@ class BaseTokenizer(ABC):
 
     def __call__(self, text: str):
         for sentence in self.sentencize(text):
-            return self.tokenize(sentence)
+            for token in self.tokenize(sentence):
+                yield token
 
     @property
     def stopwords(self) -> Set[str]:
@@ -25,7 +22,7 @@ class BaseTokenizer(ABC):
 
     @stopwords.setter
     def stopwords(self, stopwords: Set[str]):
-        self._stopwords.update(stopwords)
+        self._stopwords = stopwords
 
     @abstractmethod
     def sentencize(self, text: str) -> Generator[str, None, None]:

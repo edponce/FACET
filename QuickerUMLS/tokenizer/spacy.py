@@ -1,10 +1,6 @@
 import spacy
 from .base import BaseTokenizer
-from typing import (
-    Set,
-    Tuple,
-    Generator,
-)
+from typing import Tuple, Generator
 
 
 __all__ = ['SpacyTokenizer']
@@ -14,27 +10,20 @@ class SpacyTokenizer(BaseTokenizer):
     """SpaCy-based tokenizer.
 
     Args:
-        language (str): spaCy language to use for processing corpora.
+        language (str): Language to use for processing corpora.
             Default is 'en'.
     """
 
-    def __init__(self, *, language: 'str' = 'en'):
+    def __init__(self, *, language: str = 'en'):
         try:
             self._nlp = spacy.load(language)
         except KeyError:
-            err = (f"Model for language '{language}' is not valid.")
+            err = f"Model for language '{language}' is not valid."
             raise KeyError(err)
         except OSError:
-            err = (f"Please run 'python3 -m spacy download {language}'")
+            err = f"Please run 'python3 -m spacy download {language}'"
             raise OSError(err)
-
-    @property
-    def stopwords(self) -> Set[str]:
-        return self._nlp.Defaults.stop_words
-
-    @stopwords.setter
-    def stopwords(self, stopwords: Set[str]):
-        self._nlp.Defaults.stop_words = stopwords
+        self._stopwords = self._nlp.Defaults.stop_words
 
     def sentencize(self, text) -> Generator['spacy.Span', None, None]:
         # len(Doc) == number of words
@@ -48,7 +37,7 @@ class SpacyTokenizer(BaseTokenizer):
         window: int = 5,
         min_match_length: int = 3,
         ignore_syntax: bool = False,
-    ) -> Generator[Tuple[int, int, str], None, None]:
+    ):
         """
         Args:
             sentence (spacy.Span): Sentence to process.
@@ -126,7 +115,7 @@ class SpacyTokenizer(BaseTokenizer):
         return not(
             token.like_num
             or token.pos_ in ('ADP', 'DET', 'CONJ')
-            or token.text in self._nlp.Defaults.stop_words
+            or token.text in self._stopwords
         )
 
     def _is_valid_middle_token(self, token) -> bool:
@@ -139,6 +128,6 @@ class SpacyTokenizer(BaseTokenizer):
         return not(
             token.is_punct
             or token.is_space
-            or token.text in self._nlp.Defaults.stop_words
+            or token.text in self._stopwords
             or token.pos_ in ('ADP', 'DET', 'CONJ')
         )
