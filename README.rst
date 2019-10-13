@@ -62,6 +62,14 @@ Installation
 
 #. You can install requirements manually, pip install -r requirements.
 #. In order to use spaCy, download the relevant corpus, python3 -m spacy download en.
+#. In order to use NLTK, download stopwords
+
+    >>> import nltk
+    >>> nltk.download('stopwords')
+    >>> nltk.download('punkt')
+    >>> nltk.download('averaged_perceptron_tagger')
+    >>> nltk.download('universal')
+
 #. You require to have a valid UMLS installation on disk. To install UMLS, you
    must first obtain a `UMLS license`_ from the National Library of Medicine,
    then download all `UMLS files`_. Finally, you can install UMLS using the
