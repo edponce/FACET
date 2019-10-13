@@ -2,7 +2,7 @@ import time
 import collections
 from .formatter import Formatter
 from .helpers import corpus_generator
-from .tokenizer import SpacyTokenizer as Tokenizer
+from .tokenizer import NLTKTokenizer as Tokenizer
 from typing import (
     Any,
     List,

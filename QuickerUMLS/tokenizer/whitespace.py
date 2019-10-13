@@ -2,10 +2,10 @@ import re
 from .base import BaseTokenizer
 
 
-__all__ = ['SplitTokenizer']
+__all__ = ['WhitespaceTokenizer']
 
 
-class SplitTokenizer(BaseTokenizer):
+class WhitespaceTokenizer(BaseTokenizer):
     """Simple whitespace tokenizer with no sentence segmentation."""
 
     # Stopwords from spaCy

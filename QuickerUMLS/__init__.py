@@ -24,8 +24,9 @@ __all__ = [
     'Facet',
     'Installer',
     'Formatter',
-    'SplitTokenizer',
+    'NLTKTokenizer',
     'SpacyTokenizer',
+    'WhitespaceTokenizer',
     'DictDatabase',
     'RedisDatabase',
     'JSONSerializer',
@@ -48,8 +49,9 @@ from .match import Facet
 from .install import Installer
 from .formatter import Formatter
 from .tokenizer import (
-    SplitTokenizer,
+    NLTKTokenizer,
     SpacyTokenizer,
+    WhitespaceTokenizer,
 )
 from .database import (
     DictDatabase,
