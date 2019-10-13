@@ -91,8 +91,8 @@ class Installer:
                 to list of functions.
             """
             converters = collections.defaultdict(list)
-            converters['str'].append(str.lower)
             converters['str'].append(unidecode)
+            converters['str'].append(str.lower)
             converters['ispref'].append(lambda v: True if v == 'Y' else False)
             return converters
 
@@ -155,7 +155,7 @@ class Installer:
         bulk_size: int = 1000,
         status_step: int = 10000,
     ) -> NoReturn:
-        """Stores Term-CUI,Preferred mapping, term: [(CUI,pref), ...].
+        """Stores {Term:(CUI,Preferred)} mapping, term: [(CUI,pref), ...].
 
         Args:
             data (Iterable[Any]): Data to store.
@@ -194,7 +194,7 @@ class Installer:
         bulk_size: int = 1000,
         status_step: int = 10000,
     ) -> NoReturn:
-        """Stores CUI-Semantic Type mapping, cui: [sty, ...].
+        """Stores {CUI:Semantic Type} mapping, cui: [sty, ...].
 
         Args:
             data (Iterable[Any]): Data to store.
