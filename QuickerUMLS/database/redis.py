@@ -21,7 +21,8 @@ class RedisDatabase(BaseDatabase):
             Run 'sync' command to submit commands in pipe.
             Default is False.
 
-        kwargs (Dict[str, Any]): Option forwarding, see 'Redis' class.
+    Kwargs:
+        Options forwarded to 'Redis' class.
 
     Notes:
         * Redis treats keys/fields of 'str, bytes, and int'
@@ -31,8 +32,15 @@ class RedisDatabase(BaseDatabase):
         * Redis Python API returns keys as 'bytes', so we use str.decode.
     """
 
-    def __init__(self, host='localhost', *,
-                 port=6379, db=0, pipe=False, **kwargs):
+    def __init__(
+        self,
+        host='localhost',
+        *,
+        port=6379,
+        db=0,
+        pipe=False,
+        **kwargs
+    ):
         self._host = host
         self._port = port
         self._db_id = db

@@ -175,7 +175,7 @@ class PostgreSQL:
             unique (bool): Request distinct rows. Default is False.
 
         Kwargs:
-            Arguments passed directly to fetch().
+            Options forwarded to fetch().
         """
         max_rows = kwargs.get('max_rows', 0)
         if not rand or (rand and not rand_col):
