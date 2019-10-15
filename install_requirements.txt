@@ -6,3 +6,4 @@ hiredis>=1.0.0
 ruamel.yaml>=0.16.1
 ray>=0.7.1
 dicttoxml>=1.7.4
+elasticsearch>=7.0.0,<8.0.0

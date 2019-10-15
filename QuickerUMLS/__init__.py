@@ -56,6 +56,7 @@ from .tokenizer import (
 from .database import (
     DictDatabase,
     RedisDatabase,
+    ElasticsearchDatabase,
 )
 from .serializer import (
     JSONSerializer,
