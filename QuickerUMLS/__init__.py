@@ -9,6 +9,7 @@ __keywords__ = [
     "information extraction",
     "UMLS",
     "concepts",
+    "text annotation",
     "medical text",
     "natural language processing",
 ]
@@ -29,6 +30,8 @@ __all__ = [
     'WhitespaceTokenizer',
     'DictDatabase',
     'RedisDatabase',
+    'ElasticsearchX',
+    'ElasticsearchDatabase',
     'JSONSerializer',
     'YAMLSerializer',
     'PickleSerializer',
@@ -56,6 +59,7 @@ from .tokenizer import (
 from .database import (
     DictDatabase,
     RedisDatabase,
+    ElasticsearchX,
     ElasticsearchDatabase,
 )
 from .serializer import (
