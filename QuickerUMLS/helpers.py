@@ -3,13 +3,13 @@ import pandas
 import collections
 from typing import (
     Any,
+    Set,
     List,
     Dict,
     Union,
     Tuple,
     Callable,
     Iterable,
-    Generator,
 )
 
 
@@ -18,7 +18,7 @@ __all__ = [
     'valid_item',
     'unpack_dir',
     'is_iterable',
-    'data_to_dict',
+    'load_data',
     'iterable_true',
     'corpus_generator',
     'valid_items_from_dict',
@@ -140,13 +140,13 @@ def filter_indices_and_values(
 
 def iter_data(
     data,
-    keys,
-    values,
     *,
-    headers=None,
-    valids=None,
-    invalids=None,
-    unique_keys=False,
+    keys: Iterable[Union[str, int]],
+    values: Iterable[Union[str, int]] = None,
+    headers: Iterable[Union[str, int]] = None,
+    valids: Dict[Union[str, int], Iterable[Any]] = None,
+    invalids: Dict[Union[str, int], Iterable[Any]] = None,
+    unique_keys: bool = False,
     **kwargs
 ) -> 'Generator[Any, Any]':
     """Generator for data.
@@ -202,8 +202,6 @@ def iter_data(
         memory_map
         engine
     """
-    if keys is None:
-        keys = ()
     if values is None:
         values = ()
     keys_values = (*keys, *values)
@@ -293,7 +291,8 @@ def iter_data(
         reader = [reader]
 
     # Internal data structure for tracking unique keys.
-    keys_processed = set()
+    if unique_keys:
+        keys_processed = set()
 
     # Iterate through dataframes or TextFileReader:
     #   a) Row filtering based on valid/invalid keys/values
@@ -307,7 +306,7 @@ def iter_data(
         # can be modified with converter functions.
         for kv in map(list, zip(*usecols_values)):
 
-            # Filter valid/invalild keys/values
+            # Filter valid/invalid keys/values
             if key_value_check \
                and not valid_items_from_dict(usecols,
                                              kv,
@@ -341,12 +340,15 @@ def iter_data(
             yield ks, vs
 
 
-def data_to_dict(
+def load_data(
     *args,
     unique_values=False,
     **kwargs,
-) -> Dict[Any, Union[Any, List[Any]]]:
-    """Load paired data into a dictionary.
+) -> Union[Set[Any], Dict[Any, Union[Any, List[Any]]]]:
+    """Load paired data into a dictionary or set.
+
+    If no values are provided, then return a set from keys.
+    If values are provided, then return a dictionary of keys/values.
 
     Args (see 'iter_data')
 
@@ -355,35 +357,43 @@ def data_to_dict(
             Only applies if 'unique_keys' is False.
 
     Examples:
-        >>> data = data_to_dict('MRSTY.RRF', ['cui'], ['sty'],
+        >>> data = data_to_set('MRSTY.RRF', keys=['cui'],
+                               headers=HEADERS_MRSTY)
+        >>> data = data_to_set('MRSTY.RRF', keys=[0, 1])
+        >>> data = data_to_dict('MRSTY.RRF', keys=['cui'], values=['sty'],
                                 headers=HEADERS_MRSTY)
-        >>> data = data_to_dict('MRSTY.RRF', [0], [1])
-        >>> data = data_to_dict('MRSTY.RRF', ['cui'], ['sty'],
+        >>> data = data_to_dict('MRSTY.RRF', keys=[0], values=[1])
+        >>> data = data_to_dict('MRSTY.RRF', keys=['cui'], values=['sty'],
                                 headers=HEADERS_MRSTY,
                                 valids={'sty':ACCEPTED_SEMTYPES})
-        >>> data = data_to_dict('MRSTY.RRF', ['cui'], ['sty', 'hier'],
-                                headers=HEADERS_MRSTY)
-        >>> data = data_to_dict('MRSTY.RRF', [0], [1, 2],
+        >>> data = data_to_dict('MRSTY.RRF', keys=['cui'],
+                                values=['sty', 'hier'], headers=HEADERS_MRSTY)
+        >>> data = data_to_dict('MRSTY.RRF', keys=[0], values=[1, 2],
                                 nrows=10, valids={1:None, 2:None})
     """
-    unique_keys = kwargs.get('unique_keys', False)
-    if unique_keys:
-        # NOTE: Disable 'unique_keys' option for 'iter_data' because
-        # dictionary already does that. To make them semantically
-        # consistent, consider the firts appearance of a key. This is
-        # because 'iter_data' considers the first appearance of a key
-        # and dictionary updates consider the last appearance of a key.
+    if not kwargs.get('values', False):
         kwargs['unique_keys'] = False
-        data = collections.defaultdict()
-        for k, v in iter_data(*args, **kwargs):
-            if k not in data:
-                # Assume there is a single value per key.
-                data[k] = v
+        data = set()
+        for k, _ in iter_data(*args, **kwargs):
+            data.add(k)
     else:
-        data = collections.defaultdict(list)
-        for k, v in iter_data(*args, **kwargs):
-            if not unique_values or v not in data[k]:
-                data[k].append(v)
+        if kwargs.get('unique_keys', False):
+            # NOTE: Disable 'unique_keys' option for 'iter_data' because
+            # dictionary already does that. To make them semantically
+            # consistent, consider the first appearance of a key. This is
+            # because 'iter_data' considers the first appearance of a key
+            # and dictionary updates consider the last appearance of a key.
+            kwargs['unique_keys'] = False
+            data = collections.defaultdict()
+            for k, v in iter_data(*args, **kwargs):
+                if k not in data:
+                    # Assume there is a single value per key.
+                    data[k] = v
+        else:
+            data = collections.defaultdict(list)
+            for k, v in iter_data(*args, **kwargs):
+                if not unique_values or v not in data[k]:
+                    data[k].append(v)
     return data
 
 
