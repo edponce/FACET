@@ -89,15 +89,14 @@ class BaseDatabase(ABC):
         self,
         key_or_map: Union[str, Dict[str, Any]],
         val_or_field_or_map: Union[Any, str, Dict[str, Any]] = None,
-        value: Any = None, *,
-        replace=True,
-        unique=False,
+        value: Any = None,
+        **kwargs
     ) -> NoReturn:
         """Insert values into database.
 
-        Args:
+        Kwargs:
             replace (bool): If set, replace value, else add value to
-                existing ones. Default is true.
+                existing ones. If None, store value "as is". Default is None.
 
             unique (bool): If set, do not allow duplicate values.
                 Used in conjunction with *replace* parameter.
@@ -112,34 +111,18 @@ class BaseDatabase(ABC):
             if value is None:
                 if isinstance(val_or_field_or_map, dict):
                     # 'val_or_field_or_map' is a field/value mapping
-                    self._hmset(
-                        key_or_map,
-                        val_or_field_or_map,
-                        replace=replace,
-                        unique=unique,
-                    )
+                    self._hmset(key_or_map, val_or_field_or_map, **kwargs)
                 else:
                     # 'val_or_field_or_map' is a value
-                    self._set(
-                        key_or_map,
-                        val_or_field_or_map,
-                        replace=replace,
-                        unique=unique,
-                    )
+                    self._set(key_or_map, val_or_field_or_map, **kwargs)
             else:
                 # 'val_or_field_or_map' is a field
-                self._hset(
-                    key_or_map,
-                    val_or_field_or_map,
-                    value,
-                    replace=replace,
-                    unique=unique,
-                )
+                self._hset(key_or_map, val_or_field_or_map, value, **kwargs)
         elif (isinstance(key_or_map, dict)
               and val_or_field_or_map is None
               and value is None):
             # 'key_or_map' is a key/value mapping
-            self._mset(key_or_map, replace=replace, unique=unique)
+            self._mset(key_or_map, **kwargs)
 
     def keys(self, key: str = None) -> List[str]:
         """Get all keys in database."""
@@ -180,21 +163,22 @@ class BaseDatabase(ABC):
         key,
         value,
         *,
-        replace=True,
+        replace=None,
         unique=False,
     ) -> Union[List[Any], None]:
         """Resolve final key/value to be used based on key/value's
         existence and value's uniqueness."""
-        if self._exists(key) and not replace:
-            prev_value = self._get(key)
-            if isinstance(prev_value, dict):
-                prev_value = []
-            elif unique and value in prev_value:
-                return None
-            prev_value.append(value)
-            value = prev_value
-        else:
-            value = [value]
+        if replace is not None:
+            if not replace and self._exists(key):
+                prev_value = self._get(key)
+                if isinstance(prev_value, dict):
+                    prev_value = []
+                elif unique and value in prev_value:
+                    return None
+                prev_value.append(value)
+                value = prev_value
+            else:
+                value = [value]
         return value
 
     def _resolve_hset(
@@ -203,21 +187,22 @@ class BaseDatabase(ABC):
         field,
         value,
         *,
-        replace=True,
+        replace=None,
         unique=False,
     ) -> Union[List[Any], None]:
         """Resolve final key/value to be used based on key/value's
         existence and value's uniqueness."""
-        if self._hexists(key, field) and not replace:
-            prev_value = self._hget(key, field)
-            if prev_value is None:
-                prev_value = []
-            elif unique and value in prev_value:
-                return None
-            prev_value.append(value)
-            value = prev_value
-        else:
-            value = [value]
+        if replace is not None:
+            if not replace and self._hexists(key, field):
+                prev_value = self._hget(key, field)
+                if prev_value is None:
+                    prev_value = []
+                elif unique and value in prev_value:
+                    return None
+                prev_value.append(value)
+                value = prev_value
+            else:
+                value = [value]
         return value
 
     @abstractmethod
@@ -243,28 +228,28 @@ class BaseDatabase(ABC):
     @abstractmethod
     def _set(
         self, key: str, value: Any, *,
-        replace=True, unique=False,
+        replace=None, unique=False,
     ) -> NoReturn:
         pass
 
     @abstractmethod
     def _mset(
         self, mapping: Dict[str, Any], *,
-        replace=True, unique=False,
+        replace=None, unique=False,
     ) -> NoReturn:
         pass
 
     @abstractmethod
     def _hset(
         self, key: str, field: str, value: Any, *,
-        replace=True, unique=False,
+        replace=None, unique=False,
     ) -> NoReturn:
         pass
 
     @abstractmethod
     def _hmset(
         self, key: str, mapping: Dict[str, Any], *,
-        replace=True, unique=False,
+        replace=None, unique=False,
     ) -> NoReturn:
         pass
 
