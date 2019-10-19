@@ -90,6 +90,9 @@ class ESSimstring:
             string = string.upper()
         return string
 
+    # NOTE: Consider supporting iterable data so that
+    # it can be passed directly to underlying database
+    # when pipe is enabled.
     def insert(self, string: str) -> NoReturn:
         """Insert string into database."""
         features = self._fe.get_features(string)

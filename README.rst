@@ -149,6 +149,36 @@ Load semantic types          0.17
 Write semantic types         0.11
 ============================ ===========
 
+The following are results for a subset of UMLS 2018-AA:
+20,269 concepts, 31154 CUIs using bulk API.
+Redis 2.3 MB (incorrect b/c other tables were populated)
+Elasticsearch 14 MB
+
+============================ ===========
+Task (2 Redis/Elasticsearch) Runtime (s)
+============================ ===========
+Load concepts (data_to_dict) 0.30
+Write concepts               0.24
+Write Simstring              2.13
+Load semantic types          0.19
+Write semantic types         0.34
+============================ ===========
+
+The following are results for a subset of UMLS 2018-AA:
+198,696 concepts, 1782484 CUIs using bulk API.
+Redis 41 MB (incorrect b/c other tables were populated)
+Elasticsearch 79 MB
+
+============================ ===========
+Task (2 Redis/Elasticsearch) Runtime (s)
+============================ ===========
+Load concepts (data_to_dict) 2.82
+Write concepts               2.24
+Write Simstring              22.75
+Load semantic types          6.90
+Write semantic types         19.19
+============================ ===========
+
 The following are results for full UMLS 2018-AA:
 8,015,988 concepts, ? CUIs (all MRSTY.RRF).
 

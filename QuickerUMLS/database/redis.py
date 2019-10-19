@@ -17,7 +17,7 @@ class RedisDatabase(BaseDatabase):
 
         db (int): Database ID, see Redis documentation. Default is 0.
 
-        pipe (bool): If set, queue 'set-related' commands to Redis database.
+        pipe (bool): If set, queue 'set-related' commands to database.
             Run 'sync' command to submit commands in pipe.
             Default is False.
 
@@ -55,10 +55,18 @@ class RedisDatabase(BaseDatabase):
 
         # NOTE: Redis pipeline object is used only for 'set' operations
         # and requires invoking 'sync' to commit queued operations.
+        self._dbp = None
         self._is_pipe = pipe
-        self._dbp = self._db.pipeline() if self._is_pipe else self._db
+        self.set_pipe(pipe)
 
         self._serializer = kwargs.get('serializer', Serializer())
+
+    def set_pipe(self, pipe):
+        # NOTE: Invoke sync() when disabling pipe and pipe was enabled
+        if not pipe:
+            self.sync()
+        self._is_pipe = pipe
+        self._dbp = self._db.pipeline() if self._is_pipe else self._db
 
     @property
     def host(self):
@@ -217,7 +225,7 @@ class RedisDatabase(BaseDatabase):
     # NOTE: Redis object is disconnected automatically when object
     # goes out of scope.
     # def close(self):
-    #     pass
+        # pass
 
     def clear(self):
         self._db.flushdb()

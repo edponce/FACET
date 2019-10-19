@@ -9,6 +9,25 @@ __all__ = ['ElasticsearchDatabase', 'Elasticsearchx']
 class ElasticsearchDatabase:
     """Elasticsearch interface for Simstring algorithm.
 
+    Args:
+        hosts (Any): Elasticsearch hosts.
+
+        index (str): Index name.
+
+        doc_type (str): Document type. Default is '_doc'.
+
+        fields (Iterable[str]): Document fields to use in search actions.
+            Default is None (search disabled).
+
+        body (Dict[str, Any]): Index settings and document mappings.
+
+        pipe (bool): If set, queue 'set-related' commands to database.
+            Run 'sync' command to submit commands in pipe.
+            Default is False.
+
+    Kwargs:
+        Options forwarded to 'Elasticsearchx'.
+
     Interface mimics a key/value store:
         * set operations - keys are composites of int (ngram count)
                            and Iterable[str] (ngrams)
@@ -36,24 +55,9 @@ class ElasticsearchDatabase:
         doc_type: str = '_doc',
         fields: Iterable[str] = None,
         body: Dict[str, Any] = None,
+        pipe: bool = False,
         **kwargs
     ):
-        """
-        Args:
-            hosts (Any): Elasticsearch hosts.
-
-            index (str): Index name.
-
-            doc_type (str): Document type. Default is '_doc'.
-
-            fields (Iterable[str]): Document fields to use in search actions.
-                Default is None (search disabled).
-
-            body (Dict[str, Any]): Index settings and document mappings.
-
-        Kwargs:
-            Options forwarded to 'Elasticsearchx'.
-        """
         self._db = Elasticsearchx(hosts, **kwargs)
         self._index = index
         self._doc_type = doc_type
@@ -62,6 +66,18 @@ class ElasticsearchDatabase:
             if self._db.indices.exists(index=self._index):
                 self._db.indices.delete(index=self._index)
             self._db.indices.create(index=self._index, body=body)
+        # NOTE: Stores an iterable of actions which
+        # are sent to bulk API when sync() is invoked.
+        self._dbp = []
+        self._is_pipe = pipe
+        self.set_pipe(pipe)
+
+    def set_pipe(self, pipe):
+        # NOTE: Invoke sync() when disabling pipe and pipe was enabled
+        if not pipe:
+            self.sync()
+        self._is_pipe = pipe
+        self._dbp = []
 
     def set(
         self,
@@ -81,16 +97,30 @@ class ElasticsearchDatabase:
         Kwargs:
             Options forwarded to 'Elasticsearch.index()'.
         """
-        return self._db.index(
-            index=self._index,
-            body=document,
-            id=doc_id,
-            **kwargs
-        )
+        if self._is_pipe:
+            self._dbp.append(document)
+        else:
+            return self._db.index(
+                index=self._index,
+                body=document,
+                id=doc_id,
+                **kwargs
+            )
 
-    def mset(self, documents, **kwargs):
-        """See 'Elasticsearchx.bulk_index()'."""
-        return self._db.bulk_index(documents, index=self._index, **kwargs)
+    # NOTE: This can be removed, use pipe capability
+    # def mset(self, documents, **kwargs):
+    #     """See 'Elasticsearchx.bulk_index()'."""
+    #     return self._db.bulk_index(documents, index=self._index, **kwargs)
+
+    def sync(self, **kwargs):
+        if self._is_pipe:
+            response = self._db.bulk_index(
+                self._dbp,
+                index=self._index,
+                **kwargs
+            )
+            self._dbp = []
+            return response
 
     def get(
         self,
@@ -151,7 +181,7 @@ class Elasticsearchx(Elasticsearch):
         self,
         actions: Iterable[Dict[str, Any]],
         *,
-        pipe: bool = False,
+        stream: bool = False,
         thread_count: int = 1,
         **kwargs
     ) -> Tuple[int, List[Any]]:
@@ -161,7 +191,7 @@ class Elasticsearchx(Elasticsearch):
             actions (Iterable[Dict[str, Any]]): Actions for 'Helpers.*bulk()'.
                 https://elasticsearch-py.readthedocs.io/en/master/helpers.html#elasticsearch.helpers.bulk
 
-            pipe (bool): If set, use streaming bulk instead of bulk API.
+            stream (bool): If set, use streaming bulk instead of bulk API.
                 Default is False.
 
             thread_count (int): Number of threads for parallel bulk API.
@@ -170,7 +200,7 @@ class Elasticsearchx(Elasticsearch):
         Kwargs:
             Options forwarded to 'Helpers.*bulk()'.
         """
-        if pipe:
+        if stream:
             response = streaming_bulk(self, actions, **kwargs)
         else:
             if thread_count == 1:

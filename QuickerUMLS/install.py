@@ -40,12 +40,6 @@ class Installer:
         simstring (Simstring): Handle to Simstring instance.
             The database handle should differ from the internal Simstring
             database handle (to prevent collisions with N-grams).
-
-        bulk_size (int): Size of chunks to use for dumping data into
-            databases. Default is 1000.
-
-        status_step (int): Print status message after this number of
-            records is dumped to databases. Default is 10000.
     """
 
     def __init__(
@@ -54,15 +48,10 @@ class Installer:
         conso_db: 'BaseDatabase',
         cuisty_db: 'BaseDatabase',
         simstring: 'Simstring',
-        # TODO: Convert to the following arguments to **kwargs.
-        bulk_size: int = 1000,
-        status_step: int = 10000,
     ):
         self._conso_db = conso_db
         self._cuisty_db = cuisty_db
         self._ss = simstring
-        self._bulk_size = bulk_size
-        self._status_step = status_step
 
     def _load_conso(self, afile: str) -> Dict[Any, Any]:
         """
@@ -91,6 +80,7 @@ class Installer:
             headers=HEADERS_MRCONSO,
             valids={'lat': ['ENG']},
             converters=get_converters(),
+            unique_values=True,
         )
 
     def _load_sty(self, afile: str) -> Dict[Any, Any]:
@@ -104,55 +94,122 @@ class Installer:
             values=['sty'],
             headers=HEADERS_MRSTY,
             valids={'sty': ACCEPTED_SEMTYPES},
+            unique_values=True,
         )
 
-    def _dump_conso(self, data: Any) -> Any:
+    def _dump_simstring(
+        self,
+        data: Any,
+        bulk_size: int = 1000,
+        status_step: int = 10000,
+    ) -> Any:
+        """Stores {Term:...} in Simstring database.
+
+        Args:
+            data (Any): Data to store.
+
+            bulk_size (int): Size of chunks to use for dumping data into
+                databases. Default is 1000.
+
+            status_step (int): Print status message after this number of
+                records is dumped to databases. Default is 10000.
+        """
+        # Profile
+        prev_time = time.time()
+        batch_per_step = bulk_size * (status_step / bulk_size)
+
+        self._ss.db.set_pipe(True)
+        for i, term in enumerate(data.keys(), start=1):
+            self._ss.insert(term)
+            if i % bulk_size == 0:
+                self._ss.db.sync()
+
+            # Profile
+            if VERBOSE and i % status_step == 0:
+                curr_time = time.time()
+                elapsed_time = curr_time - prev_time
+                print(f'{i}: {elapsed_time} s, '
+                      f'{elapsed_time / batch_per_step} s/batch')
+                prev_time = curr_time
+        self._ss.db.set_pipe(False)
+
+        if VERBOSE:
+            print(f'Num simstring terms: {i}')
+
+    def _dump_conso(
+        self,
+        data: Any,
+        bulk_size: int = 1000,
+        status_step: int = 10000,
+    ) -> Any:
         """Stores {Term:CUI} mapping, term: [CUI, ...].
 
         Args:
             data (Any): Data to store.
+
+            bulk_size (int): Size of chunks to use for dumping data into
+                databases. Default is 1000.
+
+            status_step (int): Print status message after this number of
+                records is dumped to databases. Default is 10000.
         """
         # Profile
         prev_time = time.time()
-        batch_per_step = (self._bulk_size * (self._status_step /
-                                             self._bulk_size))
+        batch_per_step = bulk_size * (status_step / bulk_size)
 
+        self._conso_db.set_pipe(True)
         for i, (term, cui) in enumerate(data.items(), start=1):
-            self._ss.insert(term)
             self._conso_db.set(term, cui)
+            if i % bulk_size == 0:
+                self._conso_db.sync()
 
             # Profile
-            if VERBOSE and i % self._status_step == 0:
+            if VERBOSE and i % status_step == 0:
                 curr_time = time.time()
                 elapsed_time = curr_time - prev_time
                 print(f'{i}: {elapsed_time} s, '
                       f'{elapsed_time / batch_per_step} s/batch')
                 prev_time = curr_time
+        self._conso_db.set_pipe(False)
 
         if VERBOSE:
             print(f'Num terms: {i}')
 
-    def _dump_cuisty(self, data: Any) -> Any:
+    def _dump_cuisty(
+        self,
+        data: Any,
+        bulk_size: int = 1000,
+        status_step: int = 10000,
+    ) -> Any:
         """Stores {CUI:Semantic Type} mapping, cui: [sty, ...].
 
         Args:
             data (Any): Data to store.
+
+            bulk_size (int): Size of chunks to use for dumping data into
+                databases. Default is 1000.
+
+            status_step (int): Print status message after this number of
+                records is dumped to databases. Default is 10000.
         """
         # Profile
         prev_time = time.time()
-        batch_per_step = (self._bulk_size * (self._status_step /
-                                             self._bulk_size))
+        batch_per_step = bulk_size * (status_step / bulk_size)
 
+        self._cuisty_db.set_pipe(True)
         for i, (cui, sty) in enumerate(data.items(), start=1):
             self._cuisty_db.set(cui, sty)
+            if i % bulk_size == 0:
+                self._cuisty_db.sync()
 
             # Profile
-            if VERBOSE and i % self._status_step == 0:
+            if VERBOSE and i % status_step == 0:
                 curr_time = time.time()
                 elapsed_time = curr_time - prev_time
                 print(f'{i}: {elapsed_time} s, '
                       f'{elapsed_time / batch_per_step} s/batch')
                 prev_time = curr_time
+        self._cuisty_db.set_pipe(False)
 
         if VERBOSE:
             print(f'Num CUIs: {i}')
@@ -194,6 +251,14 @@ class Installer:
         self._dump_conso(conso, **kwargs)
         curr_time = time.time()
         print(f'Writing concepts: {curr_time - start} s')
+
+        print('Writing simstring...')
+        start = time.time()
+        self._dump_simstring(conso, **kwargs)
+        curr_time = time.time()
+        print(f'Writing simstring: {curr_time - start} s')
+
+        del conso
 
         print('Loading/parsing semantic types...')
         start = time.time()
