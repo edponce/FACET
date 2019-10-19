@@ -34,11 +34,11 @@ class DictDatabase(BaseDatabase):
 
     def __init__(
         self,
-        db=None,
+        db: str = None,
         *,
-        flag='c',
-        protocol=pickle.HIGHEST_PROTOCOL,
-        max_cache_size=100,
+        flag: str = 'c',
+        protocol: int = pickle.HIGHEST_PROTOCOL,
+        max_cache_size: int = 100,
     ):
         if db:
             # Persistent dictionary
