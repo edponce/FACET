@@ -2,10 +2,9 @@ import os
 import time
 import collections
 from unidecode import unidecode
+from .database import DictDatabase
 from .helpers import (
-    # data_to_dict as load_data,
-    iter_data as load_data,
-    is_iterable,
+    load_data,
     corpus_generator,
 )
 from .umls_constants import (
@@ -13,18 +12,7 @@ from .umls_constants import (
     HEADERS_MRCONSO,
     ACCEPTED_SEMTYPES,
 )
-from typing import (
-    Any,
-    Set,
-    List,
-    Dict,
-    Tuple,
-    Union,
-    Callable,
-    Iterable,
-    NoReturn,
-    Generator,
-)
+from typing import Any, Dict, Callable, Iterable
 
 
 __all__ = ['Installer']
@@ -38,10 +26,11 @@ if PROFILE:
     import cProfile
 
 
+# TODO: Convert this class into an abstract class.
 class Installer:
     """FACET installation tool.
 
-    Kwargs:
+    Args:
         conso_db (BaseDatabase): Handle to database instance for CONCEPT-CUI
             storage.
 
@@ -51,6 +40,12 @@ class Installer:
         simstring (Simstring): Handle to Simstring instance.
             The database handle should differ from the internal Simstring
             database handle (to prevent collisions with N-grams).
+
+        bulk_size (int): Size of chunks to use for dumping data into
+            databases. Default is 1000.
+
+        status_step (int): Print status message after this number of
+            records is dumped to databases. Default is 10000.
     """
 
     def __init__(
@@ -59,134 +54,75 @@ class Installer:
         conso_db: 'BaseDatabase',
         cuisty_db: 'BaseDatabase',
         simstring: 'Simstring',
+        # TODO: Convert to the following arguments to **kwargs.
+        bulk_size: int = 1000,
+        status_step: int = 10000,
     ):
         self._conso_db = conso_db
         self._cuisty_db = cuisty_db
         self._ss = simstring
+        self._bulk_size = bulk_size
+        self._status_step = status_step
 
-    def _load_conso(
-        self,
-        afile: str,
-        *,
-        language: Union[str, Iterable[str]] = ['ENG'],
-        nrows: Union[int, None] = None,
-    ) -> 'Generator':
+    def _load_conso(self, afile: str) -> Dict[Any, Any]:
         """
         Args:
             afile (str): File with contents to load.
-
-            language (Union[str, Iterable[str]]): Extract concepts of the
-                specified languages. Default is 'ENG'.
-
-            nrows (Union[int, None]): Maximum number of records to load
-                from file. Default is None (all records).
         """
-        def configure_converters() -> Dict[str, List[Callable]]:
+        def get_converters() -> Dict[str, Iterable[Callable]]:
             """Converter functions are used to process dataset during load
             operations.
 
             Converter functions should only take a single parameter
             (or use lambda and preset extra parameters).
 
-            Returns (Dict[str, List[Callable]]): Mapping of column IDs
+            Returns (Dict[str, Iterable[Callable]]): Mapping of column IDs
                 to list of functions.
             """
             converters = collections.defaultdict(list)
             converters['str'].append(unidecode)
             converters['str'].append(str.lower)
-            converters['ispref'].append(lambda v: True if v == 'Y' else False)
             return converters
 
-        if not is_iterable(language):
-            language = [language]
-
-        # NOTE: This version returns a dictionary data structure
-        # which is necessary if semantic types are going to be used as a
-        # filter for CUIs. See NOTE in loading of semantic types.
         return load_data(
             afile,
-            ['str', 'cui'],  # key
-            ['ispref'],      # values
+            keys=['str'],
+            values=['cui'],
             headers=HEADERS_MRCONSO,
-            valids={'lat': language},
-            converters=configure_converters(),
-            unique_keys=True,
-            nrows=nrows,
+            valids={'lat': ['ENG']},
+            converters=get_converters(),
         )
 
-    def _load_sty(
-        self,
-        afile: str,
-        *,
-        cuis: Set[str] = None,
-        nrows: Union[int, None] = None,
-    ) -> 'Generator':
+    def _load_sty(self, afile: str) -> Dict[Any, Any]:
         """
         Args:
             afile (str): File with contents to load.
-
-            conso (Dict[Iterable[Any], Any]): Mapping with concepts as first
-                element of keys.
-
-            nrows (Union[int, None]): Maximum number of records to load from
-                file. Default is None (all records).
         """
-        valids = {'sty': ACCEPTED_SEMTYPES}
-        if cuis is not None and len(cuis) > 0:
-            # NOTE: This version only considers CUIs that are found in the
-            # concepts ('conso') data structure. It requires that the 'cuis'
-            # variable is a set. Although this approach increases the
-            # installation time, it reduces the database size.
-            valids['cui'] = cuis
         return load_data(
             afile,
-            ['cui'],  # key
-            ['sty'],  # values
+            keys=['cui'],
+            values=['sty'],
             headers=HEADERS_MRSTY,
-            valids=valids,
-            nrows=nrows,
+            valids={'sty': ACCEPTED_SEMTYPES},
         )
 
-    def _dump_conso(
-        self,
-        data: Iterable[Any],
-        *,
-        bulk_size: int = 1000,
-        status_step: int = 10000,
-    ) -> Set[str]:
-        """Stores {Term:(CUI,Preferred)} mapping, term: [(CUI,pref), ...].
+    def _dump_conso(self, data: Any) -> Any:
+        """Stores {Term:CUI} mapping, term: [CUI, ...].
 
         Args:
-            data (Iterable[Any]): Data to store.
-
-            bulk_size (int): Size of chunks to use for dumping data into
-                databases. Default is 1000.
-
-            status_step (int): Print status message after this number of
-                records is dumped to databases. Default is 10000.
+            data (Any): Data to store.
         """
         # Profile
         prev_time = time.time()
-        batch_per_step = bulk_size * (status_step / bulk_size)
+        batch_per_step = (self._bulk_size * (self._status_step /
+                                             self._bulk_size))
 
-        # NOTE: Prevent term duplicates for Simstring database
-        terms = set()
-
-        # NOTE: Use available CUIs to filter valid CUIs for semantic types
-        cuis = set()
-
-        # for i, ((term, cui), preferred) in enumerate(data.items(), start=1):
-        for i, ((term, cui), preferred) in enumerate(data, start=1):
-            terms.add(term)
-            cuis.add(cui)
-
+        for i, (term, cui) in enumerate(data.items(), start=1):
             self._ss.insert(term)
-            self._conso_db.set(
-                term, (cui, preferred), replace=False, unique=True
-            )
+            self._conso_db.set(term, cui)
 
             # Profile
-            if VERBOSE and i % status_step == 0:
+            if VERBOSE and i % self._status_step == 0:
                 curr_time = time.time()
                 elapsed_time = curr_time - prev_time
                 print(f'{i}: {elapsed_time} s, '
@@ -196,36 +132,22 @@ class Installer:
         if VERBOSE:
             print(f'Num terms: {i}')
 
-        return cuis
-
-    def _dump_cuisty(
-        self,
-        data: Iterable[Any],
-        *,
-        bulk_size: int = 1000,
-        status_step: int = 10000,
-    ) -> NoReturn:
+    def _dump_cuisty(self, data: Any) -> Any:
         """Stores {CUI:Semantic Type} mapping, cui: [sty, ...].
 
         Args:
-            data (Iterable[Any]): Data to store.
-
-            bulk_size (int): Size of chunks to use for dumping data into
-                databases. Default is 1000.
-
-            status_step (int): Print status message after this number of
-                records is dumped to databases. Default is 10000.
+            data (Any): Data to store.
         """
         # Profile
         prev_time = time.time()
-        batch_per_step = bulk_size * (status_step / bulk_size)
+        batch_per_step = (self._bulk_size * (self._status_step /
+                                             self._bulk_size))
 
-        # for i, (cui, sty) in enumerate(data.items(), start=1):
-        for i, (cui, sty) in enumerate(data, start=1):
-            self._cuisty_db.set(cui, sty, replace=False, unique=True)
+        for i, (cui, sty) in enumerate(data.items(), start=1):
+            self._cuisty_db.set(cui, sty)
 
             # Profile
-            if VERBOSE and i % status_step == 0:
+            if VERBOSE and i % self._status_step == 0:
                 curr_time = time.time()
                 elapsed_time = curr_time - prev_time
                 print(f'{i}: {elapsed_time} s, '
@@ -235,6 +157,8 @@ class Installer:
         if VERBOSE:
             print(f'Num CUIs: {i}')
 
+    # NOTE: This method should only take **kwargs and this is a user-defined
+    # dictionary passed to corresponding '_load_*()' and '_dump_*()' methods.
     def install(
         self,
         umls_dir: str,
@@ -242,7 +166,7 @@ class Installer:
         mrconso: str = 'MRCONSO.RRF',
         mrsty: str = 'MRSTY.RRF',
         **kwargs
-    ) -> NoReturn:
+    ):
         """
         Args:
             umls_dir (str): Directory of UMLS RRF files.
@@ -254,30 +178,27 @@ class Installer:
                 Default is MRSTY.RRF.
 
         Kwargs:
-            Options passed directly to '_load_conso, _load_cuisty, _dump_conso,
-            _dump_cuisty'.
+            Options passed directly to '_load_*()' and '_dump_*()' methods.
         """
-        nrows = kwargs.pop('nrows', None)
-
         t1 = time.time()
 
         print('Loading/parsing concepts...')
         start = time.time()
         mrconso_file = os.path.join(umls_dir, mrconso)
-        conso = self._load_conso(mrconso_file, nrows=nrows)
+        conso = self._load_conso(mrconso_file, **kwargs)
         curr_time = time.time()
         print(f'Loading/parsing concepts: {curr_time - start} s')
 
         print('Writing concepts...')
         start = time.time()
-        cuis = self._dump_conso(conso, **kwargs)
+        self._dump_conso(conso, **kwargs)
         curr_time = time.time()
         print(f'Writing concepts: {curr_time - start} s')
 
         print('Loading/parsing semantic types...')
         start = time.time()
         mrsty_file = os.path.join(umls_dir, mrsty)
-        cuisty = self._load_sty(mrsty_file, cuis=cuis, nrows=nrows)
+        cuisty = self._load_sty(mrsty_file, **kwargs)
         curr_time = time.time()
         print(f'Loading/parsing semantic types: {curr_time - start} s')
 

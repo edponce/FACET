@@ -85,12 +85,12 @@ class Facet:
             #     ngram_normalized = ngram_normalized.lower()
 
             # NOTE: Simstring results do not need to be sorted because
-            # we sort matches based on similarity and preference.
+            # we sort matches based on similarity
             ngram_matches = []
             for candidate, similarity in self._ss.search(ngram,
                                                          alpha=alpha,
                                                          rank=False):
-                for cui, pref in filter(None, self._conso_db.get(candidate)):
+                for cui in filter(None, self._conso_db.get(candidate)):
                     # NOTE: Using ACCEPTED_SEMTYPES will always result
                     # in true. If not so, should we include the match
                     # with a semtype=None or skip it?
@@ -104,13 +104,14 @@ class Facet:
                             'similarity': similarity,
                             'cui': cui,
                             'semantic type': semtypes,
-                            'preferred': pref,
                         })
 
-            # Sort matches by similarity and preference
+            # Sort matches by similarity
+            # NOTE: If Simstring results are sorted the same way, then
+            # we can skip this extra sorting.
             if len(ngram_matches) > 0:
                 ngram_matches.sort(
-                    key=lambda x: x['similarity'] + int(x['preferred']),
+                    key=lambda x: x['similarity'],
                     reverse=True
                 )
                 matches.append(ngram_matches)
