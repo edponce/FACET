@@ -30,7 +30,7 @@ __all__ = [
     'WhitespaceTokenizer',
     'DictDatabase',
     'RedisDatabase',
-    'ElasticsearchX',
+    'Elasticsearchx',
     'ElasticsearchDatabase',
     'JSONSerializer',
     'YAMLSerializer',
@@ -38,6 +38,7 @@ __all__ = [
     'StringSerializer',
     'StringSJSerializer',
     'Simstring',
+    'ESSimstring',
     'WordFeatures',
     'CharacterFeatures',
     'DiceSimilarity',
@@ -59,7 +60,7 @@ from .tokenizer import (
 from .database import (
     DictDatabase,
     RedisDatabase,
-    ElasticsearchX,
+    Elasticsearchx,
     ElasticsearchDatabase,
 )
 from .serializer import (
@@ -71,6 +72,7 @@ from .serializer import (
 )
 from .simstring import (
     Simstring,
+    ESSimstring,
     WordFeatures,
     CharacterFeatures,
     DiceSimilarity,

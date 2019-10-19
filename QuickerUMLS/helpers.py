@@ -1,5 +1,6 @@
 import os
 import pandas
+import collections
 from typing import (
     Any,
     List,
@@ -8,6 +9,7 @@ from typing import (
     Tuple,
     Callable,
     Iterable,
+    Generator,
 )
 
 
@@ -146,7 +148,7 @@ def iter_data(
     invalids=None,
     unique_keys=False,
     **kwargs
-):
+) -> 'Generator[Any, Any]':
     """Generator for data.
 
     Use Pandas 'read_csv()' to load data into a dataframe which is then
@@ -341,7 +343,6 @@ def iter_data(
 
 def data_to_dict(
     *args,
-    *,
     unique_values=False,
     **kwargs,
 ) -> Dict[Any, Union[Any, List[Any]]]:

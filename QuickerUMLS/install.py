@@ -3,8 +3,8 @@ import time
 import collections
 from unidecode import unidecode
 from .helpers import (
-    # data_to_dict,
-    iter_data,
+    # data_to_dict as load_data,
+    iter_data as load_data,
     is_iterable,
     corpus_generator,
 )
@@ -15,6 +15,7 @@ from .umls_constants import (
 )
 from typing import (
     Any,
+    Set,
     List,
     Dict,
     Tuple,
@@ -102,8 +103,7 @@ class Installer:
         # NOTE: This version returns a dictionary data structure
         # which is necessary if semantic types are going to be used as a
         # filter for CUIs. See NOTE in loading of semantic types.
-        # return data_to_dict(
-        return iter_data(
+        return load_data(
             afile,
             ['str', 'cui'],  # key
             ['ispref'],      # values
@@ -118,7 +118,7 @@ class Installer:
         self,
         afile: str,
         *,
-        conso: Dict[Iterable[Any], Any] = None,
+        cuis: Set[str] = None,
         nrows: Union[int, None] = None,
     ) -> 'Generator':
         """
@@ -132,14 +132,13 @@ class Installer:
                 file. Default is None (all records).
         """
         valids = {'sty': ACCEPTED_SEMTYPES}
-        if conso is not None:
+        if cuis is not None and len(cuis) > 0:
             # NOTE: This version only considers CUIs that are found in the
-            # concepts ('conso') data structure. It requires that the 'conso'
-            # variable is in dictionary form. Although this approach increases
-            # the installation time, it reduces the database size.
-            valids['cui'] = {k[1] for k in conso.keys()}
-        # return data_to_dict(
-        return iter_data(
+            # concepts ('conso') data structure. It requires that the 'cuis'
+            # variable is a set. Although this approach increases the
+            # installation time, it reduces the database size.
+            valids['cui'] = cuis
+        return load_data(
             afile,
             ['cui'],  # key
             ['sty'],  # values
@@ -154,7 +153,7 @@ class Installer:
         *,
         bulk_size: int = 1000,
         status_step: int = 10000,
-    ) -> NoReturn:
+    ) -> Set[str]:
         """Stores {Term:(CUI,Preferred)} mapping, term: [(CUI,pref), ...].
 
         Args:
@@ -170,7 +169,17 @@ class Installer:
         prev_time = time.time()
         batch_per_step = bulk_size * (status_step / bulk_size)
 
+        # NOTE: Prevent term duplicates for Simstring database
+        terms = set()
+
+        # NOTE: Use available CUIs to filter valid CUIs for semantic types
+        cuis = set()
+
+        # for i, ((term, cui), preferred) in enumerate(data.items(), start=1):
         for i, ((term, cui), preferred) in enumerate(data, start=1):
+            terms.add(term)
+            cuis.add(cui)
+
             self._ss.insert(term)
             self._conso_db.set(
                 term, (cui, preferred), replace=False, unique=True
@@ -186,6 +195,8 @@ class Installer:
 
         if VERBOSE:
             print(f'Num terms: {i}')
+
+        return cuis
 
     def _dump_cuisty(
         self,
@@ -209,6 +220,7 @@ class Installer:
         prev_time = time.time()
         batch_per_step = bulk_size * (status_step / bulk_size)
 
+        # for i, (cui, sty) in enumerate(data.items(), start=1):
         for i, (cui, sty) in enumerate(data, start=1):
             self._cuisty_db.set(cui, sty, replace=False, unique=True)
 
@@ -258,14 +270,14 @@ class Installer:
 
         print('Writing concepts...')
         start = time.time()
-        self._dump_conso(conso, **kwargs)
+        cuis = self._dump_conso(conso, **kwargs)
         curr_time = time.time()
         print(f'Writing concepts: {curr_time - start} s')
 
         print('Loading/parsing semantic types...')
         start = time.time()
         mrsty_file = os.path.join(umls_dir, mrsty)
-        cuisty = self._load_sty(mrsty_file, nrows=nrows)
+        cuisty = self._load_sty(mrsty_file, cuis=cuis, nrows=nrows)
         curr_time = time.time()
         print(f'Loading/parsing semantic types: {curr_time - start} s')
 

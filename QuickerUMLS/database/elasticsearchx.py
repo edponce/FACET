@@ -1,115 +1,150 @@
 from elasticsearch import Elasticsearch
-from typing import Any, List, Dict, Tuple, Union, Iterable, Iterator
 from elasticsearch.helpers import scan, bulk, parallel_bulk, streaming_bulk
+from typing import Any, List, Dict, Tuple, Union, Iterable, Iterator, Optional
 
 
-__all__ = ['ElasticsearchDatabase', 'ElasticsearchX']
+__all__ = ['ElasticsearchDatabase', 'Elasticsearchx']
 
 
 class ElasticsearchDatabase:
     """Elasticsearch interface for Simstring algorithm.
 
-    Interface mimics a key-value store:
+    Interface mimics a key/value store:
         * set operations - keys are composites of int (ngram count)
                            and Iterable[str] (ngrams)
         * get operations - keys are composites of int (ngram count)
                            and str (joined ngrams)
-        * mget operations - keys are composites of Iterable[int]
-                            (min/max ngram count)
-                            and str (joined ngrams)
-        * value is a str (value)
+        * get operations - keys are composites of Iterable[int]
+                           (min/max ngram count) and str (joined ngrams)
 
-    es.set((6, [' h' , 'he', 'el', 'll', 'lo', 'o ']), 'hello')
-    es.get((6, ' h he el ll lo o '))
-    es.get((6, ' h he el ll lo o '),
-           filter_path=['hits.hits._source'])['hits']['hits]
-    es.get((4, 5, ' h he el ll lo o '))  # range 4-5
+    >>> db = ElasticsearchDatabase(index='default')
+    >>> db.set({'term': 'hello',
+    >>>         'ng': [' h' , 'he', 'el', 'll', 'lo', 'o '],
+    >>>         'sz': 6})
+    >>> db.get(6)
+    >>> db.get(6, [' h', 'he', 'el', 'll', 'lo', 'o '])
+    >>> db.get(6, [' h', 'he', 'el', 'll', 'lo', 'o '],
+    >>>        filter_path=['hits.hits._source']) # _['hits']['hits]
+    >>> db.get((5, 8), ['he', 'll'])  # range 5-7
     """
+
     def __init__(
         self,
-        hosts: Iterable[Dict[str, Any]] = None,
+        hosts: Any = None,
         *,
         index: str,
-        pipe=False,
+        doc_type: str = '_doc',
+        fields: Iterable[str] = None,
+        body: Dict[str, Any] = None,
         **kwargs
     ):
-        self._db = ElasticsearchX(hosts, **kwargs)
+        """
+        Args:
+            hosts (Any): Elasticsearch hosts.
+
+            index (str): Index name.
+
+            doc_type (str): Document type. Default is '_doc'.
+
+            fields (Iterable[str]): Document fields to use in search actions.
+                Default is None (search disabled).
+
+            body (Dict[str, Any]): Index settings and document mappings.
+
+        Kwargs:
+            Options forwarded to 'Elasticsearchx'.
+        """
+        self._db = Elasticsearchx(hosts, **kwargs)
         self._index = index
-        self._is_pipe = pipe
+        self._doc_type = doc_type
+        self.fields = fields
+        if body is not None:
+            if self._db.indices.exists(index=self._index):
+                self._db.indices.delete(index=self._index)
+            self._db.indices.create(index=self._index, body=body)
 
-    # from elasticsearch_dsl import Search, Mapping, Document, Index
-    # def create_index(self):
-    #     mapping = Mapping()
-    #     mapping.field('word', 'text', index=False)
-    #     mapping.field('ngrams', 'text', norms=False, similarity='boolean')
-    #     mapping.field('num_ngrams', 'integer', similarity='boolean')
-    #
-    #     index = Index(self._index, using=self)
-    #     index.settings(
-    #         number_of_shards=1,
-    #         number_of_replicas=0,
-    #     )
-    #     index.mapping(mapping)
-    #     index.create()
-
-    def _get(
+    def set(
         self,
-        key: Union[Tuple[int, str], Tuple[int, int, str]],
+        document: Dict[str, Any],
         *,
-        # NOTE: Fields should not be hard-coded but mandatory
-        fields: Iterable[str] = ('num_ngrams', 'ngrams'),
-        **kwargs
-    ) -> Dict[str, Any]:
-        if len(key) == 2:
-            must = {'match': {fields[0]: key[0]}}
-        elif len(key) == 3:
-            must = {'range': {fields[0]: {'gte': key[0], 'lte': key[1]}}}
-
-        body = {'query': {'bool': {
-            'must': must,
-            'filter': {'match': {fields[-1]: key[-1]}}
-        }}}
-
-        # NOTE: Exclude values of explicit fields because client code
-        # already passed those values.
-        kwargs['_source_excludes'] = [
-            *kwargs.get('_source_excludes', []),
-            *fields,
-        ]
-        return self._db.search(index=self._index, body=body, **kwargs)
-
-    def _set(
-        self,
-        body: Dict[str, Any],
-        *,
-        id_field: str = None,
-        max_id_size: int = 20,
+        doc_id: str = None,
         **kwargs
     ):
         """Index or create documents.
 
         Args:
-            query (Dict[str, Any]): Document field/values to index.
+            document (Dict[str, Any]): Document instance to index.
 
-            id_field (str): Field from queries to use as document ID.
-                If set to None, ES sets random ones. Default is None.
-
-            max_id_size (int): Maximum number of characters for a custom
-                document ID. Default is 20.
+            doc_id (str): Document ID. If set to None, ES sets random ones.
+                Default is None.
 
         Kwargs:
             Options forwarded to 'Elasticsearch.index()'.
         """
         return self._db.index(
             index=self._index,
-            body=body,
-            id=('' if id_field is None
-                else body.get(id_field, '')[:max_id_size]),
+            body=document,
+            id=doc_id,
             **kwargs
         )
 
+    def mset(self, documents, **kwargs):
+        """See 'Elasticsearchx.bulk_index()'."""
+        return self._db.bulk_index(documents, index=self._index, **kwargs)
 
-class ElasticsearchX(Elasticsearch):
+    def get(
+        self,
+        key1: Union[int, Tuple[int, int]],
+        key2: Iterable[str] = None,
+        *,
+        max_size: int = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        body = self._resolve_search_body(key1, key2, max_size=max_size)
+        return self._db.search(index=self._index, body=body, **kwargs)
+
+    def scan(
+        self,
+        key1: Union[int, Tuple[int, int]],
+        key2: Iterable[str] = None,
+        *,
+        max_size: int = None,
+        **kwargs
+    ) -> Iterator[Dict[str, Any]]:
+        """See 'Elasticsearchx.scan()'."""
+        body = self._resolve_search_body(key1, key2, max_size=max_size)
+        return self._db.scan(body, index=self._index, **kwargs)
+
+    def _resolve_search_body(
+        self,
+        key1: Union[int, Tuple[int, int]],
+        key2: Iterable[str] = None,
+        *,
+        max_size: int = None,
+    ) -> Dict[str, Any]:
+        if self.fields is None:
+            raise KeyError('Search fields have not been set')
+
+        if isinstance(key1, int):
+            bool_body = {'must': {'match': {self.fields[0]: key1}}}
+        else:
+            bool_body = {'must': {'range': {
+                self.fields[0]: {'gte': key1[0], 'lte': key1[1] - 1}
+            }}}
+
+        if key2 is not None:
+            if not isinstance(key2, str):
+                key2 = ' '.join(key2)
+            bool_body.update({'filter': {'match': {self.fields[1]: key2}}})
+
+        if max_size is not None and max_size > 0:
+            body = {'size': max_size, 'query': {'bool': bool_body}}
+        else:
+            body = {'query': {'bool': bool_body}}
+        return body
+
+
+class Elasticsearchx(Elasticsearch):
     """Elasticsearch database interface extended with helper methods."""
 
     def bulkx(
@@ -138,7 +173,7 @@ class ElasticsearchX(Elasticsearch):
         if pipe:
             response = streaming_bulk(self, actions, **kwargs)
         else:
-            if thread_count < 2:
+            if thread_count == 1:
                 response = bulk(self, actions, **kwargs)
             else:
                 response = parallel_bulk(
@@ -156,14 +191,13 @@ class ElasticsearchX(Elasticsearch):
         index: str,
         doc_type: str = '_doc',
         op_type: str = 'index',
-        id_field: str = None,
-        max_id_size: int = 20,
+        doc_id: Iterable[str] = None,
         **kwargs
     ) -> Tuple[int, List[Any]]:
         """Bulk index and create documents.
 
         Args:
-            queries (Iterable[Dict[str, Any]]): List of document field/values
+            queries (Iterable[Dict[str, Any]]): List of document fields/values
                 to index.
 
             index (str): Index name to search.
@@ -173,16 +207,13 @@ class ElasticsearchX(Elasticsearch):
             op_type (str): Explicit operation type. Valid values are 'index'
                 and 'create'. Default is 'index'.
 
-            id_field (str): Field from queries to use as document ID.
-                If set to None, ES sets random ones. Default is None.
-
-            max_id_size (int): Maximum number of characters for a custom
-                document ID. Default is 20.
+            doc_id (Iterable[str]): Document ID. If set to None, ES sets
+                random ones. Default is None.
 
         Kwargs:
             Options forwarded to 'bulkx()'.
         """
-        if id_field is None:
+        if doc_id is None:
             bodies = ({
                 '_op_type': op_type,
                 '_index': index,
@@ -195,8 +226,8 @@ class ElasticsearchX(Elasticsearch):
                 '_index': index,
                 '_type': doc_type,
                 '_source': query,
-                '_id': query.get(id_field, '')[:max_id_size],
-            } for query in queries)
+                '_id': doc_id[i],
+            } for i, query in enumerate(queries))
         return self.bulkx(bodies, **kwargs)
 
     def bulk_delete(

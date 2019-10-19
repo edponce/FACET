@@ -78,8 +78,8 @@ class Simstring:
 
     def _get_strings(self, size: int, feature: str) -> List[str]:
         """Get strings corresponding to feature size and query feature."""
-        string = self._db.get(str(size), feature)
-        return string if string is not None else []
+        strings = self._db.get(str(size), feature)
+        return strings if strings is not None else []
 
     def _strcase(self, string: str):
         if self._case in ('l', 'L'):
@@ -113,16 +113,16 @@ class Simstring:
         similar_strings = [
             similar_string
             for candidate_feature_size in range(min_features, max_features + 1)
-            for similar_string in self._overlap_join(
-                query_features,
-                candidate_feature_size,
-                # tau = min_common_features()
-                self._measure.min_common_features(
-                    len(query_features),
+                for similar_string in self._overlap_join(
+                    query_features,
                     candidate_feature_size,
-                    alpha,
+                    # tau = min_common_features()
+                    self._measure.min_common_features(
+                        len(query_features),
+                        candidate_feature_size,
+                        alpha,
+                    )
                 )
-            )
         ]
         similarities = [
             self._measure.similarity(
@@ -154,6 +154,13 @@ class Simstring:
         for feature in query_features[:tau_split]:
             for string in strings[feature]:
                 strings_frequency[string] += 1
+
+        # TODO: Check if we can use something like this
+        # for string in strings_frequency.keys():
+        #     for feature in query_features[tau_split:]:
+        #         # NOTE: Wouldn't this always be true?
+        #         if string in strings[feature]:
+        #             strings_frequency[string] += 1
 
         # For strings in frequency dictionary, add frequency in second half
         # of tau-limited features.

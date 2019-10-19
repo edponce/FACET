@@ -1,19 +1,14 @@
 from collections import defaultdict
+from typing import List, Tuple, Union, NoReturn
 from .ngram import CharacterFeatures as Features
 from .similarity import CosineSimilarity as Similarity
-from QuickerUMLS.database import DictDatabase as Database
-from typing import (
-    List,
-    Tuple,
-    Union,
-    NoReturn,
-)
+from QuickerUMLS.database import ElasticsearchDatabase as Database
 
 
-__all__ = ['Simstring']
+__all__ = ['ESSimstring']
 
 
-class Simstring:
+class ESSimstring:
     """Implementation of Simstring algorithm.
 
     Args:
@@ -28,49 +23,54 @@ class Simstring:
             Default is 'L'.
     """
 
+    SETTINGS = {
+        'settings': {
+            'number_of_shards': 1,
+            'number_of_replicas': 0,
+            'max_result_window': 10000,
+            # disable for bulk processing, enable for real-time
+            # 'refresh_interval': -1,
+        },
+    }
+
+    MAPPINGS = {
+        'mappings': {
+            'properties': {
+                'term': {
+                   'type': 'text',
+                   'index': False,
+                },
+                'ng': {
+                   'type': 'text',
+                   'norms': False,
+                   'similarity': 'boolean',
+                },
+                'sz': {
+                   'type': 'integer',
+                   'similarity': 'boolean',
+                },
+            },
+        },
+    }
+
     def __init__(
         self,
         *,
-        db: 'BaseDatabase' = Database(),
+        db: Union[str, 'ElasticsearchDatabase'],
         feature_extractor: 'NgramFeatures' = Features(),
         similarity: 'BaseSimilarity' = Similarity(),
         case: str = 'L',
     ):
+        if isinstance(db, str):
+            db = Database(
+                index=db,
+                body={**type(self).SETTINGS, **type(self).MAPPINGS},
+            )
+        db.fields = ['sz', 'ng']
         self._db = db
         self._fe = feature_extractor
         self._measure = similarity
         self._case = case
-        # self._cache_enabled = kwargs.get('enable_cache', False)
-
-        # NOTE: Keep a multilevel dictionary in memory containing
-        # the most recent lookups. Do not use cache if database is an
-        # in-memory dictionary.
-        # if isinstance(self._db, DictDatabase):
-        #     self._max_cache_size = 0
-        #     self._cache_db = None
-        #     self._cache_enabled = False
-        # elif self._cache_enabled:
-        #     self._max_cache_size = kwargs.get('max_cache_size', 100)
-        #     self._cache_db = DictDatabase()
-        #     self._cache_enabled = True
-        # self._cache_size = 0
-
-    # def _cache_string(
-    #     self,
-    #     size: int,
-    #     feature: str,
-    #     string: str,
-    # ) -> NoReturn:
-    #     _size = str(size)
-    #     self._cache_db.set(
-    #         _size,
-    #         feature,
-    #         string,
-    #         replace=False,
-    #         unique=True,
-    #     )
-    #     # NOTE: Need to limit cache size, which items to remove?
-    #     self._cache_size += 1
 
     @property
     def db(self):
@@ -78,8 +78,10 @@ class Simstring:
 
     def _get_strings(self, size: int, feature: str) -> List[str]:
         """Get strings corresponding to feature size and query feature."""
-        string = self._db.get(str(size), feature)
-        return string if string is not None else []
+        meta_hits = self._db.get(size, feature)['hits']
+        hits = meta_hits['hits']
+        return ([hit['_source']['term'] for hit in hits]
+                if len(hits) > 0 else [])
 
     def _strcase(self, string: str):
         if self._case in ('l', 'L'):
@@ -91,14 +93,13 @@ class Simstring:
     def insert(self, string: str) -> NoReturn:
         """Insert string into database."""
         features = self._fe.get_features(string)
-        self._db.set(
-            str(len(features)),
+        self._db.set({
+            'term': string,
+            'sz': len(features),
             # NOTE: Create set here to remove duplicates and not
             # affect the numbers of features extracted.
-            {feature: string for feature in set(map(self._strcase, features))},
-            replace=False,
-            unique=True,
-        )
+            'ng': list(set(map(self._strcase, features))),
+        })
 
     def search(
         self,
@@ -113,16 +114,16 @@ class Simstring:
         similar_strings = [
             similar_string
             for candidate_feature_size in range(min_features, max_features + 1)
-                for similar_string in self._overlap_join(
-                    query_features,
+            for similar_string in self._overlap_join(
+                query_features,
+                candidate_feature_size,
+                # tau = min_common_features()
+                self._measure.min_common_features(
+                    len(query_features),
                     candidate_feature_size,
-                    # tau = min_common_features()
-                    self._measure.min_common_features(
-                        len(query_features),
-                        candidate_feature_size,
-                        alpha,
-                    )
+                    alpha,
                 )
+            )
         ]
         similarities = [
             self._measure.similarity(
@@ -183,92 +184,3 @@ class Simstring:
                     break
 
         return candidate_strings
-
-
-# body = {'query': {'match_all': {}}}
-# es.search(
-#     body=body,
-#     index='simstring',
-#     _source_includes=['word', 'num_ngrams'],
-#     filter_path=['hits.hits._source'],
-# )
-
-# body = {
-#     "query": {
-#         "bool": {
-#             "must": {
-#                 "range": {
-#                     "num_ngrams": {
-#                         "gte": 4,
-#                         "lte": 7
-#                     }
-#                 }
-#             },
-#             "filter": {
-#                 "match": {
-#                     "ngrams": "ca wh"
-#                 }
-#             }
-#         }
-#     }
-# }
-# es.search(
-#     body=body,
-#     index='simstring',
-#     _source_includes=['word', 'num_ngrams'],
-#     filter_path=['hits.hits._source'],
-# )
-
-
-
-# from elasticsearch_dsl import Search, Mapping, Document, Index
-
-    # def create_index(self):
-    #     mapping = Mapping()
-    #     mapping.field('word', 'text', index=False)
-    #     mapping.field('ngrams', 'text', norms=False, similarity='boolean')
-    #     mapping.field('num_ngrams', 'integer', similarity='boolean')
-    #
-    #     index = Index(self._index, using=self)
-    #     index.settings(
-    #         number_of_shards=1,
-    #         number_of_replicas=0,
-    #     )
-    #     index.mapping(mapping)
-    #     index.create()
-
-    # def set(self, doc: Dict[str, Any], **kwargs):
-    #     def proxy(*, index, body, **kwargs):
-    #         return kwargs
-    #     return self.create(index=self._index, body=doc, **proxy(kwargs))
-    #
-    # def get(self, doc_id: str, **kwargs) -> Dict[str, Any]:
-    #     def proxy(*, index, **kwargs):
-    #         return kwargs
-    #     return self.get(index=self._index, **proxy(kwargs))
-
-    # db.get(4, 7, 'el wh')
-    # def ss_get(self, size1: int, size2: int, features: str, *, max_hits=10):
-    #     range_query = {
-    #         'range': {
-    #             'num_ngrams': {
-    #                 'gte': size1,
-    #                 'lte': size2
-    #             }
-    #         }
-    #     }
-    #     filter_query = {
-    #         'match': {
-    #             'ngrams': features
-    #         }
-    #     }
-    #     response = self.Search(using=self).extra(size=max_hits).query(
-    #         'bool',
-    #         must=range_query,
-    #         filter=filter_query
-    #     ).execute().to_dict()
-    #     # response = self.Search(using=self).extra(
-    #     #     size=max_hits
-    #     # ).query(query).execute().to_dict()
-    #
-    #     return response
