@@ -11,7 +11,7 @@ from .umls_constants import (
 )
 
 
-__all__ = ['Installer']
+__all__ = ['ESInstaller']
 
 
 VERBOSE = True
@@ -23,13 +23,10 @@ if PROFILE:
 
 
 # TODO: Convert this class into an abstract class.
-class Installer:
+class ESInstaller:
     """FACET installation tool.
 
     Args:
-        conso_db (BaseDatabase): Handle to database instance for CONCEPT-CUI
-            storage.
-
         cuisty_db (BaseDatabase): Handle to database instance for CUI-STY
             storage.
 
@@ -38,13 +35,7 @@ class Installer:
             database handle (to prevent collisions with N-grams).
     """
 
-    def __init__(
-        self,
-        *,
-        conso_db: 'BaseDatabase',
-        cuisty_db: 'BaseDatabase',
-        simstring: 'Simstring',
-    ):
+    def __init__(self, *, cuisty_db: 'BaseDatabase', simstring: 'Simstring'):
         self._conso_db = conso_db
         self._cuisty_db = cuisty_db
         self._ss = simstring
@@ -63,8 +54,8 @@ class Installer:
         prev_time = time.time()
 
         self._ss.db.set_pipe(True)
-        for i, term in enumerate(data.keys(), start=1):
-            self._ss.insert(term)
+        for i, (term, cui) in enumerate(data.items(), start=1):
+            self._ss.insert(term, cui)
             if i % bulk_size == 0:
                 self._ss.db.sync()
 
@@ -78,37 +69,6 @@ class Installer:
 
         if VERBOSE:
             print(f'Num simstring terms: {i}')
-
-    def _dump_conso(self, data, *, bulk_size=1000, status_step=10000):
-        """Stores {Term:CUI} mapping, term: [CUI, ...].
-
-        Args:
-            bulk_size (int): Size of chunks to use for dumping data into
-                databases. Default is 1000.
-
-            status_step (int): Print status message after this number of
-                records is dumped to databases. Default is 10000.
-        """
-        # Profile
-        prev_time = time.time()
-
-        self._conso_db.set_pipe(True)
-        for i, (term, cui) in enumerate(data.items(), start=1):
-            print(term)
-            self._conso_db.set(term, cui)
-            if i % bulk_size == 0:
-                self._conso_db.sync()
-
-            # Profile
-            if VERBOSE and i % status_step == 0:
-                curr_time = time.time()
-                elapsed_time = curr_time - prev_time
-                print(f'{i}: {elapsed_time} s')
-                prev_time = curr_time
-        self._conso_db.set_pipe(False)
-
-        if VERBOSE:
-            print(f'Num terms: {i}')
 
     def _dump_cuisty(self, data, *, bulk_size=1000, status_step=10000):
         """Stores {CUI:Semantic Type} mapping, cui: [sty, ...].
@@ -179,12 +139,6 @@ class Installer:
         )
         curr_time = time.time()
         print(f'Loading/parsing concepts: {curr_time - start} s')
-
-        print('Writing concepts...')
-        start = time.time()
-        self._dump_conso(conso, **kwargs)
-        curr_time = time.time()
-        print(f'Writing concepts: {curr_time - start} s')
 
         print('Writing simstring...')
         start = time.time()

@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import List, Tuple, Union, NoReturn
+from typing import Any, List, Tuple, Union, NoReturn
 from .ngram import CharacterFeatures as Features
 from .similarity import CosineSimilarity as Similarity
 from QuickerUMLS.database import ElasticsearchDatabase as Database
@@ -49,6 +49,10 @@ class ESSimstring:
                    'type': 'integer',
                    'similarity': 'boolean',
                 },
+                'attr': {
+                    'type': 'text',
+                    'index': False,
+                },
             },
         },
     }
@@ -80,8 +84,9 @@ class ESSimstring:
         """Get strings corresponding to feature size and query feature."""
         meta_hits = self._db.get(size, feature)['hits']
         hits = meta_hits['hits']
-        return ([hit['_source']['term'] for hit in hits]
-                if len(hits) > 0 else [])
+        strings = [hit['_source']['term'] for hit in hits]
+        attrs = [hit['_source']['attr'] for hit in hits]
+        return strings, attrs
 
     def _strcase(self, string: str):
         if self._case in ('l', 'L'):
@@ -93,7 +98,7 @@ class ESSimstring:
     # NOTE: Consider supporting iterable data so that
     # it can be passed directly to underlying database
     # when pipe is enabled.
-    def insert(self, string: str) -> NoReturn:
+    def insert(self, string: str, attr: Any = None) -> NoReturn:
         """Insert string into database."""
         features = self._fe.get_features(string)
         self._db.set({
@@ -102,6 +107,7 @@ class ESSimstring:
             # NOTE: Create set here to remove duplicates and not
             # affect the numbers of features extracted.
             'ng': list(set(map(self._strcase, features))),
+            'attr': attr,
         })
 
     def search(
@@ -114,20 +120,23 @@ class ESSimstring:
         query_features = self._fe.get_features(self._strcase(query_string))
         min_features = self._measure.min_features(len(query_features), alpha)
         max_features = self._measure.max_features(len(query_features), alpha)
-        similar_strings = [
-            similar_string
-            for candidate_feature_size in range(min_features, max_features + 1)
-            for similar_string in self._overlap_join(
+
+        similar_strings = []
+        attrs = []
+        for candidate_feature_size in range(min_features, max_features + 1):
+            tau = self._measure.min_common_features(
+                len(query_features),
+                candidate_feature_size,
+                alpha,
+            )
+            for string, attr in zip(*self._overlap_join(
                 query_features,
                 candidate_feature_size,
-                # tau = min_common_features()
-                self._measure.min_common_features(
-                    len(query_features),
-                    candidate_feature_size,
-                    alpha,
-                )
-            )
-        ]
+                tau,
+            )):
+                similar_strings.append(string)
+                attrs.append(attr)
+
         similarities = [
             self._measure.similarity(
                 query_features,
@@ -137,17 +146,22 @@ class ESSimstring:
         ]
         strings_and_similarities = list(
             filter(lambda ss: ss[1] >= alpha,
-                   zip(similar_strings, similarities))
+                   zip(similar_strings, similarities, attrs))
         )
         if rank:
             strings_and_similarities.sort(key=lambda ss: ss[1], reverse=True)
         return strings_and_similarities
 
     def _overlap_join(self, query_features, candidate_feature_size, tau):
-        strings = {
-            feature: self._get_strings(candidate_feature_size, feature)
-            for feature in query_features
-        }
+        strings = {}
+        attrs = {}
+        for feature in query_features:
+            _strings, _attrs = self._get_strings(candidate_feature_size,
+                                                 feature)
+            strings[feature] = _strings
+            for _string in _strings:
+                if _string not in attrs:
+                    attrs[_string] = _attrs
         query_features.sort(key=lambda feature: len(strings[feature]))
 
         # Use tau parameter to split sorted features
@@ -159,16 +173,10 @@ class ESSimstring:
             for string in strings[feature]:
                 strings_frequency[string] += 1
 
-        # TODO: Check if we can use something like this
-        # for string in strings_frequency.keys():
-        #     for feature in query_features[tau_split:]:
-        #         # NOTE: Wouldn't this always be true?
-        #         if string in strings[feature]:
-        #             strings_frequency[string] += 1
-
         # For strings in frequency dictionary, add frequency in second half
         # of tau-limited features.
         candidate_strings = []
+        candidate_attrs = []
         for string in strings_frequency.keys():
             for i, feature in enumerate(query_features[tau_split:],
                                         start=tau_split):
@@ -178,6 +186,7 @@ class ESSimstring:
                 # If candidate string has enough frequency count, select it.
                 if strings_frequency[string] >= tau:
                     candidate_strings.append(string)
+                    candidate_attrs.append(attrs[string])
                     break
 
                 # Check if a limit is reached where no further candidates will
@@ -186,4 +195,4 @@ class ESSimstring:
                 if strings_frequency[string] + remaining_feature_count < tau:
                     break
 
-        return candidate_strings
+        return candidate_strings, candidate_attrs

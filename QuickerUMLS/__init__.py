@@ -23,7 +23,9 @@ __copyright__ = """2019 Eduardo Ponce, Kris Brown, and Edmon Begoli
 
 __all__ = [
     'Facet',
+    'ESFacet',
     'Installer',
+    'ESInstaller',
     'Formatter',
     'NLTKTokenizer',
     'SpacyTokenizer',
@@ -50,7 +52,9 @@ __all__ = [
 
 
 from .match import Facet
+from .match_es import ESFacet
 from .install import Installer
+from .install_es import ESInstaller
 from .formatter import Formatter
 from .tokenizer import (
     NLTKTokenizer,

@@ -16,18 +16,11 @@ tokenizer = QuickerUMLS.WhitespaceTokenizer()
 ###########
 # PROCESS #
 ###########
-db1 = QuickerUMLS.RedisDatabase(db=2)
-db2 = QuickerUMLS.RedisDatabase(db=3)
-ss = QuickerUMLS.ESSimstring(
-    db=QuickerUMLS.ElasticsearchDatabase(index='testing'),
-)
+db = QuickerUMLS.RedisDatabase(db=3)
+ss = QuickerUMLS.ESSimstring(index='testing')
 
 # Search
-m = QuickerUMLS.Facet(
-    conso_db=db1,
-    cuisty_db=db2,
-    simstring=ss,
-    tokenizer=tokenizer)
+m = QuickerUMLS.ESFacet(cuisty_db=db, simstring=ss, tokenizer=tokenizer)
 m.formatter.format = format
 m.formatter.outfile = outfile
 data = m(text)
