@@ -10,7 +10,7 @@ umls = 'data/umls_large'
 ###########
 # PROCESS #
 ###########
-db = QuickerUMLS.RedisDatabase(db)
+db = QuickerUMLS.RedisDatabase(db=2)
 ss = QuickerUMLS.ESSimstring(db='testing')
 
 # Install

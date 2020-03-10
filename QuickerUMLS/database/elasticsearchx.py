@@ -14,8 +14,6 @@ class ElasticsearchDatabase:
 
         index (str): Index name.
 
-        doc_type (str): Document type. Default is '_doc'.
-
         fields (Iterable[str]): Document fields to use in search actions.
             Default is None (search disabled).
 
@@ -52,24 +50,25 @@ class ElasticsearchDatabase:
         hosts: Any = None,
         *,
         index: str,
-        doc_type: str = '_doc',
         fields: Iterable[str] = None,
         body: Dict[str, Any] = None,
         pipe: bool = False,
+        overwrite: bool = False,
         **kwargs
     ):
         self._db = Elasticsearchx(hosts, **kwargs)
         self._index = index
-        self._doc_type = doc_type
         self.fields = fields
         if body is not None:
-            if self._db.indices.exists(index=self._index):
+            if not self._db.indices.exists(index=self._index):
+                self._db.indices.create(index=self._index, body=body)
+            elif overwrite:
                 self._db.indices.delete(index=self._index)
-            self._db.indices.create(index=self._index, body=body)
+                self._db.indices.create(index=self._index, body=body)
         # NOTE: Stores an iterable of actions which
         # are sent to bulk API when sync() is invoked.
-        self._dbp = []
-        self._is_pipe = pipe
+        self._dbp = None
+        self._is_pipe = None
         self.set_pipe(pipe)
 
     def set_pipe(self, pipe):
@@ -219,7 +218,6 @@ class Elasticsearchx(Elasticsearch):
         queries: Iterable[Dict[str, Any]],
         *,
         index: str,
-        doc_type: str = '_doc',
         op_type: str = 'index',
         doc_id: Iterable[str] = None,
         **kwargs
@@ -231,8 +229,6 @@ class Elasticsearchx(Elasticsearch):
                 to index.
 
             index (str): Index name to search.
-
-            doc_type (str): Document type. Default is '_doc'.
 
             op_type (str): Explicit operation type. Valid values are 'index'
                 and 'create'. Default is 'index'.
@@ -247,14 +243,12 @@ class Elasticsearchx(Elasticsearch):
             bodies = ({
                 '_op_type': op_type,
                 '_index': index,
-                '_type': doc_type,
                 '_source': query,
             } for query in queries)
         else:
             bodies = ({
                 '_op_type': op_type,
                 '_index': index,
-                '_type': doc_type,
                 '_source': query,
                 '_id': doc_id[i],
             } for i, query in enumerate(queries))
@@ -265,7 +259,6 @@ class Elasticsearchx(Elasticsearch):
         doc_ids: Iterable[str],
         *,
         index: str,
-        doc_type: str = '_doc',
         **kwargs
     ) -> Tuple[int, List[Any]]:
         """Bulk delete.
@@ -275,15 +268,12 @@ class Elasticsearchx(Elasticsearch):
 
             index (str): Index name to search.
 
-            doc_type (str): Document type. Default is '_doc'.
-
         Kwargs:
             Options forwarded to 'bulkx()'.
         """
         bodies = ({
             '_op_type': 'delete',
             '_index': index,
-            '_type': doc_type,
             '_id': doc_id,
         } for doc_id in doc_ids)
         return self.bulkx(bodies, **kwargs)

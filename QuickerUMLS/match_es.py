@@ -16,7 +16,7 @@ __all__ = ['ESFacet']
 
 
 # Enable/disable profiling
-PROFILE = False
+PROFILE = True
 if PROFILE:
     import cProfile
 
@@ -70,25 +70,11 @@ class ESFacet:
         """
         matches = []
         for begin, end, ngram in ngrams:
-            # NOTE: Normalization should be done by the tokenizer not here.
-            # ngram_normalized = ngram
-            # if normalize_unicode:
-            #     ngram_normalized = unidecode(ngram_normalized)
-
-            # NOTE: Case matching is controlled by Simstring.
-            # if lowercase:
-            #     ngram_normalized = ngram_normalized.lower()
-
-            # NOTE: Simstring results do not need to be sorted because
-            # we sort matches based on similarity
             ngram_matches = []
             for candidate, similarity, cuis in self._ss.search(ngram,
                                                                alpha=alpha,
                                                                rank=False):
                 for cui in cuis:
-                    # NOTE: Using ACCEPTED_SEMTYPES will always result
-                    # in true. If not so, should we include the match
-                    # with a semtype=None or skip it?
                     semtypes = self._cuisty_db.get(cui)
                     if semtypes is not None:
                         ngram_matches.append({

@@ -14,11 +14,11 @@ from typing import (
 
 
 __all__ = [
-    'iter_data',
-    'valid_item',
-    'unpack_dir',
-    'is_iterable',
     'load_data',
+    'iter_data',
+    'unpack_dir',
+    'valid_item',
+    'is_iterable',
     'iterable_true',
     'corpus_generator',
     'valid_items_from_dict',
@@ -284,15 +284,15 @@ def iter_data(
         engine=kwargs.get('engine', 'c'),
     )
 
+    # Internal data structure for tracking unique keys.
+    if unique_keys:
+        keys_processed = set()
+
     # Place the dataframe into an iterable even if not iterating and
     # chunking through the data, so that it uses the same logic
     # as if it was a TextFileReader object.
     if not isinstance(reader, pandas.io.parsers.TextFileReader):
         reader = [reader]
-
-    # Internal data structure for tracking unique keys.
-    if unique_keys:
-        keys_processed = set()
 
     # Iterate through dataframes or TextFileReader:
     #   a) Row filtering based on valid/invalid keys/values
@@ -371,7 +371,7 @@ def load_data(
         >>> data = data_to_dict('MRSTY.RRF', keys=[0], values=[1, 2],
                                 nrows=10, valids={1:None, 2:None})
     """
-    if not kwargs.get('values', False):
+    if 'values' not in kwargs:
         kwargs['unique_keys'] = False
         data = set()
         for k, _ in iter_data(*args, **kwargs):

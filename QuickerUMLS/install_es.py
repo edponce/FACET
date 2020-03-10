@@ -1,6 +1,7 @@
 import os
 import time
 import itertools
+import multiprocessing
 from .helpers import load_data
 from unidecode import unidecode
 from .database import DictDatabase
@@ -36,7 +37,6 @@ class ESInstaller:
     """
 
     def __init__(self, *, cuisty_db: 'BaseDatabase', simstring: 'Simstring'):
-        self._conso_db = conso_db
         self._cuisty_db = cuisty_db
         self._ss = simstring
 
@@ -129,7 +129,7 @@ class ESInstaller:
         start = time.time()
         mrconso_file = os.path.join(umls_dir, mrconso)
         conso = load_data(
-            mrconso_file,
+            data=mrconso_file,
             keys=['str'],
             values=['cui'],
             headers=HEADERS_MRCONSO,
@@ -140,17 +140,11 @@ class ESInstaller:
         curr_time = time.time()
         print(f'Loading/parsing concepts: {curr_time - start} s')
 
-        print('Writing simstring...')
-        start = time.time()
-        self._dump_simstring(conso, **kwargs)
-        curr_time = time.time()
-        print(f'Writing simstring: {curr_time - start} s')
-
         print('Loading/parsing semantic types...')
         start = time.time()
         mrsty_file = os.path.join(umls_dir, mrsty)
         cuisty = load_data(
-            mrsty_file,
+            data=mrsty_file,
             keys=['cui'],
             values=['sty'],
             headers=HEADERS_MRSTY,
@@ -162,6 +156,12 @@ class ESInstaller:
         )
         curr_time = time.time()
         print(f'Loading/parsing semantic types: {curr_time - start} s')
+
+        print('Writing simstring...')
+        start = time.time()
+        self._dump_simstring(conso, **kwargs)
+        curr_time = time.time()
+        print(f'Writing simstring: {curr_time - start} s')
 
         print('Writing semantic types...')
         start = time.time()

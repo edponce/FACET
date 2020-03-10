@@ -4,7 +4,7 @@ import QuickerUMLS
 ##########
 # CONFIG #
 ##########
-text = 'data/test.txt'
+text = 'data/test2.txt'
 format = 'json'
 # outfile = 'es_example.json'
 outfile = None
@@ -16,8 +16,8 @@ tokenizer = QuickerUMLS.WhitespaceTokenizer()
 ###########
 # PROCESS #
 ###########
-db = QuickerUMLS.RedisDatabase(db=3)
-ss = QuickerUMLS.ESSimstring(index='testing')
+db = QuickerUMLS.RedisDatabase(db=2)
+ss = QuickerUMLS.ESSimstring(db='testing')
 
 # Search
 m = QuickerUMLS.ESFacet(cuisty_db=db, simstring=ss, tokenizer=tokenizer)
