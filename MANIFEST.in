@@ -1,0 +1,4 @@
+include *.rst
+include LICENSE
+include *_requirements.txt
+recursive-include docs *.py *.rst Makefile

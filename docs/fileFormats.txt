@@ -1,0 +1,10 @@
+document_ID
+word cui_ID word cui_ID word cui_ID
+document_ID
+word cui_ID word cui_ID
+
+
+alternatively:
+
+document_ID : word cui_ID word cui_ID word cui_ID
+document_ID : word cui_ID word cui_ID

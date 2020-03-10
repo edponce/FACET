@@ -1,0 +1,21 @@
+[flake8]
+ignore =
+    # module level import not at top of file
+    E402
+show_source = True
+statistics = True
+max_complexity = 15
+max_line_length = 79
+output_file = flake8.out
+tee = True
+filename =
+    *.py
+exclude =
+    __pycache__/
+    *.egg-info/
+    .eggs/
+    .tox/
+    build/
+    dist/
+    docs/
+    htmlcov/
