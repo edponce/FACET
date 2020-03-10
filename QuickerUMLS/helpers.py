@@ -1,11 +1,29 @@
 import os
 import pandas
-from typing import Union, Tuple, List, Dict, Any, Callable, Iterable
+import collections
+from typing import (
+    Any,
+    Set,
+    List,
+    Dict,
+    Union,
+    Tuple,
+    Callable,
+    Iterable,
+)
 
 
-__all__ = ['valid_item', 'valid_items_from_dict', 'is_iterable',
-           'iterable_true', 'filter_indices_and_values', 'iter_data',
-           'data_to_dict', 'unpack_dir', 'corpus_generator']
+__all__ = [
+    'load_data',
+    'iter_data',
+    'unpack_dir',
+    'valid_item',
+    'is_iterable',
+    'iterable_true',
+    'corpus_generator',
+    'valid_items_from_dict',
+    'filter_indices_and_values',
+]
 
 
 def valid_item(
@@ -122,15 +140,15 @@ def filter_indices_and_values(
 
 def iter_data(
     data,
-    keys,
-    values,
     *,
-    headers=None,
-    valids=None,
-    invalids=None,
-    unique_keys=False,
+    keys: Iterable[Union[str, int]],
+    values: Iterable[Union[str, int]] = None,
+    headers: Iterable[Union[str, int]] = None,
+    valids: Dict[Union[str, int], Iterable[Any]] = None,
+    invalids: Dict[Union[str, int], Iterable[Any]] = None,
+    unique_keys: bool = False,
     **kwargs
-):
+) -> 'Generator[Any, Any]':
     """Generator for data.
 
     Use Pandas 'read_csv()' to load data into a dataframe which is then
@@ -184,8 +202,6 @@ def iter_data(
         memory_map
         engine
     """
-    if keys is None:
-        keys = ()
     if values is None:
         values = ()
     keys_values = (*keys, *values)
@@ -243,37 +259,40 @@ def iter_data(
     # Data reader or iterator
     # NOTE: Could we benefit from using Modin.pandas? This function returns
     # a generator, but for the 'dict' version we could use DataFrames instead?
-    reader = pandas.read_csv(data,
-                             names=headers,
+    reader = pandas.read_csv(
+        data,
+        names=headers,
 
-                             # Constant-ish settings
-                             delimiter=kwargs.get('delimiter', '|'),
-                             usecols=usecols,
-                             header=None,
-                             index_col=False,
-                             na_filter=False,
+        # Constant-ish settings
+        delimiter=kwargs.get('delimiter', '|'),
+        usecols=usecols,
+        header=None,
+        index_col=False,
+        na_filter=False,
 
-                             # Extra parameters
-                             encoding=kwargs.get('encoding', 'utf-8'),
-                             converters=kwargs.get('converters'),
-                             skiprows=kwargs.get('skiprows'),
-                             nrows=kwargs.get('nrows'),
-                             dtype=kwargs.get('dtype'),
+        # Extra parameters
+        encoding=kwargs.get('encoding', 'utf-8'),
+        converters=kwargs.get('converters'),
+        skiprows=kwargs.get('skiprows'),
+        nrows=kwargs.get('nrows'),
+        dtype=kwargs.get('dtype'),
 
-                             # Performance parameters
-                             iterator=kwargs.get('iterator', True),
-                             chunksize=kwargs.get('chunksize', 100000),
-                             memory_map=kwargs.get('memory_map', True),
-                             engine=kwargs.get('engine', 'c'))
+        # Performance parameters
+        iterator=kwargs.get('iterator', True),
+        chunksize=kwargs.get('chunksize', 100000),
+        memory_map=kwargs.get('memory_map', True),
+        engine=kwargs.get('engine', 'c'),
+    )
+
+    # Internal data structure for tracking unique keys.
+    if unique_keys:
+        keys_processed = set()
 
     # Place the dataframe into an iterable even if not iterating and
     # chunking through the data, so that it uses the same logic
     # as if it was a TextFileReader object.
     if not isinstance(reader, pandas.io.parsers.TextFileReader):
         reader = [reader]
-
-    # Internal data structure for tracking unique keys.
-    keys_processed = set()
 
     # Iterate through dataframes or TextFileReader:
     #   a) Row filtering based on valid/invalid keys/values
@@ -287,7 +306,7 @@ def iter_data(
         # can be modified with converter functions.
         for kv in map(list, zip(*usecols_values)):
 
-            # Filter valid/invalild keys/values
+            # Filter valid/invalid keys/values
             if key_value_check \
                and not valid_items_from_dict(usecols,
                                              kv,
@@ -321,46 +340,60 @@ def iter_data(
             yield ks, vs
 
 
-def data_to_dict(
+def load_data(
     *args,
+    unique_values=False,
     **kwargs,
-) -> Dict[Any, Union[Any, List[Any]]]:
-    """Load paired data into a dictionary.
+) -> Union[Set[Any], Dict[Any, Union[Any, List[Any]]]]:
+    """Load paired data into a dictionary or set.
+
+    If no values are provided, then return a set from keys.
+    If values are provided, then return a dictionary of keys/values.
 
     Args (see 'iter_data')
 
-    Kwargs (see 'iter_data')
+    Kwargs (see 'iter_data'):
+        unique_values (bool): Control if values can be repeated or not.
+            Only applies if 'unique_keys' is False.
 
     Examples:
-        >>> data = data_to_dict('MRSTY.RRF', ['cui'], ['sty'],
+        >>> data = data_to_set('MRSTY.RRF', keys=['cui'],
+                               headers=HEADERS_MRSTY)
+        >>> data = data_to_set('MRSTY.RRF', keys=[0, 1])
+        >>> data = data_to_dict('MRSTY.RRF', keys=['cui'], values=['sty'],
                                 headers=HEADERS_MRSTY)
-        >>> data = data_to_dict('MRSTY.RRF', [0], [1])
-        >>> data = data_to_dict('MRSTY.RRF', ['cui'], ['sty'],
+        >>> data = data_to_dict('MRSTY.RRF', keys=[0], values=[1])
+        >>> data = data_to_dict('MRSTY.RRF', keys=['cui'], values=['sty'],
                                 headers=HEADERS_MRSTY,
                                 valids={'sty':ACCEPTED_SEMTYPES})
-        >>> data = data_to_dict('MRSTY.RRF', ['cui'], ['sty', 'hier'],
-                                headers=HEADERS_MRSTY)
-        >>> data = data_to_dict('MRSTY.RRF', [0], [1, 2],
+        >>> data = data_to_dict('MRSTY.RRF', keys=['cui'],
+                                values=['sty', 'hier'], headers=HEADERS_MRSTY)
+        >>> data = data_to_dict('MRSTY.RRF', keys=[0], values=[1, 2],
                                 nrows=10, valids={1:None, 2:None})
     """
-    unique_keys = kwargs.get('unique_keys', False)
-    if unique_keys:
-        # NOTE: Disable 'unique_keys' option for 'iter_data' because
-        # dictionary already does that.
+    if 'values' not in kwargs:
         kwargs['unique_keys'] = False
-        data = collections.defaultdict()
-        for k, v in iter_data(*args, **kwargs):
-            # Assume there is a single value per key
-            if k not in data:
-                data[k] = v
+        data = set()
+        for k, _ in iter_data(*args, **kwargs):
+            data.add(k)
     else:
-        data = collections.defaultdict(list)
-        for k, v in iter_data(*args, **kwargs):
-            # Do not duplicate values for a key
-            if k not in data:
-                data[k].append(v)
-            elif v not in data[k]:
-                data[k].append(v)
+        if kwargs.get('unique_keys', False):
+            # NOTE: Disable 'unique_keys' option for 'iter_data' because
+            # dictionary already does that. To make them semantically
+            # consistent, consider the first appearance of a key. This is
+            # because 'iter_data' considers the first appearance of a key
+            # and dictionary updates consider the last appearance of a key.
+            kwargs['unique_keys'] = False
+            data = collections.defaultdict()
+            for k, v in iter_data(*args, **kwargs):
+                if k not in data:
+                    # Assume there is a single value per key.
+                    data[k] = v
+        else:
+            data = collections.defaultdict(list)
+            for k, v in iter_data(*args, **kwargs):
+                if not unique_values or v not in data[k]:
+                    data[k].append(v)
     return data
 
 
@@ -381,6 +414,7 @@ def unpack_dir(
 
     Returns (List[str]): List of filenames.
     """
+    # NOTE: Probably better to use os.walk().
     files = []
     for file_or_dir in os.listdir(adir):
         fd = os.path.join(adir, file_or_dir)
@@ -410,7 +444,6 @@ def corpus_generator(
 
         phony (bool): If set, attr:`corpora` items are not considered
             as file system objects when name collisions occur.
-            Default is false.
 
     Kwargs:
         Options passed directory to 'unpack_dir'.
@@ -419,10 +452,6 @@ def corpus_generator(
                      The source identifier for raw text is '_text'.
                      The source identifier for other is their file system name.
     """
-    # NOTE: For files, it returns one line at a time, preventing multi-word
-    # concepts that span multiple lines to be identified. Solution is to
-    # return a batch of lines with initial boundary overlapping last line
-    # from previous batch.
     if not is_iterable(corpora):
         corpora = (corpora,)
 
@@ -443,6 +472,6 @@ def corpus_generator(
         elif os.path.isfile(corpus):
             if os.path.basename(corpus).startswith('.'):
                 continue
+            # NOTE: For files, return the entire content.
             with open(corpus) as fd:
-                for line in fd:
-                    yield corpus, line
+                yield corpus, fd.read()

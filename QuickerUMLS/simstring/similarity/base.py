@@ -21,14 +21,18 @@ class BaseSimilarity(ABC):
         pass
 
     @abstractmethod
-    def min_common_features(self,
-                            lengthA: int,
-                            lengthB: int,
-                            alpha: float) -> int:
+    def min_common_features(
+        self,
+        lengthA: int,
+        lengthB: int,
+        alpha: float,
+    ) -> int:
         pass
 
     @abstractmethod
-    def similarity(self,
-                   featuresA: Iterable[Any],
-                   featuresB: Iterable[Any]) -> float:
+    def similarity(
+        self,
+        featuresA: Iterable[Any],
+        featuresB: Iterable[Any],
+    ) -> float:
         pass

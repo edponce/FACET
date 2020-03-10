@@ -1,8 +1,15 @@
-from typing import Any, List, Iterable
 from abc import ABC, abstractmethod
+from typing import (
+    Any,
+    List,
+    Iterable,
+)
 
 
-__all__ = ['CharacterFeatures', 'WordFeatures']
+__all__ = [
+    'CharacterFeatures',
+    'WordFeatures',
+]
 
 
 class NgramFeatures(ABC):

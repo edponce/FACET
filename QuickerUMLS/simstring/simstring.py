@@ -1,8 +1,13 @@
-from .ngram import CharacterFeatures
-from .similarity import CosineSimilarity
-from QuickerUMLS.database import DictDatabase
-from typing import Union, List, Tuple, NoReturn
 from collections import defaultdict
+from .ngram import CharacterFeatures as Features
+from .similarity import CosineSimilarity as Similarity
+from QuickerUMLS.database import DictDatabase as Database
+from typing import (
+    List,
+    Tuple,
+    Union,
+    NoReturn,
+)
 
 
 __all__ = ['Simstring']
@@ -12,25 +17,29 @@ class Simstring:
     """Implementation of Simstring algorithm.
 
     Args:
-        database (BaseDatabase): Database instance for storage.
-            Default is DictDatabase.
+        db (BaseDatabase): Database instance for storage.
 
         feature_extractor (NgramFeatures): N-gram feature extractor instance.
-            Default is CharacterFeatures.
 
         similarity (BaseSimilarity): Instance of similarity measure.
-            Default is CosineSimilarity.
 
         case (str): Character to control string casing during insert/search.
             Valid values are 'L' (lower), 'U' (upper), or None (no casing).
             Default is 'L'.
     """
 
-    def __init__(self, **kwargs):
-        self._db = kwargs.get('database', DictDatabase())
-        self._fe = kwargs.get('feature_extractor', CharacterFeatures())
-        self._measure = kwargs.get('similarity', CosineSimilarity())
-        self._case = kwargs.get('case', 'L')
+    def __init__(
+        self,
+        *,
+        db: 'BaseDatabase' = Database(),
+        feature_extractor: 'NgramFeatures' = Features(),
+        similarity: 'BaseSimilarity' = Similarity(),
+        case: str = 'L',
+    ):
+        self._db = db
+        self._fe = feature_extractor
+        self._measure = similarity
+        self._case = case
         # self._cache_enabled = kwargs.get('enable_cache', False)
 
         # NOTE: Keep a multilevel dictionary in memory containing
@@ -64,13 +73,13 @@ class Simstring:
     #     self._cache_size += 1
 
     @property
-    def database(self):
+    def db(self):
         return self._db
 
     def _get_strings(self, size: int, feature: str) -> List[str]:
         """Get strings corresponding to feature size and query feature."""
-        string = self._db.get(str(size), feature)
-        return string if string is not None else []
+        strings = self._db.get(str(size), feature)
+        return strings if strings is not None else []
 
     def _strcase(self, string: str):
         if self._case in ('l', 'L'):
@@ -104,16 +113,16 @@ class Simstring:
         similar_strings = [
             similar_string
             for candidate_feature_size in range(min_features, max_features + 1)
-            for similar_string in self._overlap_join(
-                query_features,
-                candidate_feature_size,
-                # tau = min_common_features()
-                self._measure.min_common_features(
-                    len(query_features),
+                for similar_string in self._overlap_join(
+                    query_features,
                     candidate_feature_size,
-                    alpha,
+                    # tau = min_common_features()
+                    self._measure.min_common_features(
+                        len(query_features),
+                        candidate_feature_size,
+                        alpha,
+                    )
                 )
-            )
         ]
         similarities = [
             self._measure.similarity(
@@ -145,6 +154,13 @@ class Simstring:
         for feature in query_features[:tau_split]:
             for string in strings[feature]:
                 strings_frequency[string] += 1
+
+        # TODO: Check if we can use something like this
+        # for string in strings_frequency.keys():
+        #     for feature in query_features[tau_split:]:
+        #         # NOTE: Wouldn't this always be true?
+        #         if string in strings[feature]:
+        #             strings_frequency[string] += 1
 
         # For strings in frequency dictionary, add frequency in second half
         # of tau-limited features.

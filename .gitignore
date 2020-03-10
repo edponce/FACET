@@ -67,6 +67,9 @@ instance/
 # Sphinx documentation
 docs/_build/
 
+# Doxygen documentation
+docs/html
+
 # PyBuilder
 target/
 
@@ -95,16 +98,14 @@ ENV/
 # Cache folder
 cache/
 
-# Ignored test file
-test.py
+# IDE settings folders
+.vscode
+.idea
 
 # Other
 **/*.swp
 **/*.bak
 **/*.log
-TODO.txt
-docs/html
-
-# IDE settings folders
-.vscode
-.idea
+data/
+ref/
+tmp/

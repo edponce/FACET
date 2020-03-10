@@ -97,6 +97,7 @@ setup(
         'QuickerUMLS',
         'QuickerUMLS.database',
         'QuickerUMLS.serializer',
+        'QuickerUMLS.tokenizer',
         'QuickerUMLS.web',
         'QuickerUMLS.simstring',
         'QuickerUMLS.simstring.similarity',

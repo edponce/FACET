@@ -21,10 +21,13 @@ Database API
     :members:
 
 
-Ngram Extractor
----------------
+Ngram Features
+--------------
 
-.. autoclass:: QuickerUMLS.NgramExtractor
+.. autoclass:: QuickerUMLS.CharacterFeatures
+    :members:
+
+.. autoclass:: QuickerUMLS.WordFeatures
     :members:
 
 

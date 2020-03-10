@@ -10,3 +10,4 @@ from .ngram import (
     CharacterFeatures,
 )
 from .simstring import Simstring
+from .simstring_es import ESSimstring

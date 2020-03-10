@@ -14,11 +14,11 @@ class DictDatabase(BaseDatabase):
 
     Args:
 
-        db (str): Database directory and name for persistent dictionary.
-            The underlying database is managed by a file-backed dictionary.
-            The path is created if it does not exists. The database name
-            is used as prefix for database files. If None or empty
-            string, an in-memory dictionary is used. Default is None.
+        db (str): Path representing database directory and name for persistent
+            dictionary. The underlying database is managed by a file-backed
+            dictionary. The path is created if it does not exists. The
+            database name is used as prefix for database files. If None or
+            empty string, an in-memory dictionary is used. Default is None.
 
         flag (str): (For persistent mode only) Access mode for database.
             Valid values are: 'r' = read-only, 'w' = read/write',
@@ -34,11 +34,11 @@ class DictDatabase(BaseDatabase):
 
     def __init__(
         self,
-        db=None,
+        db: str = None,
         *,
-        flag='c',
-        protocol=pickle.HIGHEST_PROTOCOL,
-        max_cache_size=100,
+        flag: str = 'c',
+        protocol: int = pickle.HIGHEST_PROTOCOL,
+        max_cache_size: int = 100,
     ):
         if db:
             # Persistent dictionary
