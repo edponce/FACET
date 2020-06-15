@@ -217,3 +217,8 @@ class Installer:
 
         t2 = time.time()
         print(f'Total runtime: {t2 - t1} s')
+
+        # NOTE: Close databases. Where should this be done?
+        self._conso_db.close()
+        self._cuisty_db.close()
+        self._ss.db.close()

@@ -27,8 +27,6 @@ class Simstring:
             Valid values are 'L' (lower), 'U' (upper), or None (no casing).
             Default is 'L'.
     """
-    MAX_NGRAM_FEATURES = 64
-
     def __init__(
         self,
         *,
@@ -41,6 +39,13 @@ class Simstring:
         self._fe = feature_extractor
         self._measure = similarity
         self._case = case
+
+        # NOTE: Can track max number of n-gram features when inserting strings
+        # into database, but this value will not be available for other
+        # processes nor during a later search. Solution is to store the value
+        # into the database. But what if the database is not a key-value store,
+        # such as ElasticSearch.
+        self._global_max_features = self._db.get('__GLOBAL_MAX_FEATURES__')
 
     @property
     def db(self):
@@ -70,6 +75,14 @@ class Simstring:
             unique=True,
         )
 
+        # Check if number of features > MAX_NGRAM_FEATURES
+        if (
+            self._global_max_features is None
+            or len(features) > self._global_max_features
+        ):
+            self._global_max_features = len(features)
+            self._db.set('__GLOBAL_MAX_FEATURES__', self._global_max_features)
+
     def search(
         self,
         query_string: str,
@@ -83,7 +96,7 @@ class Simstring:
             self._measure.min_features(len(query_features), alpha)
         )
         max_features = min(
-            type(self).MAX_NGRAM_FEATURES,
+            self._global_max_features,
             self._measure.max_features(len(query_features), alpha)
         )
         similar_strings = [

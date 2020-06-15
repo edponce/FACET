@@ -39,7 +39,7 @@ class Formatter:
 
     @outfile.setter
     def outfile(self, outfile: str):
-        if not isinstance(outfile, str):
+        if outfile is not None and not isinstance(outfile, str):
             raise ValueError(
                 f'Error: invalid output file for formatter, {outfile}'
             )

@@ -38,8 +38,12 @@ class DictDatabase(BaseDatabase):
         self,
         db: str = None,
         *,
+        # NOTE: 'c' and 'w' are only used during installation of data.
+        # The common case is read-only.
         flag: str = 'c',
         protocol: int = pickle.HIGHEST_PROTOCOL,
+        # NOTE: Setting pipe to False, did not synced/saved data correctly.
+        # Need to investigate why.
         pipe: bool = True,
     ):
         if db:
@@ -50,6 +54,10 @@ class DictDatabase(BaseDatabase):
             db_dir = os.path.abspath(db_dir) if db_dir else os.getcwd()
             os.makedirs(db_dir, exist_ok=True)
             persistent = True
+            # NOTE: If shelve is opened in read mode, and sync() will trigger
+            # an error. Currently, sync() is controlled by 'pipe' value.
+            if flag == 'r':
+                pipe = False
             # NOTE: Enable writeback because it allows natural operations
             # on mutable entries, but consumes more memory and makes
             # sync/close operations take longer. Writeback queues operations
@@ -76,23 +84,24 @@ class DictDatabase(BaseDatabase):
         self._is_pipe = pipe
 
     def set_pipe(self, pipe):
-        pass
+        # NOTE: Given that this database type does not have a pipeline/stream
+        # mode that can be changed at runtime, we can close the file and
+        # reopen with writeback enabled (or viceversa).
+        if not pipe:
+            self.sync()
 
     @property
     def config(self):
-        if self._persistent:
-            # NOTE: shelve automatically adds '.dat' extension to file.
-            db_file = os.path.join(self._dir, self._name + '.dat')
-        else:
-            db_file = None
-
         return {
             'name': self._name,
             'dir': self._dir,
-            'used_memory': (os.path.getsize(db_file)
-                            if self._persistent and os.path.exists(db_file)
+            'used_memory': (os.path.getsize(os.path.join(
+                self._dir,
+                self._name + '.dat',
+            ))
+                            if self._persistent
                             else sys.getsizeof(self._db)),
-            'keys': len(self),
+            'num_keys': len(self),
         }
 
     def _is_hash_name(self, key: str) -> bool:
@@ -175,7 +184,7 @@ class DictDatabase(BaseDatabase):
                 del self._db[key]
 
     def sync(self):
-        if self._pipe:
+        if self._is_pipe:
             self._db.sync()
 
     def close(self):
