@@ -13,9 +13,11 @@ __all__ = ['Formatter']
 class Formatter:
     """Format data and write to stream."""
 
-    def __init__(self):
+    def __init__(self, *, format=None, outfile=None):
         self._format = None
         self._outfile = None
+        self.format = format
+        self.outfile = outfile
 
     @property
     def format(self) -> str:
@@ -37,6 +39,10 @@ class Formatter:
 
     @outfile.setter
     def outfile(self, outfile: str):
+        if not isinstance(outfile, str):
+            raise ValueError(
+                f'Error: invalid output file for formatter, {outfile}'
+            )
         self._outfile = outfile
 
     def __call__(self, data: Dict[str, List[List[Dict[str, Any]]]]) -> Any:

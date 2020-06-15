@@ -4,7 +4,7 @@ import QuickerUMLS
 ##########
 # CONFIG #
 ##########
-umls = 'data/umls_medium'
+umls = 'data/umls_midsmall'
 
 
 ###########

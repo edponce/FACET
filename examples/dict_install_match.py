@@ -4,8 +4,8 @@ import QuickerUMLS
 ##########
 # CONFIG #
 ##########
-text = 'data/test.txt'
-umls = 'data/umls_medium'
+text = 'data/test_text.txt'
+umls = 'data/umls_midsmall'
 format = 'json'
 outfile = 'dict_example.json'
 

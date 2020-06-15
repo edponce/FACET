@@ -27,6 +27,7 @@ class Simstring:
             Valid values are 'L' (lower), 'U' (upper), or None (no casing).
             Default is 'L'.
     """
+    MAX_NGRAM_FEATURES = 64
 
     def __init__(
         self,
@@ -40,37 +41,6 @@ class Simstring:
         self._fe = feature_extractor
         self._measure = similarity
         self._case = case
-        # self._cache_enabled = kwargs.get('enable_cache', False)
-
-        # NOTE: Keep a multilevel dictionary in memory containing
-        # the most recent lookups. Do not use cache if database is an
-        # in-memory dictionary.
-        # if isinstance(self._db, DictDatabase):
-        #     self._max_cache_size = 0
-        #     self._cache_db = None
-        #     self._cache_enabled = False
-        # elif self._cache_enabled:
-        #     self._max_cache_size = kwargs.get('max_cache_size', 100)
-        #     self._cache_db = DictDatabase()
-        #     self._cache_enabled = True
-        # self._cache_size = 0
-
-    # def _cache_string(
-    #     self,
-    #     size: int,
-    #     feature: str,
-    #     string: str,
-    # ) -> NoReturn:
-    #     _size = str(size)
-    #     self._cache_db.set(
-    #         _size,
-    #         feature,
-    #         string,
-    #         replace=False,
-    #         unique=True,
-    #     )
-    #     # NOTE: Need to limit cache size, which items to remove?
-    #     self._cache_size += 1
 
     @property
     def db(self):
@@ -108,21 +78,26 @@ class Simstring:
         rank: bool = True,
     ) -> Union[List[Tuple[str, float]], List[str]]:
         query_features = self._fe.get_features(self._strcase(query_string))
-        min_features = self._measure.min_features(len(query_features), alpha)
-        max_features = self._measure.max_features(len(query_features), alpha)
+        min_features = max(
+            1,
+            self._measure.min_features(len(query_features), alpha)
+        )
+        max_features = min(
+            type(self).MAX_NGRAM_FEATURES,
+            self._measure.max_features(len(query_features), alpha)
+        )
         similar_strings = [
             similar_string
             for candidate_feature_size in range(min_features, max_features + 1)
-                for similar_string in self._overlap_join(
-                    query_features,
+            for similar_string in self._overlap_join(
+                query_features,
+                candidate_feature_size,
+                self._measure.min_common_features(
+                    len(query_features),
                     candidate_feature_size,
-                    # tau = min_common_features()
-                    self._measure.min_common_features(
-                        len(query_features),
-                        candidate_feature_size,
-                        alpha,
-                    )
+                    alpha,
                 )
+            )
         ]
         similarities = [
             self._measure.similarity(
@@ -155,15 +130,20 @@ class Simstring:
             for string in strings[feature]:
                 strings_frequency[string] += 1
 
-        # TODO: Check if we can use something like this
-        # for string in strings_frequency.keys():
-        #     for feature in query_features[tau_split:]:
-        #         # NOTE: Wouldn't this always be true?
-        #         if string in strings[feature]:
-        #             strings_frequency[string] += 1
-
+        # if len(strings_frequency) == 0:
+        #     return []
+        #
         # For strings in frequency dictionary, add frequency in second half
         # of tau-limited features.
+        # candidate_strings = list(strings_frequency.keys())
+        # for i, feature in enumerate(query_features[tau_split:],
+        #                             start=tau_split):
+        #     for string in strings[feature]:
+        #         strings_frequency[string] += 1
+        #
+        #         if strings_frequency[string] >= tau:
+        #             candidate_strings.append(string)
+
         candidate_strings = []
         for string in strings_frequency.keys():
             for i, feature in enumerate(query_features[tau_split:],

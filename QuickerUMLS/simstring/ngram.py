@@ -22,7 +22,7 @@ class NgramFeatures(ABC):
         boundary (str): Character/word to use as padding for boundary features.
     """
 
-    def __init__(self, *, n: int = 2, boundary: str = ' '):
+    def __init__(self, *, n: int = 3, boundary: str = ' '):
         self.n = n
         self.boundary = boundary
 

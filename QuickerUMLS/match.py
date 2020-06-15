@@ -35,6 +35,8 @@ class Facet:
             Simstring requires an internal database.
 
         tokenizer (BaseTokenizer): Tokenizer instance.
+
+        formatter (Formatter): Formatter instance.
     """
 
     def __init__(
@@ -44,19 +46,20 @@ class Facet:
         cuisty_db: 'BaseDatabase',
         simstring: 'Simstring',
         tokenizer: 'BaseTokenizer' = Tokenizer(),
+        formatter: 'Formatter' = Formatter(),
     ):
         self._conso_db = conso_db
         self._cuisty_db = cuisty_db
         self._ss = simstring
         self.tokenizer = tokenizer
-        self.formatter = Formatter()
+        self.formatter = formatter
 
-    # def __call__(self, corpora: Union[str, Iterable[str]], **kwargs):
-    #     """
-    #     Kwargs:
-    #         Options passed directly to `match`.
-    #     """
-    #     return self.match(corpora, **kwargs)
+    def __call__(self, corpora: Union[str, Iterable[str]], **kwargs):
+        """
+        Kwargs:
+            Options passed directly to `match`.
+        """
+        return self.match(corpora, **kwargs)
 
     def _get_matches(
         self,
@@ -117,7 +120,7 @@ class Facet:
                 matches.append(ngram_matches)
         return matches
 
-    def __call__(
+    def match(
         self,
         corpora: Union[str, Iterable[str]],
         *,

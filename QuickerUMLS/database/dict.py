@@ -16,7 +16,8 @@ class DictDatabase(BaseDatabase):
 
         db (str): Path representing database directory and name for persistent
             dictionary. The underlying database is managed by a file-backed
-            dictionary. The path is created if it does not exists. The
+            dictionary. A '.dat' extension is automatically added by 'shelve'
+            to the filename. The path is created if it does not exists. The
             database name is used as prefix for database files. If None or
             empty string, an in-memory dictionary is used. Default is None.
 
@@ -28,8 +29,9 @@ class DictDatabase(BaseDatabase):
         protocol (int): (For persistent mode only) Pickle serialization
             protocol to use. Default is 'pickle.HIGHEST_PROTOCOL'.
 
-        max_cache_size (int): (For persistent mode only) Maximum number of
-            database modifications allowed before syncing cache to disk.
+        pipe (bool): (For persistent mode only) If set, queue 'set-related'
+            commands to database. Run 'sync' command to submit commands
+            in pipe. Default is True.
     """
 
     def __init__(
@@ -38,7 +40,7 @@ class DictDatabase(BaseDatabase):
         *,
         flag: str = 'c',
         protocol: int = pickle.HIGHEST_PROTOCOL,
-        max_cache_size: int = 100,
+        pipe: bool = True,
     ):
         if db:
             # Persistent dictionary
@@ -56,7 +58,7 @@ class DictDatabase(BaseDatabase):
             # the database is closed.
             self._db = shelve.open(
                 os.path.join(db_dir, db_name),
-                writeback=True,
+                writeback=pipe,
                 flag=flag,
                 protocol=protocol,
             )
@@ -65,21 +67,25 @@ class DictDatabase(BaseDatabase):
             db_dir = None
             db_name = None
             persistent = False
+            pipe = False
             self._db = {}
 
         self._dir = db_dir
         self._name = db_name
         self._persistent = persistent
-        # NOTE: For persistent database, to manage database cache more
-        # effectively, sync every N modifications.
-        self._max_cache_size = max_cache_size
-        self._cache_size = 0
+        self._is_pipe = pipe
+
+    def set_pipe(self, pipe):
+        pass
 
     @property
     def config(self):
-        db_file = None
         if self._persistent:
+            # NOTE: shelve automatically adds '.dat' extension to file.
             db_file = os.path.join(self._dir, self._name + '.dat')
+        else:
+            db_file = None
+
         return {
             'name': self._name,
             'dir': self._dir,
@@ -88,20 +94,6 @@ class DictDatabase(BaseDatabase):
                             else sys.getsizeof(self._db)),
             'keys': len(self),
         }
-
-    def _auto_sync(self, n):
-        """(For persistent mode only) Check if cache database needs to be
-        sync'ed to disk.
-
-        Args:
-            n (int): Number of new modifications to use for check.
-        """
-        if n > 0:
-            if self._cache_size + n >= self._max_cache_size:
-                self._db.sync()
-                self._cache_size = 0
-            else:
-                self._cache_size += n
 
     def _is_hash_name(self, key: str) -> bool:
         """Detect if a key is a hash name.
@@ -133,8 +125,6 @@ class DictDatabase(BaseDatabase):
         value = self._resolve_set(key, value, **kwargs)
         if value is not None:
             self._db[key] = value
-            if self._persistent:
-                self._auto_sync(1)
 
     def _mset(self, mapping, **kwargs):
         for key, value in mapping.items():
@@ -147,8 +137,6 @@ class DictDatabase(BaseDatabase):
                 self._db[key].update({field: value})
             else:
                 self._db[key] = {field: value}
-            if self._persistent:
-                self._auto_sync(1)
 
     def _hmset(self, key, mapping, **kwargs):
         for field, value in mapping.items():
@@ -175,8 +163,6 @@ class DictDatabase(BaseDatabase):
     def _delete(self, keys):
         for i, key in enumerate(filter(self._exists, keys), start=1):
             del self._db[key]
-        if self._persistent:
-            self._auto_sync(i)
 
     def _hdelete(self, key, fields):
         if self._is_hash_name(key):
@@ -187,11 +173,9 @@ class DictDatabase(BaseDatabase):
             # NOTE: Delete key if it has no fields remaining
             if len(self._db[key]) == 0:
                 del self._db[key]
-            if self._persistent:
-                self._auto_sync(i)
 
     def sync(self):
-        if self._persistent:
+        if self._pipe:
             self._db.sync()
 
     def close(self):
