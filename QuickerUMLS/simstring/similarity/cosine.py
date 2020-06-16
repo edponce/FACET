@@ -29,4 +29,4 @@ class CosineSimilarity(BaseSimilarity):
     def similarity(self, featuresA, featuresB):
         fa = set(featuresA)
         fb = set(featuresB)
-        return float(len(fa & fb) / math.sqrt(len(fa) * len(fb)))
+        return len(fa & fb) / math.sqrt(len(fa) * len(fb))

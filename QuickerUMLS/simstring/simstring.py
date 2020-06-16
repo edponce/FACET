@@ -75,6 +75,8 @@ class Simstring:
             str(len(features)),
             # NOTE: Create set here to remove duplicates and not
             # affect the numbers of features extracted.
+            # NOTE: If ordinal numbers are attached to features, there are no
+            # duplicates.
             {feature: self._strcase(string)
              for feature in set(map(self._strcase, features))},
             replace=False,
@@ -107,8 +109,6 @@ class Simstring:
 
         # X = string_to_feature(x)
         query_features = self._fe.get_features(_query_string)
-        # DEBUG
-        print(query_features, len(query_features))
 
         # Check if query string is in cache
         # NOTE: Cached data assumes all Simstring parameters are the same with
@@ -150,11 +150,6 @@ class Simstring:
             # Insert candidate strings into cache
             if update_cache and self._cache_db is not None:
                 self._cache_db.set(_query_string, alpha, candidate_strings)
-
-        # DEBUG
-        for candidate_string in candidate_strings:
-            f = self._fe.get_features(self._strcase(candidate_string))
-            print(f, len(f))
 
         similarities = [
             self._measure.similarity(
