@@ -192,6 +192,8 @@ class Installer:
         curr_time = time.time()
         print(f'Writing simstring: {curr_time - start} s')
 
+        # NOTE: 'valids' option does not removes keys if no value is
+        # available.
         print('Loading/parsing semantic types...')
         start = time.time()
         mrsty_file = os.path.join(umls_dir, mrsty)
