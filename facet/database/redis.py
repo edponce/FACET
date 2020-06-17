@@ -1,7 +1,7 @@
 import copy
 import redis
 from .base import BaseDatabase
-from QuickerUMLS.serializer import JSONSerializer as Serializer
+from ..serializer import JSONSerializer as Serializer
 
 
 __all__ = ['RedisDatabase']

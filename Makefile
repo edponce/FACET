@@ -1,4 +1,4 @@
-PKGDIR  := QuickerUMLS
+PKGDIR  := facet
 TESTDIR := tests
 PYTHON  := python3
 DOCDIR  := docs

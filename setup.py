@@ -1,5 +1,5 @@
 import re
-import QuickerUMLS as pkg
+import facet as pkg
 from setuptools import setup, find_packages
 
 
@@ -94,13 +94,13 @@ setup(
     include_package_data=True,
     # packages=find_packages(),
     packages=[
-        'QuickerUMLS',
-        'QuickerUMLS.database',
-        'QuickerUMLS.serializer',
-        'QuickerUMLS.tokenizer',
-        'QuickerUMLS.web',
-        'QuickerUMLS.simstring',
-        'QuickerUMLS.simstring.similarity',
+        'facet',
+        'facet.database',
+        'facet.serializer',
+        'facet.tokenizer',
+        'facet.web',
+        'facet.simstring',
+        'facet.simstring.similarity',
     ],
     install_requires=install_requirements,
     setup_requires=setup_requirements,
