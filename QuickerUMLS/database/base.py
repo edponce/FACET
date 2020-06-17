@@ -62,8 +62,8 @@ class BaseDatabase(ABC):
 
     # NOTE: Can close() be called multiple times without side effects
     # on all databases?
-    def __del__(self):
-        self.close()
+    # def __del__(self):
+    #     self.close()
 
     @property
     def config(self) -> Dict[str, Any]:

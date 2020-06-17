@@ -241,7 +241,7 @@ def iter_data(
         kwargs['converters'] = None
 
     # Pre-compute indices and columns for post-converter functions.
-    # NOTE: This is a performance optimization because allows operating
+    # NOTE: This is a performance optimization because it allows operating
     # on deterministic items without incurring on hashing operations
     # nor indirect addressing.
     if post_converters is not None:
@@ -428,10 +428,10 @@ def unpack_dir(
 
 
 def corpus_generator(
-    corpora: Union[str, Iterable[str]],
+    corpora: Union[str, Iterable[str], Iterable[Iterable[str]]],
     *,
     phony=False,
-    **kwargs
+    **kwargs,
 ) -> Tuple[str, str]:
     """Extracts text from corpora.
 
@@ -440,6 +440,7 @@ def corpus_generator(
             * Directory
             * File
             * Raw text
+            * An iterable with two parts: (filename, text)
             * An iterable of any combination of the above
 
         phony (bool): If set, attr:`corpora` items are not considered
@@ -449,11 +450,18 @@ def corpus_generator(
         Options passed directory to 'unpack_dir'.
 
     Returns (Tuple[str, str]): Corpus source and corpus content.
-                     The source identifier for raw text is '_text'.
+                     The source identifier for raw text is '__text__'.
                      The source identifier for other is their file system name.
     """
     if not is_iterable(corpora):
         corpora = (corpora,)
+
+    # NOTE: Need to implement the following scheme.
+    # Convert corpus into iterable of iterables [(filename1, text), (...), ...]
+    # File format: (filename, None)
+    # Raw text format: (None, text)
+    # Filename and raw text format: (filename, text)
+    # Directory format: (dir, None)
 
     if not phony:
         _corpora = []
@@ -468,10 +476,12 @@ def corpus_generator(
     for corpus in _corpora:
         # Assume corpus is raw text if it is not a file system object.
         if phony or not os.path.exists(corpus):
-            yield '_text', corpus
+            yield '__text__', corpus
         elif os.path.isfile(corpus):
             if os.path.basename(corpus).startswith('.'):
                 continue
-            # NOTE: For files, return the entire content.
+            # NOTE: For files, return the entire content. This is not the best
+            # approach for large files, but there is no way of splitting by
+            # sentences a priori (unless stated otherwise).
             with open(corpus) as fd:
                 yield corpus, fd.read()

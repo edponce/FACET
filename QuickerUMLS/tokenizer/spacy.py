@@ -72,8 +72,7 @@ class SpacyTokenizer(BaseTokenizer):
             if not self._is_valid_token(token):
                 continue
 
-            # we take a shortcut if the token is the last one
-            # in the sentence
+            # We take a shortcut if the token is the last one in the sentence
             if (
                 i + 1 == len(sentence)
                 and len(token) >= min_match_length

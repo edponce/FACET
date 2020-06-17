@@ -6,12 +6,13 @@ __all__ = ['ExactSimilarity']
 
 
 class ExactSimilarity(BaseSimilarity):
-    """Exact similarity.
+    """Exact similarity."""
 
-    Conditions:
+    # Conditions:
+    #
+    #     * exact(x,y) = x == y, [True, False] -> R
 
-        * exact(x,y) = x == y, no alpha
-    """
+    _name = 'exact'
 
     def min_features(self, length, alpha):
         return int(length)

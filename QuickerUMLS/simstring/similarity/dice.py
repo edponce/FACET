@@ -6,15 +6,16 @@ __all__ = ['DiceSimilarity']
 
 
 class DiceSimilarity(BaseSimilarity):
-    """Sorensen-Dice coefficient.
+    """Sorensen-Dice coefficient."""
 
-    Conditions:
+    # Conditions:
+    #
+    #     * dice(x,y) = 2|x & y| / (|x| + |y|), (0,1] -> R
+    #     * dice(x,y) >= a
+    #     * ceil(1/2*a*(|x|+|y|)) <= |x & y| <= min(|x|,|y|)
+    #     * ceil(a/(2-a)*|x|) <= |y| <= floor((2-a)/a*|x|)
 
-        * dice(x,y) = 2|x & y| / (|x| + |y|), (0,1] -> R
-        * dice(x,y) >= a
-        * ceil(1/2*a*(|x|+|y|)) <= |x & y| <= min(|x|,|y|)
-        * ceil(a/(2-a)*|x|) <= |y| <= floor((2-a)/a*|x|)
-    """
+    _name = 'dice'
 
     def min_features(self, length, alpha):
         return int(math.ceil(alpha / (2. - alpha) * length))

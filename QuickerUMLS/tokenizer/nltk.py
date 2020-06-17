@@ -39,13 +39,12 @@ class NLTKTokenizer(BaseTokenizer):
     def _tokenize(self, text):
         for begin, end in self._tokenizer.span_tokenize(text):
             token = text[begin:end]
-            token_l = token.lower()
-            if token_l in type(self)._CONTRACTIONS_MAP:
-                token = token_l = type(self)._CONTRACTIONS_MAP[token_l]
-            if token_l not in self._stopwords:
+            if token in type(self)._CONTRACTIONS_MAP:
+                token = type(self)._CONTRACTIONS_MAP[token]
+            if token not in self._stopwords:
                 yield (begin, end, token)
 
-    def _tokenize_pos(self, text):
+    def tokenize(self, text):
         """Use parts-of-speech tagger to filter tokens."""
         spans = []
         tokens = []
@@ -64,5 +63,3 @@ class NLTKTokenizer(BaseTokenizer):
             token, pos = token_pos
             if pos in ('NOUN', 'VERB', 'ADV', 'ADJ'):
                 yield (*span, token)
-
-    tokenize = _tokenize_pos

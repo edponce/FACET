@@ -1,6 +1,10 @@
 from collections import defaultdict
 from .ngram import CharacterFeatures as Features
-from .similarity import CosineSimilarity as Similarity
+from .similarity import (
+    get_similarity_measure,
+    BaseSimilarity,
+    CosineSimilarity as Similarity,
+)
 from QuickerUMLS.database import DictDatabase as Database
 from typing import (
     List,
@@ -17,33 +21,44 @@ __all__ = ['Simstring']
 class Simstring:
     """Implementation of Simstring algorithm.
 
+    Okazaki, Naoaki, and Jun'ichi Tsujii. "Simple and efficient algorithm for
+    approximate dictionary matching." Proceedings of the 23rd International
+    Conference on Computational Linguistics. Association for Computational
+    Linguistics, 2010.
+
     Args:
         db (BaseDatabase): Database instance for strings storage.
+            Default is a Python dictionary.
 
         feature_extractor (NgramFeatures): N-gram feature extractor instance.
+            Default is CharacterFeatures.
 
-        similarity (BaseSimilarity): Instance of similarity measure.
+        alpha (float): Similarity threshold in range (0,1]. Default is 0.7.
 
-        case (str): Character to control string casing during insert/search.
-            Valid values are 'L' (lower), 'U' (upper), or None (no casing).
-            Default is 'L'.
+        similarity (str, BaseSimilarity): Instance of similarity measure or
+            similarity name. Valid measures are: 'cosine', 'jaccard', 'dice',
+            'exact', 'overlap', 'hamming'. Default is 'cosine'.
 
         cache_db (BaseDatabase): Database instance for strings cache.
     """
+
     def __init__(
         self,
         *,
         db: 'BaseDatabase' = Database(),
         feature_extractor: 'NgramFeatures' = Features(),
-        similarity: 'BaseSimilarity' = Similarity(),
-        case: str = 'L',
+        alpha: float = 0.7,
+        similarity: Union[str, 'BaseSimilarity'] = Similarity(),
         cache_db: 'BaseDatabase' = None,
     ):
         self._db = db
         self._fe = feature_extractor
-        self._measure = similarity
-        self._case = case
+        self._alpha = None
+        self._similarity = None
         self._cache_db = cache_db
+
+        self.alpha = alpha
+        self.similarity = similarity
 
         # NOTE: Can track max number of n-gram features when inserting strings
         # into database, but this value will not be available for other
@@ -51,39 +66,58 @@ class Simstring:
         # into the database. But what if the database is not a key-value store,
         # such as ElasticSearch.
         self._global_max_features = self._db.get('__GLOBAL_MAX_FEATURES__')
+        if self._global_max_features is None:
+            self._global_max_features = 64
 
     @property
     def db(self):
         return self._db
+
+    @property
+    def alpha(self):
+        return self._alpha
+
+    @alpha.setter
+    def alpha(self, alpha: float):
+        # Bound alpha to range [0,1]
+        self._alpha = min(1, max(alpha, 0))
+
+    @property
+    def similarity(self):
+        return self._similarity.name
+
+    @similarity.setter
+    def similarity(self, similarity: Union[str, 'BaseSimilarity']):
+        measure = None
+        if isinstance(similarity, str):
+            measure = get_similarity_measure(similarity)
+        elif isinstance(similarity, BaseSimilarity):
+            measure = similarity
+
+        if measure is None:
+            raise ValueError(f'invalid similarity measure, {similarity}')
+        self._similarity = measure
 
     def _get_strings(self, size: int, feature: str) -> List[str]:
         """Get strings corresponding to feature size and query feature."""
         strings = self._db.get(str(size), feature)
         return strings if strings is not None else []
 
-    def _strcase(self, string: str):
-        if self._case in ('l', 'L'):
-            string = string.lower()
-        elif self._case in ('u', 'U'):
-            string = string.upper()
-        return string
-
     def insert(self, string: str) -> NoReturn:
         """Insert string into database."""
         features = self._fe.get_features(string)
         self._db.set(
             str(len(features)),
-            # NOTE: Create set here to remove duplicates and not
-            # affect the numbers of features extracted.
-            # NOTE: If ordinal numbers are attached to features, there are no
-            # duplicates.
-            {feature: self._strcase(string)
-             for feature in set(map(self._strcase, features))},
+            {feature: string for feature in features},
             replace=False,
             unique=True,
         )
 
-        # Limit number of candidate features by longest sequence of features
+        # Track and store longest sequence of features
+        # NOTE: Too many database accesses. Probably it is best to estimate or
+        # fix a value or assume inserts occur during the same installation
+        # phase and keep track using class variables, then require a "closing"
+        # operation to store value into database.
         if (
             self._global_max_features is None
             or len(features) > self._global_max_features
@@ -95,38 +129,48 @@ class Simstring:
         self,
         query_string: str,
         *,
-        alpha: float = 0.7,
+        alpha: float = None,
+        similarity: Union[str, 'BaseSimilarity'] = None,
         rank: bool = True,
         update_cache: bool = True,
     ) -> Union[List[Tuple[str, float]], List[str]]:
         """Approximate dictionary matching.
 
         Args:
+            alpha (float): Similarity threshold.
+
+            similarity (str, BaseSimilarity): Instance of similarity measure or
+                similarity name. Valid measures are: 'cosine', 'jaccard',
+                'dice', 'exact', 'overlap', 'hamming'.
+
             update_cache (bool): If set, then cache database is updated with
                 new queries. Default is True.
         """
-        _query_string = self._strcase(query_string)
+        if alpha is None:
+            alpha = self._alpha
+        if similarity is None:
+            similarity = self._similarity
 
         # X = string_to_feature(x)
-        query_features = self._fe.get_features(_query_string)
+        query_features = self._fe.get_features(query_string)
 
         # Check if query string is in cache
         # NOTE: Cached data assumes all Simstring parameters are the same with
         # the exception of 'alpha'.
         query_in_cache = False
         if self._cache_db is not None:
-            candidate_strings = self._cache_db.get(_query_string, alpha)[0]
+            candidate_strings = self._cache_db.get(query_string, alpha)[0]
             if candidate_strings is not None:
                 query_in_cache = True
 
         if not query_in_cache:
             min_features = max(
                 1,
-                self._measure.min_features(len(query_features), alpha)
+                self._similarity.min_features(len(query_features), alpha)
             )
             max_features = min(
                 self._global_max_features,
-                self._measure.max_features(len(query_features), alpha)
+                self._similarity.max_features(len(query_features), alpha)
             )
             # Y = list of strings similar to the query
             candidate_strings = [
@@ -139,7 +183,7 @@ class Simstring:
                 for candidate_string in self._overlap_join(
                     query_features,
                     candidate_feature_size,
-                    self._measure.min_common_features(
+                    self._similarity.min_common_features(
                         len(query_features),
                         candidate_feature_size,
                         alpha,
@@ -149,12 +193,12 @@ class Simstring:
 
             # Insert candidate strings into cache
             if update_cache and self._cache_db is not None:
-                self._cache_db.set(_query_string, alpha, candidate_strings)
+                self._cache_db.set(query_string, alpha, candidate_strings)
 
         similarities = [
-            self._measure.similarity(
+            self._similarity.similarity(
                 query_features,
-                self._fe.get_features(self._strcase(candidate_string)),
+                self._fe.get_features(candidate_string),
             )
             for candidate_string in candidate_strings
         ]
@@ -165,8 +209,6 @@ class Simstring:
         if rank:
             strings_and_similarities.sort(key=lambda ss: ss[1], reverse=True)
 
-        # DEBUG
-        print(strings_and_similarities)
         return strings_and_similarities
 
     def _overlap_join(

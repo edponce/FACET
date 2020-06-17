@@ -6,16 +6,16 @@ __all__ = ['CosineSimilarity']
 
 
 class CosineSimilarity(BaseSimilarity):
-    """Cosine similarity.
+    """Cosine similarity."""
 
-    Conditions:
+    # Conditions:
+    #     * cosine(x,y) = |x & y| / sqrt(|x||y|), (0,1] -> R
+    #     * cosine(x,y) >= a
+    #     * ceil(a*sqrt(|x||y|)) <= |x & y| <= min(|x|,|y|)
+    #     * ceil(a^2*|x||y|) <= |y|^2
+    #     * ceil(a^2*|x|) <= |y| <= floor(|x|/a^2)
 
-        * cosine(x,y) = |x & y| / sqrt(|x||y|), (0,1] -> R
-        * cosine(x,y) >= a
-        * ceil(a*sqrt(|x||y|)) <= |x & y| <= min(|x|,|y|)
-        * ceil(a^2*|x||y|) <= |y|^2
-        * ceil(a^2*|x|) <= |y| <= floor(|x|/a^2)
-    """
+    _name = 'cosine'
 
     def min_features(self, length, alpha):
         return int(math.ceil(alpha * alpha * length))

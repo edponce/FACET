@@ -16,7 +16,7 @@ __all__ = ['Facet']
 
 
 # Enable/disable profiling
-PROFILE = False
+PROFILE = True
 if PROFILE:
     import cProfile
 
@@ -54,45 +54,26 @@ class Facet:
         self.tokenizer = tokenizer
         self.formatter = formatter
 
-    def __call__(self, corpora: Union[str, Iterable[str]], **kwargs):
-        """
-        Kwargs:
-            Options passed directly to `match`.
-        """
-        return self.match(corpora, **kwargs)
+    @property
+    def ss(self):
+        return self._ss
 
     def _get_matches(
         self,
         ngrams: Iterable[Any],
-        *,
-        alpha: float = 0.7,
-        # normalize_unicode: bool = True,
-        # lowercase: bool = False,
+        **kwargs,
     ) -> List[List[Dict[str, Any]]]:
         """
         Args:
             ngrams (Iterable[int, int, str]): Parsed N-grams with span.
 
-            normalize_unicode (bool): Enable Unicode normalization.
-                Default is True.
+        Kwargs:
+            Options passed directly to `Simstring.search`.
         """
         matches = []
         for begin, end, ngram in ngrams:
-            # NOTE: Normalization should be done by the tokenizer not here.
-            # ngram_normalized = ngram
-            # if normalize_unicode:
-            #     ngram_normalized = unidecode(ngram_normalized)
-
-            # NOTE: Case matching is controlled by Simstring.
-            # if lowercase:
-            #     ngram_normalized = ngram_normalized.lower()
-
-            # NOTE: Simstring results do not need to be sorted because
-            # we sort matches based on similarity
             ngram_matches = []
-            for candidate, similarity in self._ss.search(ngram,
-                                                         alpha=alpha,
-                                                         rank=False):
+            for candidate, similarity in self._ss.search(ngram, **kwargs):
                 for cui in filter(None, self._conso_db.get(candidate)):
                     # NOTE: Using ACCEPTED_SEMTYPES will always result
                     # in true. If not so, should we include the match
@@ -109,33 +90,48 @@ class Facet:
                             'semantic type': semtypes,
                         })
 
-            # Sort matches by similarity
-            # NOTE: If Simstring results are sorted the same way, then
-            # we can skip this extra sorting.
             if len(ngram_matches) > 0:
-                ngram_matches.sort(
-                    key=lambda x: x['similarity'],
-                    reverse=True
-                )
                 matches.append(ngram_matches)
+
         return matches
 
     def match(
         self,
         corpora: Union[str, Iterable[str]],
         *,
-        best_match: bool = True,
-        alpha: float = 0.7,
-        **kwargs
+        # best_match: bool = True,
+        case: str = None,
+        normalize_unicode: bool = False,
+        # NOTE: The following default values are based on the corresponding
+        # function/method call using them.
+        format: str = '',
+        outfile: str = None,
+        corpus_kwargs: Dict[str, Any] = {},
+        **kwargs,
     ) -> Dict[str, List[List[Dict[str, Any]]]]:
         """
         Args:
             corpora (Union[str, Iterable[str]]): Corpora items.
 
-            best_match (bool):
+            best_match (bool): ?
+
+            case (str, None): Controls string casing during insert/search.
+                Valid values are 'lL' (lower), 'uU' (upper), or None.
+                Default is None.
+
+            normalize_unicode (bool): Enable Unicode normalization.
+                Default is False.
+
+            format (str): Formatting mode for match results. Valid values
+                are: 'json', 'xml', 'pickle', 'csv'.
+
+            outfile (str): Output file for match results.
+
+            corpus_kwargs (Dict[str, Any]): Options passed directly to
+                `corpus_generator`.
 
         Kwargs:
-            Options passed directly to `corpus_generator`.
+            Options passed directly to `Simstring.search` via `_get_matches`.
 
         Examples:
 
@@ -143,20 +139,37 @@ class Facet:
         >>> for terms in matches['file1.txt']:
         >>>     for term in terms:
         >>>         print(term['concept'], term['cui'], term['semantic type'])
+
+        >>> matches = Facet().match([('filename1', 'text1'), (...), ...])
+        >>> for terms in matches['filename1']:
+        >>>     for term in terms:
+        >>>         print(term['concept'], term['cui'], term['semantic type'])
         """
-        # Profile
         if PROFILE:
             prof = cProfile.Profile(subcalls=True, builtins=True)
             prof.enable()
 
+        if case in ('L', 'l'):
+            strcase = str.lower
+        elif case in ('U', 'u'):
+            strcase = str.upper
+        elif case is None:
+            strcase = None
+        else:
+            raise ValueError(f'invalid string case option, {case}')
+
         t1 = time.time()
         matches = collections.defaultdict(list)
-        for source, corpus in corpus_generator(corpora, **kwargs):
+        for source, corpus in corpus_generator(corpora, **corpus_kwargs):
+            if strcase is not None:
+                corpus = strcase(corpus)
+
+            if normalize_unicode:
+                corpus = unidecode(corpus)
+
             for sentence in self.tokenizer.sentencize(corpus):
                 ngrams = self.tokenizer.tokenize(sentence)
-
-                _matches = self._get_matches(ngrams, alpha=alpha)
-                print(f'Num matches: {len(_matches)}')
+                _matches = self._get_matches(ngrams, **kwargs)
 
                 # if best_match:
                 #     matches = self._select_terms(_matches)
@@ -168,11 +181,10 @@ class Facet:
         t2 = time.time()
         print(f'Matching N-grams: {t2 - t1} s')
 
-        # Profile
         if PROFILE:
             prof.disable()
             prof.create_stats()
             prof.print_stats('time')
             prof.clear()
 
-        return self.formatter(matches)
+        return self.formatter(matches, format=format, outfile=outfile)
