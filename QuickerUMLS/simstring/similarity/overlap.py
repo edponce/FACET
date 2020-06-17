@@ -6,25 +6,24 @@ __all__ = ['OverlapSimilarity']
 
 
 class OverlapSimilarity(BaseSimilarity):
-    """Overlap coefficient (Szymkiewicz-Simpson coefficient).
+    """Overlap coefficient (Szymkiewicz-Simpson coefficient)."""
 
-    Conditions:
+    # Conditions:
+    #
+    #     * overlap(x,y) = |x & y| / min(|x|,|y|), (0,1] -> R
+    #     * overlap(x,y) >= a
+    #     * ceil(a*min(|x|,|y|)) <= |x & y| <= min(|x|,|y|)
+    #     * ceil(a*|y|) <= |y|
+    #     * ceil(a) <= 1 <= floor(1/a)
+    #     * ceil(a*|y|) <= |y| <= floor(|y|/a)
+    #     * ceil(a*|x|) <= |x| <= floor(|x|/a)
 
-        * overlap(x,y) = |x & y| / min(|x|,|y|), (0,1] -> R
-        * overlap(x,y) >= a
-        * ceil(a*min(|x|,|y|)) <= |x & y| <= min(|x|,|y|)
-        * ceil(a*|y|) <= |y|
-        * ceil(a) <= 1 <= floor(1/a)
-        * ceil(a*|y|) <= |y| <= floor(|y|/a)
-        * ceil(a*|x|) <= |x| <= floor(|x|/a)
-    """
+    _name = 'overlap'
 
     def min_features(self, length, alpha):
-        # return None
         return int(math.ceil(alpha * length))
 
     def max_features(self, length, alpha):
-        # return None
         return int(math.floor(length / alpha))
 
     def min_common_features(self, lengthA, lengthB, alpha):
@@ -33,5 +32,4 @@ class OverlapSimilarity(BaseSimilarity):
     def similarity(self, featuresA, featuresB):
         fa = set(featuresA)
         fb = set(featuresB)
-        # return float(len(fa & fb))
-        return float(len(fa & fb) / min(len(fa), len(fb)))
+        return len(fa & fb) / min(len(fa), len(fb))

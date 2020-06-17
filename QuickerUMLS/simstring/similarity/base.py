@@ -6,18 +6,20 @@ __all__ = ['BaseSimilarity']
 
 
 class BaseSimilarity(ABC):
-    """Interface for similarity measures.
+    """Interface for similarity measures."""
 
-    Notes:
-        * Is a pure abstract class.
-    """
+    @property
+    def name(self):
+        return type(self)._name
 
     @abstractmethod
     def min_features(self, length: int, alpha: float) -> int:
+        """Minimum number of features for searching similar strings."""
         pass
 
     @abstractmethod
     def max_features(self, length: int, alpha: float) -> int:
+        """Maximum number of features for searching similar strings."""
         pass
 
     @abstractmethod
@@ -27,6 +29,7 @@ class BaseSimilarity(ABC):
         lengthB: int,
         alpha: float,
     ) -> int:
+        """Minimum number of features for approximate dictionary matching."""
         pass
 
     @abstractmethod
@@ -35,4 +38,5 @@ class BaseSimilarity(ABC):
         featuresA: Iterable[Any],
         featuresB: Iterable[Any],
     ) -> float:
+        """Similarity measure between pair of string features."""
         pass

@@ -12,7 +12,7 @@ class ESSimstring:
     """Implementation of Simstring algorithm.
 
     Args:
-        db (BaseDatabase): Database instance for storage.
+        db (BaseDatabase, str): ES database instance or index for storage.
 
         feature_extractor (NgramFeatures): N-gram feature extractor instance.
 

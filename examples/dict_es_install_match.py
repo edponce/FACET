@@ -4,10 +4,11 @@ import QuickerUMLS
 ##########
 # CONFIG #
 ##########
-text = 'data/test.txt'
-umls = 'data/umls_medium'
+text = 'data/test_text.txt'
+umls = 'data/umls_midsmall'
 format = 'json'
 outfile = 'dict_example.json'
+index = 'umls_midsmall'
 
 
 ###########
@@ -15,7 +16,7 @@ outfile = 'dict_example.json'
 ###########
 db1 = QuickerUMLS.DictDatabase()
 db2 = QuickerUMLS.DictDatabase()
-ss = QuickerUMLS.ESSimstring(db='testing')
+ss = QuickerUMLS.ESSimstring(db=index)
 
 # Install
 facet = QuickerUMLS.Installer(conso_db=db1, cuisty_db=db2, simstring=ss)
@@ -23,7 +24,7 @@ facet.install(umls)
 
 # Search
 ss = QuickerUMLS.ESSimstring(
-    db=QuickerUMLS.ElasticsearchDatabase(index='testing'),
+    db=QuickerUMLS.ElasticsearchDatabase(index=index),
 )
 m = QuickerUMLS.Facet(conso_db=db1, cuisty_db=db2, simstring=ss)
 m.formatter.format = format
