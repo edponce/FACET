@@ -5,7 +5,7 @@ import os
 import sys
 import re
 sys.path.append(os.path.abspath('..'))
-import QuickerUMLS as pkg
+import facet as pkg
 
 
 # -- General configuration ------------------------------------------------

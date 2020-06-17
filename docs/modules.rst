@@ -4,118 +4,118 @@ MODULES
 Installer API
 -------------
 
-.. autoclass:: QuickerUMLS.Installer
+.. autoclass:: facet.Installer
     :members:
 
-.. autoclass:: QuickerUMLS.ESInstaller
+.. autoclass:: facet.ESInstaller
     :members:
 
 
 FACET API
 ---------
 
-.. autoclass:: QuickerUMLS.Facet
+.. autoclass:: facet.Facet
     :members:
 
-.. autoclass:: QuickerUMLS.ESFacet
+.. autoclass:: facet.ESFacet
     :members:
 
 
 Tokenizer API
 -------------
 
-.. autoclass:: QuickerUMLS.WhitespaceTokenizer
+.. autoclass:: facet.WhitespaceTokenizer
     :members:
 
-.. autoclass:: QuickerUMLS.SpacyTokenizer
+.. autoclass:: facet.SpacyTokenizer
     :members:
 
-.. autoclass:: QuickerUMLS.NLTKTokenizer
+.. autoclass:: facet.NLTKTokenizer
     :members:
 
 
 Database API
 ------------
 
-.. autoclass:: QuickerUMLS.database.base.BaseDatabase
+.. autoclass:: facet.database.base.BaseDatabase
     :members:
 
-.. autoclass:: QuickerUMLS.RedisDatabase
+.. autoclass:: facet.RedisDatabase
     :members:
 
-.. autoclass:: QuickerUMLS.DictDatabase
+.. autoclass:: facet.DictDatabase
     :members:
 
-.. autoclass:: QuickerUMLS.Elasticsearchx
+.. autoclass:: facet.Elasticsearchx
     :members:
 
-.. autoclass:: QuickerUMLS.ElasticsearchDatabase
+.. autoclass:: facet.ElasticsearchDatabase
     :members:
 
 
 Ngram Features
 --------------
 
-.. autoclass:: QuickerUMLS.CharacterFeatures
+.. autoclass:: facet.CharacterFeatures
     :members:
 
-.. autoclass:: QuickerUMLS.WordFeatures
+.. autoclass:: facet.WordFeatures
     :members:
 
 
 Similarity Measures
 -------------------
 
-.. autoclass:: QuickerUMLS.simstring.similarity.BaseSimilarity
+.. autoclass:: facet.simstring.similarity.BaseSimilarity
     :members:
 
-.. autoclass:: QuickerUMLS.ExactSimilarity
+.. autoclass:: facet.ExactSimilarity
 
-.. autoclass:: QuickerUMLS.DiceSimilarity
+.. autoclass:: facet.DiceSimilarity
 
-.. autoclass:: QuickerUMLS.CosineSimilarity
+.. autoclass:: facet.CosineSimilarity
 
-.. autoclass:: QuickerUMLS.JaccardSimilarity
+.. autoclass:: facet.JaccardSimilarity
 
-.. autoclass:: QuickerUMLS.OverlapSimilarity
+.. autoclass:: facet.OverlapSimilarity
 
-.. autoclass:: QuickerUMLS.HammingSimilarity
+.. autoclass:: facet.HammingSimilarity
 
 
 Serializer
 ----------
 
-.. autoclass:: QuickerUMLS.serializer.base.BaseSerializer
+.. autoclass:: facet.serializer.base.BaseSerializer
     :members:
 
-.. autoclass:: QuickerUMLS.PickleSerializer
+.. autoclass:: facet.PickleSerializer
     :members:
 
-.. autoclass:: QuickerUMLS.JSONSerializer
+.. autoclass:: facet.JSONSerializer
     :members:
 
-.. autoclass:: QuickerUMLS.YAMLSerializer
+.. autoclass:: facet.YAMLSerializer
     :members:
 
-.. autoclass:: QuickerUMLS.StringSerializer
+.. autoclass:: facet.StringSerializer
     :members:
 
-.. autoclass:: QuickerUMLS.StringSJSerializer
+.. autoclass:: facet.StringSJSerializer
     :members:
 
 
 Simstring
 ---------
 
-.. autoclass:: QuickerUMLS.Simstring
+.. autoclass:: facet.Simstring
     :members:
 
-.. autoclass:: QuickerUMLS.ESSimstring
+.. autoclass:: facet.ESSimstring
     :members:
 
 
 Formatter
 ---------
 
-.. autoclass:: QuickerUMLS.Formatter
+.. autoclass:: facet.Formatter
     :members:

@@ -1,8 +1,8 @@
 """FACET package."""
 
 
-__title__ = "QuickerUMLS"
-__name__ = "QuickerUMLS"
+__title__ = "FACET"
+__name__ = "FACET"
 __version__ = "0.9"
 __description__ = """Framework for Annotation and Concept Extraction in Text"""
 __keywords__ = [
@@ -13,7 +13,7 @@ __keywords__ = [
     "medical text",
     "natural language processing",
 ]
-__url__ = "code.ornl.gov:REACHVET/reachvet-nlp/quicker-umls.git"
+__url__ = "https://github.com/edponce/FACET"
 __author__ = "Eduardo Ponce, Oak Ridge National Laboratory, Oak Ridge, TN"
 __author_email__ = "poncemojicae@ornl.gov"
 __license__ = "MIT"
