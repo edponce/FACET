@@ -4,6 +4,7 @@ from .similarity import (
     CosineSimilarity,
     JaccardSimilarity,
     OverlapSimilarity,
+    HammingSimilarity,
 )
 from .ngram import (
     WordFeatures,

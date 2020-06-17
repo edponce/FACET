@@ -48,6 +48,7 @@ __all__ = [
     'CosineSimilarity',
     'JaccardSimilarity',
     'OverlapSimilarity',
+    'HammingSimilarity',
 ]
 
 
@@ -84,4 +85,5 @@ from .simstring import (
     CosineSimilarity,
     JaccardSimilarity,
     OverlapSimilarity,
+    HammingSimilarity,
 )

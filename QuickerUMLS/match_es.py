@@ -16,7 +16,7 @@ __all__ = ['ESFacet']
 
 
 # Enable/disable profiling
-PROFILE = True
+PROFILE = False
 if PROFILE:
     import cProfile
 
@@ -46,12 +46,12 @@ class ESFacet:
         self.tokenizer = tokenizer
         self.formatter = Formatter()
 
-    # def __call__(self, corpora: Union[str, Iterable[str]], **kwargs):
-    #     """
-    #     Kwargs:
-    #         Options passed directly to `match`.
-    #     """
-    #     return self.match(corpora, **kwargs)
+    def __call__(self, corpora: Union[str, Iterable[str]], **kwargs):
+        """
+        Kwargs:
+            Options passed directly to `match`.
+        """
+        return self.match(corpora, **kwargs)
 
     def _get_matches(
         self,
@@ -74,7 +74,10 @@ class ESFacet:
             for candidate, similarity, cuis in self._ss.search(ngram,
                                                                alpha=alpha,
                                                                rank=False):
-                for cui in cuis:
+                for cui in filter(None, cuis):
+                    # NOTE: Using ACCEPTED_SEMTYPES will always result
+                    # in true. If not so, should we include the match
+                    # with a semtype=None or skip it?
                     semtypes = self._cuisty_db.get(cui)
                     if semtypes is not None:
                         ngram_matches.append({
@@ -98,7 +101,7 @@ class ESFacet:
                 matches.append(ngram_matches)
         return matches
 
-    def __call__(
+    def match(
         self,
         corpora: Union[str, Iterable[str]],
         *,

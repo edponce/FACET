@@ -4,7 +4,7 @@ import QuickerUMLS
 ##########
 # CONFIG #
 ##########
-text = 'data/test.txt'
+text = 'data/test_text.txt'
 format = 'json'
 # outfile = 'redis_example.json'
 outfile = None

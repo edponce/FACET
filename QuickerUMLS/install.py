@@ -3,7 +3,6 @@ import time
 import itertools
 from .helpers import load_data
 from unidecode import unidecode
-from .database import DictDatabase
 from .umls_constants import (
     HEADERS_MRSTY,
     HEADERS_MRCONSO,
@@ -74,13 +73,13 @@ class Installer:
                 elapsed_time = curr_time - prev_time
                 print(f'{i}: {elapsed_time} s')
                 prev_time = curr_time
-        self._ss.db.set_pipe(False)
+        self._ss.db.close()
 
         if VERBOSE:
             print(f'Num simstring terms: {i}')
 
-    def _dump_conso(self, data, *, bulk_size=1000, status_step=10000):
-        """Stores {Term:CUI} mapping, term: [CUI, ...].
+    def _dump_kv(self, data, db, *, bulk_size=1000, status_step=10000):
+        """Stores {key:val} mapping, key: [val, ...].
 
         Args:
             bulk_size (int): Size of chunks to use for dumping data into
@@ -92,10 +91,9 @@ class Installer:
         # Profile
         prev_time = time.time()
 
-        self._conso_db.set_pipe(True)
-        for i, (term, cui) in enumerate(data.items(), start=1):
-            print(term)
-            self._conso_db.set(term, cui)
+        db.set_pipe(True)
+        for i, (key, val) in enumerate(data.items(), start=1):
+            self._conso_db.set(key, val)
             if i % bulk_size == 0:
                 self._conso_db.sync()
 
@@ -105,69 +103,28 @@ class Installer:
                 elapsed_time = curr_time - prev_time
                 print(f'{i}: {elapsed_time} s')
                 prev_time = curr_time
-        self._conso_db.set_pipe(False)
+        db.close()
 
         if VERBOSE:
-            print(f'Num terms: {i}')
+            print(f'Num keys: {i}')
 
-    def _dump_cuisty(self, data, *, bulk_size=1000, status_step=10000):
-        """Stores {CUI:Semantic Type} mapping, cui: [sty, ...].
-
-        Args:
-            bulk_size (int): Size of chunks to use for dumping data into
-                databases. Default is 1000.
-
-            status_step (int): Print status message after this number of
-                records is dumped to databases. Default is 10000.
-        """
-        # Profile
-        prev_time = time.time()
-
-        self._cuisty_db.set_pipe(True)
-        for i, (cui, sty) in enumerate(data.items(), start=1):
-            self._cuisty_db.set(cui, sty)
-            if i % bulk_size == 0:
-                self._cuisty_db.sync()
-
-            # Profile
-            if VERBOSE and i % status_step == 0:
-                curr_time = time.time()
-                elapsed_time = curr_time - prev_time
-                print(f'{i}: {elapsed_time} s')
-                prev_time = curr_time
-        self._cuisty_db.set_pipe(False)
-
-        if VERBOSE:
-            print(f'Num CUIs: {i}')
-
-    # NOTE: This method should only take **kwargs and this is a user-defined
-    # dictionary passed to corresponding '_load_*()' and '_dump_*()' methods.
     def install(
         self,
         umls_dir,
-        *,
-        mrconso='MRCONSO.RRF',
-        mrsty='MRSTY.RRF',
         **kwargs
     ):
         """
         Args:
             umls_dir (str): Directory of UMLS RRF files.
 
-            mrconso (str): UMLS concepts file.
-                Default is MRCONSO.RRF.
-
-            mrsty (str): UMLS semantic types file.
-                Default is MRSTY.RRF.
-
         Kwargs:
-            Options passed directly to '_load_*()' and '_dump_*()' methods.
+            Options passed directly to '_dump_*()' methods.
         """
         t1 = time.time()
 
         print('Loading/parsing concepts...')
         start = time.time()
-        mrconso_file = os.path.join(umls_dir, mrconso)
+        mrconso_file = os.path.join(umls_dir, 'MRCONSO.RRF')
         conso = load_data(
             mrconso_file,
             keys=['str'],
@@ -182,7 +139,8 @@ class Installer:
 
         print('Writing concepts...')
         start = time.time()
-        self._dump_conso(conso, **kwargs)
+        # Stores {Term:CUI} mapping, term: [CUI, ...]
+        self._dump_kv(conso, self._conso_db, **kwargs)
         curr_time = time.time()
         print(f'Writing concepts: {curr_time - start} s')
 
@@ -192,9 +150,11 @@ class Installer:
         curr_time = time.time()
         print(f'Writing simstring: {curr_time - start} s')
 
+        # NOTE: 'valids' option does not removes keys if no value is
+        # available.
         print('Loading/parsing semantic types...')
         start = time.time()
-        mrsty_file = os.path.join(umls_dir, mrsty)
+        mrsty_file = os.path.join(umls_dir, 'MRSTY.RRF')
         cuisty = load_data(
             mrsty_file,
             keys=['cui'],
@@ -211,7 +171,8 @@ class Installer:
 
         print('Writing semantic types...')
         start = time.time()
-        self._dump_cuisty(cuisty, **kwargs)
+        # Stores {CUI:Semantic Type} mapping, cui: [sty, ...]
+        self._dump_kv(cuisty, self._cuisty_db, **kwargs)
         curr_time = time.time()
         print(f'Writing semantic types: {curr_time - start} s')
 
