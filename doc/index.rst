@@ -5,13 +5,15 @@ FACET Documentation
 .. toctree::
     :maxdepth: 2
 
-    premods
+    readme
     modules
-    postmods
+    contributing
+    credits
+    license
 
 
 ==================
-Indices and tables
+Indices and Tables
 ==================
 
 * :ref:`genindex`

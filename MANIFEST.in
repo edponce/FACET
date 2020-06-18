@@ -1,4 +1,9 @@
-include *.rst
 include LICENSE
-include *_requirements.txt
-recursive-include docs *.py *.rst Makefile
+include *.rst
+include *.txt
+include setup.cfg
+include tox.ini
+recursive-include doc *.py *.rst Makefile
+recursive-include tests *.py
+recursive-include scripts *.sh *.py *.yaml
+recursive-include config *.cfg *.yaml *.json

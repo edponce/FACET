@@ -15,41 +15,13 @@ __keywords__ = [
 ]
 __url__ = "https://github.com/edponce/FACET"
 __author__ = "Eduardo Ponce, Oak Ridge National Laboratory, Oak Ridge, TN"
-__author_email__ = "poncemojicae@ornl.gov"
+__author_email__ = "edponce2010@gmail.com"
 __license__ = "MIT"
-__copyright__ = """2019 Eduardo Ponce, Kris Brown, and Edmon Begoli
+__copyright__ = """2020 Eduardo Ponce, Kris Brown, and Edmon Begoli
                    Oak Ridge National Laboratory"""
 
 
-__all__ = [
-    'Facet',
-    'ESFacet',
-    'Installer',
-    'ESInstaller',
-    'Formatter',
-    'NLTKTokenizer',
-    'SpacyTokenizer',
-    'WhitespaceTokenizer',
-    'DictDatabase',
-    'RedisDatabase',
-    'Elasticsearchx',
-    'ElasticsearchDatabase',
-    'JSONSerializer',
-    'YAMLSerializer',
-    'PickleSerializer',
-    'StringSerializer',
-    'StringSJSerializer',
-    'Simstring',
-    'ESSimstring',
-    'WordFeatures',
-    'CharacterFeatures',
-    'DiceSimilarity',
-    'ExactSimilarity',
-    'CosineSimilarity',
-    'JaccardSimilarity',
-    'OverlapSimilarity',
-    'HammingSimilarity',
-]
+__all__ = []
 
 
 from .match import Facet

@@ -1,60 +1,42 @@
-import re
-import facet as pkg
+import os
 from setuptools import setup, find_packages
+import facet as pkg
 
 
-# Load long description from files
-long_description = ""
-try:
-    with open("README.rst") as fd:
-        long_description = fd.read()
-except Exception:
-    pass
+def get_text_from_files(*filenames, delimiter=os.linesep * 2):
+    text = ''
+    for i, fn in enumerate(filenames):
+        try:
+            with open(fn) as fd:
+                text += fd.read()
+        except Exception:
+            pass
+        else:
+            if i > 0 and i + 1 < len(filenames):
+                text += delimiter
+    return text
 
-# A list of strings specifying what other distributions need to be installed
-# when this package is installed.
-install_requirements = []
-try:
-    with open("install_requirements.txt") as fd:
-        install_requirements = [l.strip() for l in fd.readlines()]
-except Exception:
-    pass
 
-# A list of strings specifying what other distributions need to be present
-# in order for this setup script to run.
-setup_requirements = []
-try:
-    with open("setup_requirements.txt") as fd:
-        setup_requirements = [l.strip() for l in fd.readlines()]
-except Exception:
-    pass
+def get_requirements_from_files(*filenames):
+    requirements = []
+    for fn in filenames:
+        try:
+            with open(fn) as fd:
+                requirements += [line.strip() for line in fd.readlines()]
+        except Exception:
+            pass
+    return requirements
 
-# A list of strings specifying what other distributions need to be present
-# for this package tests to run.
-tests_requirements = []
-try:
-    with open("tests_requirements.txt") as fd:
-        tests_requirements = [l.strip() for l in fd.readlines()]
-except Exception:
-    pass
 
-# A dictionary mapping of names of "extra" features to lists of strings
-# describing those features' requirements. These requirements will not be
-# automatically installed unless another package depends on them.
-extras_requirements = {}
-try:
-    regex = re.compile(r"^(.+[<>=]+\d+[\.?\d*]*)\s*\[(.+)\][\r\n]")
-    with open("extras_requirements.txt") as fd:
-        for line in fd:
-            match = regex.fullmatch(line)
-            if match:
-                value, key = match.group(1, 2)
-                if key in extras_requirements:
-                    extras_requirements[key].append(value)
-                else:
-                    extras_requirements[key] = [value]
-except Exception:
-    pass
+long_description = get_text_from_files('README.rst', 'LICENSE')
+install_requirements = get_requirements_from_files('requirements.txt')
+extras_requirements = {
+    'reST': ['Sphinx>=3.0', 'sphinx_rtd_theme>=0.4.3', 'sphinx-click>=2.3'],
+    'lint': ['flake8>=3.5'],
+    'coverage': ['coverage>=4.5'],
+    'test': ['pytest>=5.3'],
+}
+
 
 # For PyPI, the 'download_url' is a link to a hosted repository.
 # Github hosting creates tarballs for download at
@@ -70,41 +52,35 @@ setup(
     long_description=long_description,
     keywords=pkg.__keywords__,
     url=pkg.__url__,
-    download_url="{}/archive/{}-{}.tar.gz".format(pkg.__url__,
-                                                  pkg.__name__,
-                                                  pkg.__version__),
+    download_url=(
+        f'{pkg.__url__}/archive/{pkg.__name__}-{pkg.__version__}.tar.gz'
+    ),
     author=pkg.__author__,
     author_email=pkg.__author_email__,
     license=pkg.__license__,
     classifiers=[
-        "Development Status :: 1 - Planning",
-        "Environment :: Console",
-        "Intended Audience :: Developers",
-        "Intended Audience :: Science/Research",
-        "Operating System :: OS Independent",
-        "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.7",
-        "Topic :: Documentation :: Sphinx",
-        "Topic :: Utilities",
-        "Topic :: Software Development :: Libraries",
+        'Framework :: FACET',
+        'Topic :: Documentation :: Sphinx',
+        'Topic :: Software Development :: Libraries',
+        'Topic :: Utilities',
+        'Development Status :: 4 - Beta',
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Operating System :: MacOS',
+        'Operating System :: POSIX :: Linux',
+        'Environment :: Console',
+        'Intended Audience :: Developers',
+        'Intended Audience :: Healthcare Industry',
+        'Intended Audience :: Science/Research',
+        'Natural Language :: English',
     ],
-    platforms=["Linux"],
+    platforms=['Linux'],
     zip_safe=False,
-    python_requires=">=3.7",
+    python_requires='>=3.6,<=3.8',
     include_package_data=True,
-    # packages=find_packages(),
-    packages=[
-        'facet',
-        'facet.database',
-        'facet.serializer',
-        'facet.tokenizer',
-        'facet.web',
-        'facet.simstring',
-        'facet.simstring.similarity',
-    ],
+    packages=find_packages(),
     install_requires=install_requirements,
-    setup_requires=setup_requirements,
     extras_require=extras_requirements,
-    tests_require=tests_requirements,
-    test_suite="tests",
 )

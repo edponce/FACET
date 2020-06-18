@@ -3,25 +3,14 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 import os
 import sys
-import re
 sys.path.append(os.path.abspath('..'))
-import facet as pkg
+import facet as pkg  # noqa: E402
 
 
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-needs_sphinx = '1.7'
-try:
-    with open('../extras_requirements.txt') as fd:
-        regex = re.compile(r'^Sphinx[<>=]+(\d+[\.?\d*]*).*[\r\n]')
-        for line in fd:
-            match = regex.fullmatch(line)
-            if match:
-                needs_sphinx = match.group(1)
-                break
-except Exception:
-    pass
+needs_sphinx = '3.0'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
@@ -32,6 +21,7 @@ extensions = [
     'sphinx.ext.autosectionlabel',
     'sphinx.ext.inheritance_diagram',
     'sphinx.ext.napoleon',
+    'sphinx_click.ext',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -49,7 +39,7 @@ project = pkg.__name__
 author = pkg.__author__
 copyright = pkg.__copyright__
 
-title = "{} Documentation".format(pkg.__title__)
+title = f'{pkg.__title__} Documentation'
 description = pkg.__description__
 
 # The version info for the project you're documenting, acts as replacement for

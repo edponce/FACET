@@ -5,8 +5,8 @@ import facet
 # CONFIG #
 ##########
 # text = 'data/test_text.txt'
-text = 'data/synthetic_note.txt'
-# text = 'acetate'
+# text = 'data/synthetic_note.txt'
+text = 'acetate'
 
 format = 'json'
 

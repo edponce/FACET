@@ -1,35 +1,43 @@
 PKGDIR  := facet
 TESTDIR := tests
 PYTHON  := python3
-DOCDIR  := docs
+DOCDIR  := doc
 
-.PHONY: help wheel build clean docs
+.PHONY: help build bdist sdist clean doc clean_doc
 
 help:
 	@echo "Please use 'make <target>' where <target> is one of"
 	@echo "  build       to make package distribution"
-	@echo "  wheel       to make wheel binary distribution"
+	@echo "  bdist       to make wheel binary distribution"
+	@echo "  sdist       to make source distribution"
 	@echo "  clean       to remove build, cache, and temporary files"
+	@echo "  doc         to make HTML documentation"
+	@echo "  clean_doc   to remove documentation"
 
 build:
 	$(PYTHON) setup.py build
 	@echo "Setup build finished."
 
-wheel:
+bdist:
 	$(PYTHON) setup.py bdist_wheel
-	@echo "Setup wheel distribution finished."
+	@echo "Setup wheel binary distribution finished."
+
+sdist:
+	$(PYTHON) setup.py sdist
+	@echo "Setup source distribution finished."
 
 clean:
+	find . \( -name __pycache__ -o -name "*.py?" \) -print0 | xargs -0 rm -rf
 	rm -rf flake8.out
 	rm -rf *.egg-info .eggs
 	rm -rf .tox
 	rm -rf .coverage .coverage.* coverage.* htmlcov
-	rm -rf "$(PKGDIR)"/__pycache__ "$(PKGDIR)"/*.pyc
-	rm -rf "$(TESTDIR)"/__pycache__ "$(TESTDIR)"/*.pyc
+	rm -rf .pytest_cache
 	rm -rf dist build
 
-docs:
+doc:
 	$(MAKE) -C "$(DOCDIR)" html
 
-clean_docs:
+clean_doc:
 	$(MAKE) -C "$(DOCDIR)" clean
+	rm -rf "$(DOCDIR)/html"
