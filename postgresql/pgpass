@@ -1,4 +1,0 @@
-# host:port:database:username:password
-# NOTE: Each of the first four fields can be a literal value or * which matches anything.
-# NOTE: The .pgpass file must disallow access to world or group, chmod 0600 ~/.pgpass
-128.219.187.155:*:mimic:mimic_user:xxxxxxx

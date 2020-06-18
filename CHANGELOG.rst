@@ -1,8 +1,16 @@
-HISTORY
-=======
+CHANGE LOG
+==========
 
-v0.0.1
-------
+v 0.9
+-----
+
+:Date: 2020-6-17
+
+    * (stable) Refactor code.
+
+
+v 0.1
+-----
 
 :Date: 2019-4-16
 

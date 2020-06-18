@@ -1,8 +1,17 @@
 MODULES
 =======
 
-Installer API
--------------
+
+FACET Command Line Interface
+----------------------------
+
+.. .. click:: facet:cli
+    :prog: facet
+    :show-nested:
+
+
+Installer
+---------
 
 .. autoclass:: facet.Installer
     :members:
@@ -11,8 +20,8 @@ Installer API
     :members:
 
 
-FACET API
----------
+FACET
+-----
 
 .. autoclass:: facet.Facet
     :members:
@@ -21,8 +30,8 @@ FACET API
     :members:
 
 
-Tokenizer API
--------------
+Tokenizer
+---------
 
 .. autoclass:: facet.WhitespaceTokenizer
     :members:
@@ -34,8 +43,8 @@ Tokenizer API
     :members:
 
 
-Database API
-------------
+Database
+--------
 
 .. autoclass:: facet.database.base.BaseDatabase
     :members:

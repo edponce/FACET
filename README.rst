@@ -1,7 +1,3 @@
-.. .. image:: https://travis-ci.org/kbrown42/quickerumls.svg?branch=master
-   :target: https://travis-ci.org/kbrown42/quickerumls
-   :alt: Tests Status
-
 .. .. image:: https://codecov.io/gh/kbrown42/quickerumls/branch/master/graph/badge.svg
    :target: https://codecov.io/gh/edponce/quickerumls
    :alt: Coverage Status
@@ -10,7 +6,7 @@
    :target: https://quickerumls.readthedocs.io/en/latest/?badge=latest
    :alt: Documentation Status
 
-.. image:: https://img.shields.io/badge/license-MIT-blue.svg
+.. .. image:: https://img.shields.io/badge/license-MIT-blue.svg
    :target: https://github.com/edponce/smarttimers/blob/master/LICENSE
    :alt: License
 
@@ -80,6 +76,62 @@ Installation
 .. _UMLS license: https://uts.nlm.nih.gov/license.html
 .. _UMLS files: https://www.nlm.nih.gov/research/umls/licensedcontent/umlsknowledgesources.html
 .. _MetamorphoSys: https://www.nlm.nih.gov/research/umls/implementation_resources/metamorphosys/help.html
+
+
+Setup and Installation
+----------------------
+
+1. Clone repository ::
+
+    $ git clone https://github.com/edponce/FACET.git
+    $ cd FACET/
+
+2. Install package ::
+
+    $ pip install .
+
+3. Run tests ::
+
+    $ tox
+
+4. Generate documentation ::
+
+    $ make -C doc/ html
+    $ <browser> doc/_build/html/index.html
+
+5. Browse commands and help descriptions ::
+
+    $ facet --help
+
+6. Run demo ::
+
+    $ python examples/demo_install.py
+    $ python examples/demo_match.py
+
+
+Usage
+-----
+
+* Run REPL on command line ::
+
+    $ facet --cli
+    $ > cancer
+
+* Process file via command line ::
+
+    $ facet --format json --infile corpus.txt --outfile corpus.json
+
+* Process text via STDIN ::
+
+    $ cat corpus.txt | facet --pipe --format json --outfile corpus.json
+
+* Run as a web service ::
+
+    $ facet --port 4452 --format json
+
+* Run programmatically using Python's API (see example scripts) ::
+
+    $ <editor> examples/demo_match.py
 
 
 Databases Initialization
@@ -353,3 +405,42 @@ spaCy has limits into the size of text processed:
     >>> nlp = spacy.load('en')
     >>> doc = nlp('very long text ...')
     >>> ValueError: [E088] Text of length 1639120 exceeds maximum of 1000000. The v2.x parser and NER models require roughly 1GB of temporary memory per 100,000 characters in the input. This means long texts may cause memory allocation errors. If you're not using the parser or NER, it's probably safe to increase the `nlp.max_length` limit. The limit is in number of characters, so you can check whether your inputs are too long by checking `len(text)`.
+
+
+TODO
+====
+
+* Fix setup.py, __init__, modules, etc.  * Use multiprocessing in method "_get_all_matches" from "quickumls.py"
+* QuickUMLS uses CPMerge, see following papers
+
+  * 2016boguszewski
+  * 2010okazaki
+
+* Code follows the open/close principle
+* The input text should not contain encoded symbols as FACET assumes ASCII/UTF-8
+  text. To decode HTML characters, use
+
+    >>> import html
+    >>> html.unescape('a&#32;space')
+
+
+Multiple Redis Instances
+------------------------
+
+If multiple databases are required, it is recommended to run multiple Redis
+instances (and use database 0 only). This is because Redis is single-threaded
+and using same instance will block when using any of its databases.
+To configure multiple Redis instances:
+https://www.digitalocean.com/community/questions/multiple-redis-instances-on-ubuntu-16-04
+
+Also, consider Redis cluster
+https://github.com/Grokzen/redis-py-cluster
+
+
+UMLS Related Tools
+------------------
+
+py-umls: https://github.com/chb/py-umls
+UMLS Description:
+* http://text-analytics101.rxnlp.com/2013/11/what-tui-cui-lui-you-silly-sui.html
+* https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-2001-108.pdf
