@@ -50,8 +50,8 @@ from .serializer import (
 from .simstring import (
     Simstring,
     ESSimstring,
-    WordFeatures,
-    CharacterFeatures,
+    WordNgram,
+    CharacterNgram,
     DiceSimilarity,
     ExactSimilarity,
     CosineSimilarity,
@@ -59,3 +59,4 @@ from .simstring import (
     OverlapSimilarity,
     HammingSimilarity,
 )
+from .scripts.facet import cli

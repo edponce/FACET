@@ -3,10 +3,23 @@ import time
 import itertools
 from .helpers import load_data
 from unidecode import unidecode
+from .database import (
+    database_map,
+    BaseDatabase,
+)
+from .simstring import (
+    simstring_map,
+    BaseSimstring,
+)
 from .umls_constants import (
     HEADERS_MRSTY,
     HEADERS_MRCONSO,
     ACCEPTED_SEMTYPES,
+)
+from typing import (
+    Any,
+    Dict,
+    Union,
 )
 
 
@@ -26,29 +39,89 @@ class Installer:
     """FACET installation tool.
 
     Args:
-        conso_db (BaseDatabase): Handle to database instance for CONCEPT-CUI
-            storage.
+        conso_db (str, BaseDatabase): Handle to database instance or database
+            name for CONCEPT-CUI storage. Valid database values are: 'dict',
+            'redis', 'elasticsearch'. Default is 'dict'.
 
-        cuisty_db (BaseDatabase): Handle to database instance for CUI-STY
-            storage.
+        cuisty_db (str, BaseDatabase): Handle to database instance or database
+            name for CUI-STY storage. Valid database values are: 'dict',
+            'redis', 'elasticsearch'. Default is 'dict'.
 
-        simstring (Simstring): Handle to Simstring instance.
-            The database handle should differ from the internal Simstring
-            database handle (to prevent collisions with N-grams).
+        simstring (str, BaseSimstring): Handle to Simstring instance or
+            simstring name for inverted list of text. Valid simstring values
+            are: 'simstring', 'elasticsearch'. Default is 'simstring'.
     """
 
     def __init__(
         self,
         *,
-        conso_db: 'BaseDatabase',
-        cuisty_db: 'BaseDatabase',
-        simstring: 'Simstring',
+        conso_db: Union[str, 'BaseDatabase'] = 'dict',
+        cuisty_db: Union[str, 'BaseDatabase'] = 'dict',
+        simstring: Union[str, 'BaseSimstring'] = 'simstring',
     ):
-        self._conso_db = conso_db
-        self._cuisty_db = cuisty_db
-        self._ss = simstring
+        self._conso_db = None
+        self._cuisty_db = None
+        self._ss = None
 
-    def _dump_simstring(self, data, *, bulk_size=1000, status_step=10000):
+        self.conso_db = conso_db
+        self.cuisty_db = cuisty_db
+        self.ss = simstring
+
+    @property
+    def conso_db(self):
+        return self._conso_db
+
+    @conso_db.setter
+    def conso_db(self, value: Union[str, 'BaseDatabase']):
+        obj = None
+        if isinstance(value, str):
+            obj = database_map[value]()
+        elif isinstance(value, BaseDatabase):
+            obj = value
+
+        if obj is None:
+            raise ValueError(f'invalid CONSO-CUI database, {value}')
+        self._conso_db = obj
+
+    @property
+    def cuisty_db(self):
+        return self._cuisty_db
+
+    @cuisty_db.setter
+    def cuisty_db(self, value: Union[str, 'BaseDatabase']):
+        obj = None
+        if isinstance(value, str):
+            obj = database_map[value]()
+        elif isinstance(value, BaseDatabase):
+            obj = value
+
+        if obj is None:
+            raise ValueError(f'invalid CUI-STY database, {value}')
+        self._cuisty_db = obj
+
+    @property
+    def ss(self):
+        return self._ss
+
+    @ss.setter
+    def ss(self, value: Union[str, 'BaseSimstring']):
+        obj = None
+        if isinstance(value, str):
+            obj = simstring_map[value]()
+        elif isinstance(value, BaseSimstring):
+            obj = value
+
+        if obj is None:
+            raise ValueError(f'invalid simstring, {value}')
+        self._ss = obj
+
+    def _dump_simstring(
+        self,
+        data: Dict[str, Any],
+        *,
+        bulk_size: int = 1000,
+        status_step: int = 10000,
+    ):
         """Stores {Term:...} in Simstring database.
 
         Args:
@@ -78,7 +151,14 @@ class Installer:
         if VERBOSE:
             print(f'Num simstring terms: {i}')
 
-    def _dump_kv(self, data, db, *, bulk_size=1000, status_step=10000):
+    def _dump_kv(
+        self,
+        data: Dict[str, Any],
+        db: 'BaseDatabase',
+        *,
+        bulk_size: int = 1000,
+        status_step: int = 10000,
+    ):
         """Stores {key:val} mapping, key: [val, ...].
 
         Args:
@@ -93,9 +173,9 @@ class Installer:
 
         db.set_pipe(True)
         for i, (key, val) in enumerate(data.items(), start=1):
-            self._conso_db.set(key, val)
+            db.set(key, val)
             if i % bulk_size == 0:
-                self._conso_db.sync()
+                db.sync()
 
             # Profile
             if VERBOSE and i % status_step == 0:
@@ -110,7 +190,7 @@ class Installer:
 
     def install(
         self,
-        umls_dir,
+        umls_dir: str,
         **kwargs
     ):
         """

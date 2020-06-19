@@ -1,0 +1,376 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>facet.install_es &mdash; FACET 0.9 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/graphviz.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> FACET
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.9
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html">FACET - Framework for Annotation and Concept Extraction in Text</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html#benchmarks">BENCHMARKS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html#redis">Redis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html#plyvel-and-leveldb">Plyvel and LevelDB</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html#spacy">spaCy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html#todo">TODO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">MODULES</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../changelog.html">CHANGE LOG</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">CONTRIBUTING</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../credits.html">CREDITS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../license.html">LICENSE</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">FACET</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>facet.install_es</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for facet.install_es</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span>
+<span class="kn">from</span> <span class="nn">.helpers</span> <span class="k">import</span> <span class="n">load_data</span>
+<span class="kn">from</span> <span class="nn">unidecode</span> <span class="k">import</span> <span class="n">unidecode</span>
+<span class="kn">from</span> <span class="nn">.database</span> <span class="k">import</span> <span class="n">DictDatabase</span>
+<span class="kn">from</span> <span class="nn">.umls_constants</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">HEADERS_MRSTY</span><span class="p">,</span>
+    <span class="n">HEADERS_MRCONSO</span><span class="p">,</span>
+    <span class="n">ACCEPTED_SEMTYPES</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;ESInstaller&#39;</span><span class="p">]</span>
+
+
+<span class="n">VERBOSE</span> <span class="o">=</span> <span class="kc">True</span>
+
+<span class="c1"># Enable/disable profiling</span>
+<span class="n">PROFILE</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="k">if</span> <span class="n">PROFILE</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">cProfile</span>
+
+
+<span class="c1"># TODO: Convert this class into an abstract class.</span>
+<div class="viewcode-block" id="ESInstaller"><a class="viewcode-back" href="../../modules.html#facet.ESInstaller">[docs]</a><span class="k">class</span> <span class="nc">ESInstaller</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;FACET installation tool.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        cuisty_db (BaseDatabase): Handle to database instance for CUI-STY</span>
+<span class="sd">            storage.</span>
+
+<span class="sd">        simstring (Simstring): Handle to Simstring instance.</span>
+<span class="sd">            The database handle should differ from the internal Simstring</span>
+<span class="sd">            database handle (to prevent collisions with N-grams).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">cuisty_db</span><span class="p">:</span> <span class="s1">&#39;BaseDatabase&#39;</span><span class="p">,</span> <span class="n">simstring</span><span class="p">:</span> <span class="s1">&#39;Simstring&#39;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cuisty_db</span> <span class="o">=</span> <span class="n">cuisty_db</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ss</span> <span class="o">=</span> <span class="n">simstring</span>
+
+    <span class="k">def</span> <span class="nf">_dump_simstring</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">bulk_size</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">status_step</span><span class="o">=</span><span class="mi">10000</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Stores {Term:...} in Simstring database.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            bulk_size (int): Size of chunks to use for dumping data into</span>
+<span class="sd">                databases. Default is 1000.</span>
+
+<span class="sd">            status_step (int): Print status message after this number of</span>
+<span class="sd">                records is dumped to databases. Default is 10000.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Profile</span>
+        <span class="n">prev_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ss</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">set_pipe</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="n">cui</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">start</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ss</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="n">cui</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">%</span> <span class="n">bulk_size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_ss</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+
+            <span class="c1"># Profile</span>
+            <span class="k">if</span> <span class="n">VERBOSE</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">%</span> <span class="n">status_step</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">curr_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+                <span class="n">elapsed_time</span> <span class="o">=</span> <span class="n">curr_time</span> <span class="o">-</span> <span class="n">prev_time</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;</span><span class="si">{i}</span><span class="s1">: </span><span class="si">{elapsed_time}</span><span class="s1"> s&#39;</span><span class="p">)</span>
+                <span class="n">prev_time</span> <span class="o">=</span> <span class="n">curr_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ss</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">set_pipe</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">VERBOSE</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Num simstring terms: </span><span class="si">{i}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_dump_cuisty</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">bulk_size</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">status_step</span><span class="o">=</span><span class="mi">10000</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Stores {CUI:Semantic Type} mapping, cui: [sty, ...].</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            bulk_size (int): Size of chunks to use for dumping data into</span>
+<span class="sd">                databases. Default is 1000.</span>
+
+<span class="sd">            status_step (int): Print status message after this number of</span>
+<span class="sd">                records is dumped to databases. Default is 10000.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Profile</span>
+        <span class="n">prev_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cuisty_db</span><span class="o">.</span><span class="n">set_pipe</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">cui</span><span class="p">,</span> <span class="n">sty</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">start</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cuisty_db</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">cui</span><span class="p">,</span> <span class="n">sty</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">%</span> <span class="n">bulk_size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_cuisty_db</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+
+            <span class="c1"># Profile</span>
+            <span class="k">if</span> <span class="n">VERBOSE</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">%</span> <span class="n">status_step</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">curr_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+                <span class="n">elapsed_time</span> <span class="o">=</span> <span class="n">curr_time</span> <span class="o">-</span> <span class="n">prev_time</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;</span><span class="si">{i}</span><span class="s1">: </span><span class="si">{elapsed_time}</span><span class="s1"> s&#39;</span><span class="p">)</span>
+                <span class="n">prev_time</span> <span class="o">=</span> <span class="n">curr_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cuisty_db</span><span class="o">.</span><span class="n">set_pipe</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">VERBOSE</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Num CUIs: </span><span class="si">{i}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="c1"># NOTE: This method should only take **kwargs and this is a user-defined</span>
+    <span class="c1"># dictionary passed to corresponding &#39;_load_*()&#39; and &#39;_dump_*()&#39; methods.</span>
+<div class="viewcode-block" id="ESInstaller.install"><a class="viewcode-back" href="../../modules.html#facet.ESInstaller.install">[docs]</a>    <span class="k">def</span> <span class="nf">install</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">umls_dir</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">mrconso</span><span class="o">=</span><span class="s1">&#39;MRCONSO.RRF&#39;</span><span class="p">,</span>
+        <span class="n">mrsty</span><span class="o">=</span><span class="s1">&#39;MRSTY.RRF&#39;</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            umls_dir (str): Directory of UMLS RRF files.</span>
+
+<span class="sd">            mrconso (str): UMLS concepts file.</span>
+<span class="sd">                Default is MRCONSO.RRF.</span>
+
+<span class="sd">            mrsty (str): UMLS semantic types file.</span>
+<span class="sd">                Default is MRSTY.RRF.</span>
+
+<span class="sd">        Kwargs:</span>
+<span class="sd">            Options passed directly to &#39;_load_*()&#39; and &#39;_dump_*()&#39; methods.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">t1</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Loading/parsing concepts...&#39;</span><span class="p">)</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">mrconso_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">umls_dir</span><span class="p">,</span> <span class="n">mrconso</span><span class="p">)</span>
+        <span class="n">conso</span> <span class="o">=</span> <span class="n">load_data</span><span class="p">(</span>
+            <span class="n">data</span><span class="o">=</span><span class="n">mrconso_file</span><span class="p">,</span>
+            <span class="n">keys</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;str&#39;</span><span class="p">],</span>
+            <span class="n">values</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;cui&#39;</span><span class="p">],</span>
+            <span class="n">headers</span><span class="o">=</span><span class="n">HEADERS_MRCONSO</span><span class="p">,</span>
+            <span class="n">valids</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;lat&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;ENG&#39;</span><span class="p">]},</span>
+            <span class="n">converters</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;str&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">unidecode</span><span class="p">,</span> <span class="nb">str</span><span class="o">.</span><span class="n">lower</span><span class="p">]},</span>
+            <span class="n">unique_values</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">curr_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Loading/parsing concepts: {curr_time - start} s&#39;</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Loading/parsing semantic types...&#39;</span><span class="p">)</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">mrsty_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">umls_dir</span><span class="p">,</span> <span class="n">mrsty</span><span class="p">)</span>
+        <span class="n">cuisty</span> <span class="o">=</span> <span class="n">load_data</span><span class="p">(</span>
+            <span class="n">data</span><span class="o">=</span><span class="n">mrsty_file</span><span class="p">,</span>
+            <span class="n">keys</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;cui&#39;</span><span class="p">],</span>
+            <span class="n">values</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;sty&#39;</span><span class="p">],</span>
+            <span class="n">headers</span><span class="o">=</span><span class="n">HEADERS_MRSTY</span><span class="p">,</span>
+            <span class="n">valids</span><span class="o">=</span><span class="p">{</span>
+                <span class="s1">&#39;sty&#39;</span><span class="p">:</span> <span class="n">ACCEPTED_SEMTYPES</span><span class="p">,</span>
+                <span class="s1">&#39;cui&#39;</span><span class="p">:</span> <span class="nb">set</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span><span class="o">*</span><span class="n">conso</span><span class="o">.</span><span class="n">values</span><span class="p">())),</span>
+            <span class="p">},</span>
+            <span class="n">unique_values</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">curr_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Loading/parsing semantic types: {curr_time - start} s&#39;</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Writing simstring...&#39;</span><span class="p">)</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dump_simstring</span><span class="p">(</span><span class="n">conso</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">curr_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Writing simstring: {curr_time - start} s&#39;</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Writing semantic types...&#39;</span><span class="p">)</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dump_cuisty</span><span class="p">(</span><span class="n">cuisty</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">curr_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Writing semantic types: {curr_time - start} s&#39;</span><span class="p">)</span>
+
+        <span class="n">t2</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Total runtime: {t2 - t1} s&#39;</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020 Eduardo Ponce, Kris Brown, and Edmon Begoli
+                   Oak Ridge National Laboratory
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

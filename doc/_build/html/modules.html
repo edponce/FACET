@@ -1,0 +1,1333 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>MODULES &mdash; FACET 0.9 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/graphviz.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="CHANGE LOG" href="changelog.html" />
+    <link rel="prev" title="FACET - Framework for Annotation and Concept Extraction in Text" href="readme.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> FACET
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.9
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="readme.html">FACET - Framework for Annotation and Concept Extraction in Text</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme.html#benchmarks">BENCHMARKS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme.html#redis">Redis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme.html#plyvel-and-leveldb">Plyvel and LevelDB</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme.html#spacy">spaCy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme.html#todo">TODO</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">MODULES</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#facet-command-line-interface">FACET Command Line Interface</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#facet">facet</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#facet-match">match</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#facet-simstring">simstring</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#installer">Installer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#matcher">Matcher</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tokenizer">Tokenizer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#database">Database</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#n-gram-features-extractor">N-gram Features Extractor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#similarity-measures">Similarity Measures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#serializer">Serializer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#string-matching">String Matching</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#formatter">Formatter</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">CHANGE LOG</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">CONTRIBUTING</a></li>
+<li class="toctree-l1"><a class="reference internal" href="credits.html">CREDITS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">LICENSE</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">FACET</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>MODULES</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/modules.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="modules">
+<h1>MODULES<a class="headerlink" href="#modules" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="facet-command-line-interface">
+<h2>FACET Command Line Interface<a class="headerlink" href="#facet-command-line-interface" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="facet">
+<h3>facet<a class="headerlink" href="#facet" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>facet <span class="o">[</span>OPTIONS<span class="o">]</span> COMMAND <span class="o">[</span>ARGS<span class="o">]</span>...
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt id="cmdoption-facet-version">
+<code class="sig-name descname">--version</code><code class="sig-prename descclassname"></code><a class="headerlink" href="#cmdoption-facet-version" title="Permalink to this definition">¶</a></dt>
+<dd><p>Show the version and exit.</p>
+</dd></dl>
+
+<div class="section" id="facet-match">
+<h4>match<a class="headerlink" href="#facet-match" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>facet match <span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt id="cmdoption-facet-match-help">
+<code class="sig-name descname">--help</code><code class="sig-prename descclassname"></code><a class="headerlink" href="#cmdoption-facet-match-help" title="Permalink to this definition">¶</a></dt>
+<dd><p>Show this message and exit.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt id="cmdoption-facet-match-q">
+<span id="cmdoption-facet-match-query"></span><code class="sig-name descname">-q</code><code class="sig-prename descclassname"></code><code class="sig-prename descclassname">, </code><code class="sig-name descname">--query</code><code class="sig-prename descclassname"> &lt;query&gt;</code><a class="headerlink" href="#cmdoption-facet-match-q" title="Permalink to this definition">¶</a></dt>
+<dd><p>Query string/directory/file.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt id="cmdoption-facet-match-a">
+<span id="cmdoption-facet-match-alpha"></span><code class="sig-name descname">-a</code><code class="sig-prename descclassname"></code><code class="sig-prename descclassname">, </code><code class="sig-name descname">--alpha</code><code class="sig-prename descclassname"> &lt;alpha&gt;</code><a class="headerlink" href="#cmdoption-facet-match-a" title="Permalink to this definition">¶</a></dt>
+<dd><p>Similarity threshold.  [default: 0.7]</p>
+</dd></dl>
+
+<dl class="std option">
+<dt id="cmdoption-facet-match-s">
+<span id="cmdoption-facet-match-similarity"></span><code class="sig-name descname">-s</code><code class="sig-prename descclassname"></code><code class="sig-prename descclassname">, </code><code class="sig-name descname">--similarity</code><code class="sig-prename descclassname"> &lt;similarity&gt;</code><a class="headerlink" href="#cmdoption-facet-match-s" title="Permalink to this definition">¶</a></dt>
+<dd><p>Similarity measure.  [default: cosine]</p>
+</dd></dl>
+
+<dl class="std option">
+<dt id="cmdoption-facet-match-f">
+<span id="cmdoption-facet-match-format"></span><code class="sig-name descname">-f</code><code class="sig-prename descclassname"></code><code class="sig-prename descclassname">, </code><code class="sig-name descname">--format</code><code class="sig-prename descclassname"> &lt;format&gt;</code><a class="headerlink" href="#cmdoption-facet-match-f" title="Permalink to this definition">¶</a></dt>
+<dd><p>Format for match results.  [default: json]</p>
+</dd></dl>
+
+<dl class="std option">
+<dt id="cmdoption-facet-match-o">
+<span id="cmdoption-facet-match-output"></span><code class="sig-name descname">-o</code><code class="sig-prename descclassname"></code><code class="sig-prename descclassname">, </code><code class="sig-name descname">--output</code><code class="sig-prename descclassname"> &lt;output&gt;</code><a class="headerlink" href="#cmdoption-facet-match-o" title="Permalink to this definition">¶</a></dt>
+<dd><p>Output target for match results.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt id="cmdoption-facet-match-t">
+<span id="cmdoption-facet-match-tokenizer"></span><code class="sig-name descname">-t</code><code class="sig-prename descclassname"></code><code class="sig-prename descclassname">, </code><code class="sig-name descname">--tokenizer</code><code class="sig-prename descclassname"> &lt;tokenizer&gt;</code><a class="headerlink" href="#cmdoption-facet-match-t" title="Permalink to this definition">¶</a></dt>
+<dd><p>Tokenizer for text procesing.  [default: ws]</p>
+</dd></dl>
+
+</div>
+<div class="section" id="facet-simstring">
+<h4>simstring<a class="headerlink" href="#facet-simstring" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>facet simstring <span class="o">[</span>OPTIONS<span class="o">]</span>
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt id="cmdoption-facet-simstring-help">
+<code class="sig-name descname">--help</code><code class="sig-prename descclassname"></code><a class="headerlink" href="#cmdoption-facet-simstring-help" title="Permalink to this definition">¶</a></dt>
+<dd><p>Show this message and exit.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt id="cmdoption-facet-simstring-q">
+<span id="cmdoption-facet-simstring-query"></span><code class="sig-name descname">-q</code><code class="sig-prename descclassname"></code><code class="sig-prename descclassname">, </code><code class="sig-name descname">--query</code><code class="sig-prename descclassname"> &lt;query&gt;</code><a class="headerlink" href="#cmdoption-facet-simstring-q" title="Permalink to this definition">¶</a></dt>
+<dd><p>Query string.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt id="cmdoption-facet-simstring-a">
+<span id="cmdoption-facet-simstring-alpha"></span><code class="sig-name descname">-a</code><code class="sig-prename descclassname"></code><code class="sig-prename descclassname">, </code><code class="sig-name descname">--alpha</code><code class="sig-prename descclassname"> &lt;alpha&gt;</code><a class="headerlink" href="#cmdoption-facet-simstring-a" title="Permalink to this definition">¶</a></dt>
+<dd><p>Similarity threshold.  [default: 0.7]</p>
+</dd></dl>
+
+<dl class="std option">
+<dt id="cmdoption-facet-simstring-s">
+<span id="cmdoption-facet-simstring-similarity"></span><code class="sig-name descname">-s</code><code class="sig-prename descclassname"></code><code class="sig-prename descclassname">, </code><code class="sig-name descname">--similarity</code><code class="sig-prename descclassname"> &lt;similarity&gt;</code><a class="headerlink" href="#cmdoption-facet-simstring-s" title="Permalink to this definition">¶</a></dt>
+<dd><p>Similarity measure.  [default: cosine]</p>
+</dd></dl>
+
+</div>
+</div>
+</div>
+<div class="section" id="installer">
+<h2>Installer<a class="headerlink" href="#installer" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="facet.Installer">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">Installer</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">conso_db</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>BaseDatabase<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">'dict'</span></em>, <em class="sig-param"><span class="n">cuisty_db</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>BaseDatabase<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">'dict'</span></em>, <em class="sig-param"><span class="n">simstring</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>BaseSimstring<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">'simstring'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/install.html#Installer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.Installer" title="Permalink to this definition">¶</a></dt>
+<dd><p>FACET installation tool.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>conso_db</strong> (<em>str</em><em>, </em><a class="reference internal" href="#facet.database.BaseDatabase" title="facet.database.BaseDatabase"><em>BaseDatabase</em></a>) – Handle to database instance or database
+name for CONCEPT-CUI storage. Valid database values are: ‘dict’,
+‘redis’, ‘elasticsearch’. Default is ‘dict’.</p></li>
+<li><p><strong>cuisty_db</strong> (<em>str</em><em>, </em><a class="reference internal" href="#facet.database.BaseDatabase" title="facet.database.BaseDatabase"><em>BaseDatabase</em></a>) – Handle to database instance or database
+name for CUI-STY storage. Valid database values are: ‘dict’,
+‘redis’, ‘elasticsearch’. Default is ‘dict’.</p></li>
+<li><p><strong>simstring</strong> (<em>str</em><em>, </em><em>BaseSimstring</em>) – Handle to Simstring instance or
+simstring name for inverted list of text. Valid simstring values
+are: ‘simstring’, ‘elasticsearch’. Default is ‘simstring’.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="facet.Installer.install">
+<code class="sig-name descname">install</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">umls_dir</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/install.html#Installer.install"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.Installer.install" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>umls_dir</strong> (<em>str</em>) – Directory of UMLS RRF files.</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Kwargs:</dt><dd><p>Options passed directly to ‘_dump_*()’ methods.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.ESInstaller">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">ESInstaller</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">cuisty_db</span><span class="p">:</span> <span class="n">BaseDatabase</span></em>, <em class="sig-param"><span class="n">simstring</span><span class="p">:</span> <span class="n">Simstring</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/install_es.html#ESInstaller"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.ESInstaller" title="Permalink to this definition">¶</a></dt>
+<dd><p>FACET installation tool.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cuisty_db</strong> (<a class="reference internal" href="#facet.database.BaseDatabase" title="facet.database.BaseDatabase"><em>BaseDatabase</em></a>) – Handle to database instance for CUI-STY
+storage.</p></li>
+<li><p><strong>simstring</strong> (<a class="reference internal" href="#facet.Simstring" title="facet.Simstring"><em>Simstring</em></a>) – Handle to Simstring instance.
+The database handle should differ from the internal Simstring
+database handle (to prevent collisions with N-grams).</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="facet.ESInstaller.install">
+<code class="sig-name descname">install</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">umls_dir</span></em>, <em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">mrconso</span><span class="o">=</span><span class="default_value">'MRCONSO.RRF'</span></em>, <em class="sig-param"><span class="n">mrsty</span><span class="o">=</span><span class="default_value">'MRSTY.RRF'</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/install_es.html#ESInstaller.install"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.ESInstaller.install" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>umls_dir</strong> (<em>str</em>) – Directory of UMLS RRF files.</p></li>
+<li><p><strong>mrconso</strong> (<em>str</em>) – UMLS concepts file.
+Default is MRCONSO.RRF.</p></li>
+<li><p><strong>mrsty</strong> (<em>str</em>) – UMLS semantic types file.
+Default is MRSTY.RRF.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Kwargs:</dt><dd><p>Options passed directly to ‘_load_*()’ and ‘_dump_*()’ methods.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="matcher">
+<h2>Matcher<a class="headerlink" href="#matcher" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="facet.Facet">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">Facet</code><span class="sig-paren">(</span><em class="sig-param">*</em>, <em class="sig-param">conso_db: Union[str</em>, <em class="sig-param">BaseDatabase] = 'dict'</em>, <em class="sig-param">cuisty_db: Union[str</em>, <em class="sig-param">BaseDatabase] = 'dict'</em>, <em class="sig-param">simstring: Union[str</em>, <em class="sig-param">BaseSimstring] = 'simstring'</em>, <em class="sig-param">tokenizer: Union[str</em>, <em class="sig-param">BaseTokenizer] = 'ws'</em>, <em class="sig-param">formatter: facet.formatter.Formatter = &lt;facet.formatter.Formatter object&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/match.html#Facet"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.Facet" title="Permalink to this definition">¶</a></dt>
+<dd><p>FACET installation tool.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>conso_db</strong> (<em>str</em><em>, </em><a class="reference internal" href="#facet.database.BaseDatabase" title="facet.database.BaseDatabase"><em>BaseDatabase</em></a>) – Handle to database instance or database
+name for CONCEPT-CUI storage. Valid database values are: ‘dict’,
+‘redis’, ‘elasticsearch’. Default is ‘dict’.</p></li>
+<li><p><strong>cuisty_db</strong> (<em>str</em><em>, </em><a class="reference internal" href="#facet.database.BaseDatabase" title="facet.database.BaseDatabase"><em>BaseDatabase</em></a>) – Handle to database instance or database
+name for CUI-STY storage. Valid database values are: ‘dict’,
+‘redis’, ‘elasticsearch’. Default is ‘dict’.</p></li>
+<li><p><strong>simstring</strong> (<em>str</em><em>, </em><em>BaseSimstring</em>) – Handle to Simstring instance or
+simstring name for inverted list of text. Valid simstring values
+are: ‘simstring’, ‘elasticsearch’. Default is ‘simstring’.</p></li>
+<li><p><strong>tokenizer</strong> (<em>str</em><em>, </em><a class="reference internal" href="#facet.tokenizer.BaseTokenizer" title="facet.tokenizer.BaseTokenizer"><em>BaseTokenizer</em></a>) – Tokenizer instance or tokenizer name.
+Valid tokenizers are: ‘ws’, ‘nltk’, ‘spacy’. Default is ‘ws’.</p></li>
+<li><p><strong>formatter</strong> (<a class="reference internal" href="#facet.Formatter" title="facet.Formatter"><em>Formatter</em></a>) – Formatter instance.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="facet.Facet.match">
+<code class="sig-name descname">match</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">corpora</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>Iterable<span class="p">[</span>str<span class="p">]</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">case</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">normalize_unicode</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">format</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">''</span></em>, <em class="sig-param"><span class="n">outfile</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">corpus_kwargs</span><span class="p">:</span> <span class="n">Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">{}</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Dict<span class="p">[</span>str<span class="p">, </span>List<span class="p">[</span>List<span class="p">[</span>Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span><span class="p">]</span><span class="p">]</span><span class="p">]</span><a class="reference internal" href="_modules/facet/match.html#Facet.match"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.Facet.match" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>corpora</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>Iterable</em><em>[</em><em>str</em><em>]</em><em>]</em>) – Corpora items.</p></li>
+<li><p><strong>best_match</strong> (<em>bool</em>) – <p>?</p>
+</p></li>
+<li><p><strong>case</strong> (<em>str</em><em>, </em><em>None</em>) – Controls string casing during insert/search.
+Valid values are ‘lL’ (lower), ‘uU’ (upper), or None.
+Default is None.</p></li>
+<li><p><strong>normalize_unicode</strong> (<em>bool</em>) – Enable Unicode normalization.
+Default is False.</p></li>
+<li><p><strong>format</strong> (<em>str</em>) – Formatting mode for match results. Valid values
+are: ‘json’, ‘xml’, ‘pickle’, ‘csv’.</p></li>
+<li><p><strong>outfile</strong> (<em>str</em>) – Output file for match results.</p></li>
+<li><p><strong>corpus_kwargs</strong> (<em>Dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em>) – Options passed directly to
+<cite>corpus_generator</cite>.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Kwargs:</dt><dd><p>Options passed directly to <cite>Simstring.search</cite> via <cite>_get_matches</cite>.</p>
+</dd>
+</dl>
+<p>Examples:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">matches</span> <span class="o">=</span> <span class="n">Facet</span><span class="p">()</span><span class="o">.</span><span class="n">match</span><span class="p">([</span><span class="s1">&#39;file1.txt&#39;</span><span class="p">,</span> <span class="s1">&#39;file2.txt&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">terms</span> <span class="ow">in</span> <span class="n">matches</span><span class="p">[</span><span class="s1">&#39;file1.txt&#39;</span><span class="p">]:</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="k">for</span> <span class="n">term</span> <span class="ow">in</span> <span class="n">terms</span><span class="p">:</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="nb">print</span><span class="p">(</span><span class="n">term</span><span class="p">[</span><span class="s1">&#39;concept&#39;</span><span class="p">],</span> <span class="n">term</span><span class="p">[</span><span class="s1">&#39;cui&#39;</span><span class="p">],</span> <span class="n">term</span><span class="p">[</span><span class="s1">&#39;semantic type&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">matches</span> <span class="o">=</span> <span class="n">Facet</span><span class="p">()</span><span class="o">.</span><span class="n">match</span><span class="p">([(</span><span class="s1">&#39;filename1&#39;</span><span class="p">,</span> <span class="s1">&#39;text1&#39;</span><span class="p">),</span> <span class="p">(</span><span class="o">...</span><span class="p">),</span> <span class="o">...</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">terms</span> <span class="ow">in</span> <span class="n">matches</span><span class="p">[</span><span class="s1">&#39;filename1&#39;</span><span class="p">]:</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="k">for</span> <span class="n">term</span> <span class="ow">in</span> <span class="n">terms</span><span class="p">:</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="nb">print</span><span class="p">(</span><span class="n">term</span><span class="p">[</span><span class="s1">&#39;concept&#39;</span><span class="p">],</span> <span class="n">term</span><span class="p">[</span><span class="s1">&#39;cui&#39;</span><span class="p">],</span> <span class="n">term</span><span class="p">[</span><span class="s1">&#39;semantic type&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.ESFacet">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">ESFacet</code><span class="sig-paren">(</span><em class="sig-param">*</em>, <em class="sig-param">cuisty_db: BaseDatabase</em>, <em class="sig-param">simstring: Simstring</em>, <em class="sig-param">tokenizer: BaseTokenizer = &lt;facet.tokenizer.nltk.NLTKTokenizer object&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/match_es.html#ESFacet"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.ESFacet" title="Permalink to this definition">¶</a></dt>
+<dd><p>FACET installation tool.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cuisty_db</strong> (<a class="reference internal" href="#facet.database.BaseDatabase" title="facet.database.BaseDatabase"><em>BaseDatabase</em></a>) – Handle to database instance for CUI-STY
+storage.</p></li>
+<li><p><strong>simstring</strong> (<a class="reference internal" href="#facet.Simstring" title="facet.Simstring"><em>Simstring</em></a>) – Handle to Simstring instance.
+Simstring requires an internal database.</p></li>
+<li><p><strong>tokenizer</strong> (<a class="reference internal" href="#facet.tokenizer.BaseTokenizer" title="facet.tokenizer.BaseTokenizer"><em>BaseTokenizer</em></a>) – Tokenizer instance.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="facet.ESFacet.__call__">
+<code class="sig-name descname">__call__</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">corpora</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>Iterable<span class="p">[</span>str<span class="p">]</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/match_es.html#ESFacet.__call__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.ESFacet.__call__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="simple">
+<dt>Kwargs:</dt><dd><p>Options passed directly to <cite>match</cite>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.ESFacet.match">
+<code class="sig-name descname">match</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">corpora</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>Iterable<span class="p">[</span>str<span class="p">]</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">best_match</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">alpha</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.7</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Dict<span class="p">[</span>str<span class="p">, </span>List<span class="p">[</span>List<span class="p">[</span>Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span><span class="p">]</span><span class="p">]</span><span class="p">]</span><a class="reference internal" href="_modules/facet/match_es.html#ESFacet.match"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.ESFacet.match" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>corpora</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>Iterable</em><em>[</em><em>str</em><em>]</em><em>]</em>) – Corpora items.</p></li>
+<li><p><strong>best_match</strong> (<em>bool</em>) – </p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Kwargs:</dt><dd><p>Options passed directly to <cite>corpus_generator</cite>.</p>
+</dd>
+</dl>
+<p>Examples:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">matches</span> <span class="o">=</span> <span class="n">Facet</span><span class="p">()</span><span class="o">.</span><span class="n">match</span><span class="p">([</span><span class="s1">&#39;file1.txt&#39;</span><span class="p">,</span> <span class="s1">&#39;file2.txt&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">terms</span> <span class="ow">in</span> <span class="n">matches</span><span class="p">[</span><span class="s1">&#39;file1.txt&#39;</span><span class="p">]:</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="k">for</span> <span class="n">term</span> <span class="ow">in</span> <span class="n">terms</span><span class="p">:</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="nb">print</span><span class="p">(</span><span class="n">term</span><span class="p">[</span><span class="s1">&#39;concept&#39;</span><span class="p">],</span> <span class="n">term</span><span class="p">[</span><span class="s1">&#39;cui&#39;</span><span class="p">],</span> <span class="n">term</span><span class="p">[</span><span class="s1">&#39;semantic type&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="tokenizer">
+<h2>Tokenizer<a class="headerlink" href="#tokenizer" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="facet.tokenizer.BaseTokenizer">
+<em class="property">class </em><code class="sig-prename descclassname">facet.tokenizer.</code><code class="sig-name descname">BaseTokenizer</code><a class="reference internal" href="_modules/facet/tokenizer/base.html#BaseTokenizer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.tokenizer.BaseTokenizer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class supporting sentence segmentation and tokenization.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.WhitespaceTokenizer">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">WhitespaceTokenizer</code><a class="reference internal" href="_modules/facet/tokenizer/whitespace.html#WhitespaceTokenizer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.WhitespaceTokenizer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Simple whitespace tokenizer with no sentence segmentation.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.SpacyTokenizer">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">SpacyTokenizer</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">language</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'en'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/tokenizer/spacy.html#SpacyTokenizer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.SpacyTokenizer" title="Permalink to this definition">¶</a></dt>
+<dd><p>SpaCy-based tokenizer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>language</strong> (<em>str</em>) – Language to use for processing corpora.
+Default is ‘en’.</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="facet.SpacyTokenizer.tokenize">
+<code class="sig-name descname">tokenize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">text</span><span class="p">:</span> <span class="n">spacy.Span</span></em>, <em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">window</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">5</span></em>, <em class="sig-param"><span class="n">min_match_length</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">3</span></em>, <em class="sig-param"><span class="n">ignore_syntax</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/tokenizer/spacy.html#SpacyTokenizer.tokenize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.SpacyTokenizer.tokenize" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sentence</strong> (<em>spacy.Span</em>) – Sentence to process.</p></li>
+<li><p><strong>window</strong> (<em>int</em>) – Window size for processing words.
+Default value is 5.</p></li>
+<li><p><strong>min_match_length</strong> (<em>int</em>) – Minimum number of characters for matching
+criterion. Default value is 3.</p></li>
+<li><p><strong>ignore_syntax</strong> (<em>bool</em>) – Ignore token types when parsing text.
+Default is False.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Returns (Generator[Tuple[int, int, str]]: Span start, span end,</dt><dd><p>and text.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.NLTKTokenizer">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">NLTKTokenizer</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">language</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'english'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/tokenizer/nltk.html#NLTKTokenizer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.NLTKTokenizer" title="Permalink to this definition">¶</a></dt>
+<dd><p>NLTK-based Treebank tokenizer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>language</strong> (<em>str</em>) – Language to use for processing corpora.
+Default is ‘english’.</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="facet.NLTKTokenizer.tokenize">
+<code class="sig-name descname">tokenize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">text</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/tokenizer/nltk.html#NLTKTokenizer.tokenize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.NLTKTokenizer.tokenize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use parts-of-speech tagger to filter tokens.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="database">
+<h2>Database<a class="headerlink" href="#database" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="facet.database.BaseDatabase">
+<em class="property">class </em><code class="sig-prename descclassname">facet.database.</code><code class="sig-name descname">BaseDatabase</code><a class="reference internal" href="_modules/facet/database/base.html#BaseDatabase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.database.BaseDatabase" title="Permalink to this definition">¶</a></dt>
+<dd><p>Interface to key/value store database.</p>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>Keys/fields should be of string datatype. Implementations of
+this interface should not need to validate keys/fields, it is
+up to the underlying database to handle or error accordingly.</p></li>
+<li><p>If needed, values should be serialized and deserialized by the
+implementation of this interface.</p></li>
+<li><p>All values are represented as either lists or dictionaries.
+Dictionaries exclusively represent field/values corresponding
+to a hash map.</p></li>
+<li><p>Follows the framework design pattern - parent class controls
+the execution flow and subclass provides the details.</p></li>
+</ul>
+<dl class="py method">
+<dt id="facet.database.BaseDatabase.config">
+<em class="property">property </em><code class="sig-name descname">config</code><a class="headerlink" href="#facet.database.BaseDatabase.config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get configuraton information of database.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.database.BaseDatabase.get">
+<code class="sig-name descname">get</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">keys</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>Iterable<span class="p">[</span>str<span class="p">]</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">fields</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>Iterable<span class="p">[</span>str<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Union[List[Any], None, List[Optional[List[Any]]]]<a class="reference internal" href="_modules/facet/database/base.html#BaseDatabase.get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.database.BaseDatabase.get" title="Permalink to this definition">¶</a></dt>
+<dd><p>Access values from database.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.database.BaseDatabase.set">
+<code class="sig-name descname">set</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">key_or_map</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">val_or_field_or_map</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>Any<span class="p">, </span>str<span class="p">, </span>Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">value</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; NoReturn<a class="reference internal" href="_modules/facet/database/base.html#BaseDatabase.set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.database.BaseDatabase.set" title="Permalink to this definition">¶</a></dt>
+<dd><p>Insert values into database.</p>
+<dl class="simple">
+<dt>Kwargs:</dt><dd><dl class="simple">
+<dt>replace (bool): If set, replace value, else add value to</dt><dd><p>existing ones. If None, store value “as is”. Default is None.</p>
+</dd>
+<dt>unique (bool): If set, do not allow duplicate values.</dt><dd><p>Used in conjunction with <em>replace</em> parameter.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>The second parameter is ambiguous between ‘_set’ and
+‘_hmset’ when it represents a value that is a mapping.
+To resolve this, when value is a mapping use ‘_set’.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.database.BaseDatabase.keys">
+<code class="sig-name descname">keys</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">key</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; List<span class="p">[</span>str<span class="p">]</span><a class="reference internal" href="_modules/facet/database/base.html#BaseDatabase.keys"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.database.BaseDatabase.keys" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get all keys in database.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.database.BaseDatabase.len">
+<code class="sig-name descname">len</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">key</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; int<a class="reference internal" href="_modules/facet/database/base.html#BaseDatabase.len"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.database.BaseDatabase.len" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get numbers of keys in database or given key.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.database.BaseDatabase.items">
+<code class="sig-name descname">items</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; Iterator<span class="p">[</span>Tuple<span class="p">[</span>str<span class="p">, </span>List<span class="p">[</span>Any<span class="p">]</span><span class="p">]</span><span class="p">]</span><a class="reference internal" href="_modules/facet/database/base.html#BaseDatabase.items"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.database.BaseDatabase.items" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get an iterator of key/value pairs.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.database.BaseDatabase.exists">
+<code class="sig-name descname">exists</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">key</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">field</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; bool<a class="reference internal" href="_modules/facet/database/base.html#BaseDatabase.exists"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.database.BaseDatabase.exists" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if a key or field exist in the database.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.database.BaseDatabase.delete">
+<code class="sig-name descname">delete</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">keys</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>Iterable<span class="p">[</span>str<span class="p">]</span><span class="p">, </span>str<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">fields</span><span class="p">:</span> <span class="n">Iterable<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; NoReturn<a class="reference internal" href="_modules/facet/database/base.html#BaseDatabase.delete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.database.BaseDatabase.delete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove keys or fields from the database.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.database.BaseDatabase.sync">
+<code class="sig-name descname">sync</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; NoReturn<a class="reference internal" href="_modules/facet/database/base.html#BaseDatabase.sync"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.database.BaseDatabase.sync" title="Permalink to this definition">¶</a></dt>
+<dd><p>Submit queued commands.
+Not all databases support this functionality.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.database.BaseDatabase.close">
+<code class="sig-name descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; NoReturn<a class="reference internal" href="_modules/facet/database/base.html#BaseDatabase.close"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.database.BaseDatabase.close" title="Permalink to this definition">¶</a></dt>
+<dd><p>Close database connection.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.database.BaseDatabase.clear">
+<em class="property">abstract </em><code class="sig-name descname">clear</code><span class="sig-paren">(</span><span class="sig-paren">)</span> &#x2192; NoReturn<a class="reference internal" href="_modules/facet/database/base.html#BaseDatabase.clear"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.database.BaseDatabase.clear" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete all keys in database.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.database.BaseDatabase.save">
+<code class="sig-name descname">save</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; NoReturn<a class="reference internal" href="_modules/facet/database/base.html#BaseDatabase.save"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.database.BaseDatabase.save" title="Permalink to this definition">¶</a></dt>
+<dd><p>Save database, if supported.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.RedisDatabase">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">RedisDatabase</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">host</span><span class="o">=</span><span class="default_value">'localhost'</span></em>, <em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">port</span><span class="o">=</span><span class="default_value">6379</span></em>, <em class="sig-param"><span class="n">db</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">pipe</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">serializer</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>BaseSerializer<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">'json'</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/database/redis.html#RedisDatabase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.RedisDatabase" title="Permalink to this definition">¶</a></dt>
+<dd><p>Redis database interface.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>host</strong> (<em>str</em>) – See Redis documentation. Default is ‘localhost’.</p></li>
+<li><p><strong>port</strong> (<em>int</em>) – See Redis documentation. Default is 6379.</p></li>
+<li><p><strong>db</strong> (<em>int</em>) – Database ID, see Redis documentation. Default is 0.</p></li>
+<li><p><strong>pipe</strong> (<em>bool</em>) – If set, queue ‘set-related’ commands to database.
+Run ‘sync’ command to submit commands in pipe.
+Default is False.</p></li>
+<li><p><strong>serializer</strong> (<em>str</em><em>, </em><a class="reference internal" href="#facet.serializer.BaseSerializer" title="facet.serializer.BaseSerializer"><em>BaseSerializer</em></a>) – Serializer instance or serializer
+name. Valid serializers are: ‘json’, ‘yaml’, ‘pickle’, ‘string’,
+‘stringsj’. Default is ‘json’.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Kwargs:</dt><dd><p>Options forwarded to ‘Redis’ class.</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>Redis treats keys/fields of ‘str, bytes, and int’
+types interchangeably, but this interface accepts keys/fields
+of ‘str’ type and arbitrary values.</p></li>
+<li><p>Redis Python API returns keys as ‘bytes’, so we use str.decode.</p></li>
+</ul>
+<dl class="py method">
+<dt id="facet.RedisDatabase.config">
+<em class="property">property </em><code class="sig-name descname">config</code><a class="headerlink" href="#facet.RedisDatabase.config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get configuraton information of database.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.RedisDatabase.sync">
+<code class="sig-name descname">sync</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/database/redis.html#RedisDatabase.sync"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.RedisDatabase.sync" title="Permalink to this definition">¶</a></dt>
+<dd><p>Submit queued commands.
+Not all databases support this functionality.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.RedisDatabase.clear">
+<code class="sig-name descname">clear</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/database/redis.html#RedisDatabase.clear"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.RedisDatabase.clear" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete all keys in database.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.RedisDatabase.save">
+<code class="sig-name descname">save</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/database/redis.html#RedisDatabase.save"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.RedisDatabase.save" title="Permalink to this definition">¶</a></dt>
+<dd><p>Save Redis server data to disk (blocking operation).</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.DictDatabase">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">DictDatabase</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">db</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">flag</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'c'</span></em>, <em class="sig-param"><span class="n">protocol</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">4</span></em>, <em class="sig-param"><span class="n">pipe</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/database/dict.html#DictDatabase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.DictDatabase" title="Permalink to this definition">¶</a></dt>
+<dd><p>Python dictionary database interface
+Supports both persistent and in-memory dictionaries.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>db</strong> (<em>str</em>) – Path representing database directory and name for persistent
+dictionary. The underlying database is managed by a file-backed
+dictionary. A ‘.dat’ extension is automatically added by ‘shelve’
+to the filename. The path is created if it does not exists. The
+database name is used as prefix for database files. If None or
+empty string, an in-memory dictionary is used. Default is None.</p></li>
+<li><p><strong>flag</strong> (<em>str</em>) – (For persistent mode only) Access mode for database.
+Valid values are: ‘r’ = read-only, ‘w’ = read/write’,
+‘c’ = read/write/create if not exists, ‘n’ = new read/write.
+Default is ‘c’.</p></li>
+<li><p><strong>protocol</strong> (<em>int</em>) – (For persistent mode only) Pickle serialization
+protocol to use. Default is ‘pickle.HIGHEST_PROTOCOL’.</p></li>
+<li><p><strong>pipe</strong> (<em>bool</em>) – (For persistent mode only) If set, queue ‘set-related’
+commands to database. Run ‘sync’ command to submit commands
+in pipe. Default is True.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="facet.DictDatabase.config">
+<em class="property">property </em><code class="sig-name descname">config</code><a class="headerlink" href="#facet.DictDatabase.config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get configuraton information of database.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.DictDatabase.sync">
+<code class="sig-name descname">sync</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/database/dict.html#DictDatabase.sync"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.DictDatabase.sync" title="Permalink to this definition">¶</a></dt>
+<dd><p>Submit queued commands.
+Not all databases support this functionality.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.DictDatabase.close">
+<code class="sig-name descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/database/dict.html#DictDatabase.close"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.DictDatabase.close" title="Permalink to this definition">¶</a></dt>
+<dd><p>Close database connection.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.DictDatabase.clear">
+<code class="sig-name descname">clear</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/database/dict.html#DictDatabase.clear"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.DictDatabase.clear" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete all keys in database.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.DictDatabase.save">
+<code class="sig-name descname">save</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#facet.DictDatabase.save" title="Permalink to this definition">¶</a></dt>
+<dd><p>Submit queued commands.
+Not all databases support this functionality.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.Elasticsearchx">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">Elasticsearchx</code><span class="sig-paren">(</span><em class="sig-param">hosts=None</em>, <em class="sig-param">transport_class=&lt;class 'elasticsearch.transport.Transport'&gt;</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/database/elasticsearchx.html#Elasticsearchx"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.Elasticsearchx" title="Permalink to this definition">¶</a></dt>
+<dd><p>Elasticsearch database interface extended with helper methods.</p>
+<dl class="py method">
+<dt id="facet.Elasticsearchx.bulkx">
+<code class="sig-name descname">bulkx</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">actions</span><span class="p">:</span> <span class="n">Iterable<span class="p">[</span>Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">stream</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">thread_count</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">1</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>int<span class="p">, </span>List<span class="p">[</span>Any<span class="p">]</span><span class="p">]</span><a class="reference internal" href="_modules/facet/database/elasticsearchx.html#Elasticsearchx.bulkx"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.Elasticsearchx.bulkx" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extended bulk API.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>actions</strong> (<em>Iterable</em><em>[</em><em>Dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>]</em>) – Actions for ‘Helpers.*bulk()’.
+<a class="reference external" href="https://elasticsearch-py.readthedocs.io/en/master/helpers.html#elasticsearch.helpers.bulk">https://elasticsearch-py.readthedocs.io/en/master/helpers.html#elasticsearch.helpers.bulk</a></p></li>
+<li><p><strong>stream</strong> (<em>bool</em>) – If set, use streaming bulk instead of bulk API.
+Default is False.</p></li>
+<li><p><strong>thread_count</strong> (<em>int</em>) – Number of threads for parallel bulk API.
+If single threaded, use bulk API. Default is 1.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Kwargs:</dt><dd><p>Options forwarded to ‘Helpers.*bulk()’.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.Elasticsearchx.bulk_index">
+<code class="sig-name descname">bulk_index</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">queries</span><span class="p">:</span> <span class="n">Iterable<span class="p">[</span>Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">index</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">op_type</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'index'</span></em>, <em class="sig-param"><span class="n">doc_id</span><span class="p">:</span> <span class="n">Iterable<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>int<span class="p">, </span>List<span class="p">[</span>Any<span class="p">]</span><span class="p">]</span><a class="reference internal" href="_modules/facet/database/elasticsearchx.html#Elasticsearchx.bulk_index"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.Elasticsearchx.bulk_index" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bulk index and create documents.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>queries</strong> (<em>Iterable</em><em>[</em><em>Dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>]</em>) – List of document fields/values
+to index.</p></li>
+<li><p><strong>index</strong> (<em>str</em>) – Index name to search.</p></li>
+<li><p><strong>op_type</strong> (<em>str</em>) – Explicit operation type. Valid values are ‘index’
+and ‘create’. Default is ‘index’.</p></li>
+<li><p><strong>doc_id</strong> (<em>Iterable</em><em>[</em><em>str</em><em>]</em>) – Document ID. If set to None, ES sets
+random ones. Default is None.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Kwargs:</dt><dd><p>Options forwarded to ‘bulkx()’.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.Elasticsearchx.bulk_delete">
+<code class="sig-name descname">bulk_delete</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">doc_ids</span><span class="p">:</span> <span class="n">Iterable<span class="p">[</span>str<span class="p">]</span></span></em>, <em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">index</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>int<span class="p">, </span>List<span class="p">[</span>Any<span class="p">]</span><span class="p">]</span><a class="reference internal" href="_modules/facet/database/elasticsearchx.html#Elasticsearchx.bulk_delete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.Elasticsearchx.bulk_delete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bulk delete.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>doc_ids</strong> (<em>Iterable</em><em>[</em><em>str</em><em>]</em>) – Document IDs to delete.</p></li>
+<li><p><strong>index</strong> (<em>str</em>) – Index name to search.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Kwargs:</dt><dd><p>Options forwarded to ‘bulkx()’.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.Elasticsearchx.scan">
+<code class="sig-name descname">scan</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">body</span><span class="p">:</span> <span class="n">Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span></span></em>, <em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">index</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>List<span class="p">[</span>str<span class="p">]</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Iterator<span class="p">[</span>Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span><span class="p">]</span><a class="reference internal" href="_modules/facet/database/elasticsearchx.html#Elasticsearchx.scan"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.Elasticsearchx.scan" title="Permalink to this definition">¶</a></dt>
+<dd><p>Scan/scroll through documents.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>body</strong> (<em>Dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em>) – Body for ‘Helpers.scan()’.
+<a class="reference external" href="https://elasticsearch-py.readthedocs.io/en/master/helpers.html#scan">https://elasticsearch-py.readthedocs.io/en/master/helpers.html#scan</a></p></li>
+<li><p><strong>index</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>List</em><em>[</em><em>str</em><em>]</em><em>]</em>) – Index names to search.
+<a class="reference external" href="https://elasticsearch-py.readthedocs.io/en/master/api.html#elasticsearch.Elasticsearch.search">https://elasticsearch-py.readthedocs.io/en/master/api.html#elasticsearch.Elasticsearch.search</a></p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Kwargs:</dt><dd><p>Options forwarded to ‘Helpers.scan()’.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.ElasticsearchDatabase">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">ElasticsearchDatabase</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">hosts</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">index</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">fields</span><span class="p">:</span> <span class="n">Iterable<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">body</span><span class="p">:</span> <span class="n">Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">pipe</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">overwrite</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/database/elasticsearchx.html#ElasticsearchDatabase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.ElasticsearchDatabase" title="Permalink to this definition">¶</a></dt>
+<dd><p>Elasticsearch interface for Simstring algorithm.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>hosts</strong> (<em>Any</em>) – Elasticsearch hosts.</p></li>
+<li><p><strong>index</strong> (<em>str</em>) – Index name.</p></li>
+<li><p><strong>fields</strong> (<em>Iterable</em><em>[</em><em>str</em><em>]</em>) – Document fields to use in search actions.
+Default is None (search disabled).</p></li>
+<li><p><strong>body</strong> (<em>Dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em>) – Index settings and document mappings.</p></li>
+<li><p><strong>pipe</strong> (<em>bool</em>) – If set, queue ‘set-related’ commands to database.
+Run ‘sync’ command to submit commands in pipe.
+Default is False.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Kwargs:</dt><dd><p>Options forwarded to ‘Elasticsearchx’.</p>
+</dd>
+<dt>Interface mimics a key/value store:</dt><dd><ul class="simple">
+<li><dl class="simple">
+<dt>set operations - keys are composites of int (ngram count)</dt><dd><p>and Iterable[str] (ngrams)</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>get operations - keys are composites of int (ngram count)</dt><dd><p>and str (joined ngrams)</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>get operations - keys are composites of Iterable[int]</dt><dd><p>(min/max ngram count) and str (joined ngrams)</p>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">db</span> <span class="o">=</span> <span class="n">ElasticsearchDatabase</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="s1">&#39;default&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">set</span><span class="p">({</span><span class="s1">&#39;term&#39;</span><span class="p">:</span> <span class="s1">&#39;hello&#39;</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="s1">&#39;ng&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39; h&#39;</span> <span class="p">,</span> <span class="s1">&#39;he&#39;</span><span class="p">,</span> <span class="s1">&#39;el&#39;</span><span class="p">,</span> <span class="s1">&#39;ll&#39;</span><span class="p">,</span> <span class="s1">&#39;lo&#39;</span><span class="p">,</span> <span class="s1">&#39;o &#39;</span><span class="p">],</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="s1">&#39;sz&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39; h&#39;</span><span class="p">,</span> <span class="s1">&#39;he&#39;</span><span class="p">,</span> <span class="s1">&#39;el&#39;</span><span class="p">,</span> <span class="s1">&#39;ll&#39;</span><span class="p">,</span> <span class="s1">&#39;lo&#39;</span><span class="p">,</span> <span class="s1">&#39;o &#39;</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39; h&#39;</span><span class="p">,</span> <span class="s1">&#39;he&#39;</span><span class="p">,</span> <span class="s1">&#39;el&#39;</span><span class="p">,</span> <span class="s1">&#39;ll&#39;</span><span class="p">,</span> <span class="s1">&#39;lo&#39;</span><span class="p">,</span> <span class="s1">&#39;o &#39;</span><span class="p">],</span>
+<span class="gp">&gt;&gt;&gt; </span>       <span class="n">filter_path</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;hits.hits._source&#39;</span><span class="p">])</span> <span class="c1"># _[&#39;hits&#39;][&#39;hits]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">db</span><span class="o">.</span><span class="n">get</span><span class="p">((</span><span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span> <span class="p">[</span><span class="s1">&#39;he&#39;</span><span class="p">,</span> <span class="s1">&#39;ll&#39;</span><span class="p">])</span>  <span class="c1"># range 5-7</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt id="facet.ElasticsearchDatabase.set">
+<code class="sig-name descname">set</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">document</span><span class="p">:</span> <span class="n">Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span></span></em>, <em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">doc_id</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/database/elasticsearchx.html#ElasticsearchDatabase.set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.ElasticsearchDatabase.set" title="Permalink to this definition">¶</a></dt>
+<dd><p>Index or create documents.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>document</strong> (<em>Dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em>) – Document instance to index.</p></li>
+<li><p><strong>doc_id</strong> (<em>str</em>) – Document ID. If set to None, ES sets random ones.
+Default is None.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Kwargs:</dt><dd><p>Options forwarded to ‘Elasticsearch.index()’.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.ElasticsearchDatabase.scan">
+<code class="sig-name descname">scan</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">key1</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>int<span class="p">, </span>Tuple<span class="p">[</span>int<span class="p">, </span>int<span class="p">]</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">key2</span><span class="p">:</span> <span class="n">Iterable<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">max_size</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span> &#x2192; Iterator<span class="p">[</span>Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span><span class="p">]</span><a class="reference internal" href="_modules/facet/database/elasticsearchx.html#ElasticsearchDatabase.scan"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.ElasticsearchDatabase.scan" title="Permalink to this definition">¶</a></dt>
+<dd><p>See ‘Elasticsearchx.scan()’.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="n-gram-features-extractor">
+<h2>N-gram Features Extractor<a class="headerlink" href="#n-gram-features-extractor" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="facet.simstring.ngram.BaseNgram">
+<em class="property">class </em><code class="sig-prename descclassname">facet.simstring.ngram.</code><code class="sig-name descname">BaseNgram</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">n</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">3</span></em>, <em class="sig-param"><span class="n">boundary</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">' '</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/simstring/ngram/base.html#BaseNgram"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.simstring.ngram.BaseNgram" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provided capabilities to extract N-gram features from a given
+text.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>n</strong> (<em>int</em>) – Size of features.</p></li>
+<li><p><strong>boundary</strong> (<em>str</em>) – Character/word to use as padding for boundary features.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.CharacterNgram">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">CharacterNgram</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">n</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">3</span></em>, <em class="sig-param"><span class="n">boundary</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">' '</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/simstring/ngram/character.html#CharacterNgram"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.CharacterNgram" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extract character N-gram features.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.WordNgram">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">WordNgram</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">n</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">3</span></em>, <em class="sig-param"><span class="n">boundary</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">' '</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/simstring/ngram/word.html#WordNgram"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.WordNgram" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extract word N-gram features.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="similarity-measures">
+<h2>Similarity Measures<a class="headerlink" href="#similarity-measures" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="facet.simstring.similarity.BaseSimilarity">
+<em class="property">class </em><code class="sig-prename descclassname">facet.simstring.similarity.</code><code class="sig-name descname">BaseSimilarity</code><a class="reference internal" href="_modules/facet/simstring/similarity/base.html#BaseSimilarity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.simstring.similarity.BaseSimilarity" title="Permalink to this definition">¶</a></dt>
+<dd><p>Interface for similarity measures.</p>
+<dl class="py method">
+<dt id="facet.simstring.similarity.BaseSimilarity.min_features">
+<em class="property">abstract </em><code class="sig-name descname">min_features</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">length</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">alpha</span><span class="p">:</span> <span class="n">float</span></em><span class="sig-paren">)</span> &#x2192; int<a class="reference internal" href="_modules/facet/simstring/similarity/base.html#BaseSimilarity.min_features"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.simstring.similarity.BaseSimilarity.min_features" title="Permalink to this definition">¶</a></dt>
+<dd><p>Minimum number of features for searching similar strings.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.simstring.similarity.BaseSimilarity.max_features">
+<em class="property">abstract </em><code class="sig-name descname">max_features</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">length</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">alpha</span><span class="p">:</span> <span class="n">float</span></em><span class="sig-paren">)</span> &#x2192; int<a class="reference internal" href="_modules/facet/simstring/similarity/base.html#BaseSimilarity.max_features"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.simstring.similarity.BaseSimilarity.max_features" title="Permalink to this definition">¶</a></dt>
+<dd><p>Maximum number of features for searching similar strings.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.simstring.similarity.BaseSimilarity.min_common_features">
+<em class="property">abstract </em><code class="sig-name descname">min_common_features</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">lengthA</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">lengthB</span><span class="p">:</span> <span class="n">int</span></em>, <em class="sig-param"><span class="n">alpha</span><span class="p">:</span> <span class="n">float</span></em><span class="sig-paren">)</span> &#x2192; int<a class="reference internal" href="_modules/facet/simstring/similarity/base.html#BaseSimilarity.min_common_features"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.simstring.similarity.BaseSimilarity.min_common_features" title="Permalink to this definition">¶</a></dt>
+<dd><p>Minimum number of features for approximate dictionary matching.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.simstring.similarity.BaseSimilarity.similarity">
+<em class="property">abstract </em><code class="sig-name descname">similarity</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">featuresA</span><span class="p">:</span> <span class="n">Iterable<span class="p">[</span>Any<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">featuresB</span><span class="p">:</span> <span class="n">Iterable<span class="p">[</span>Any<span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; float<a class="reference internal" href="_modules/facet/simstring/similarity/base.html#BaseSimilarity.similarity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.simstring.similarity.BaseSimilarity.similarity" title="Permalink to this definition">¶</a></dt>
+<dd><p>Similarity measure between pair of string features.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.ExactSimilarity">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">ExactSimilarity</code><a class="reference internal" href="_modules/facet/simstring/similarity/exact.html#ExactSimilarity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.ExactSimilarity" title="Permalink to this definition">¶</a></dt>
+<dd><p>Exact similarity.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.DiceSimilarity">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">DiceSimilarity</code><a class="reference internal" href="_modules/facet/simstring/similarity/dice.html#DiceSimilarity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.DiceSimilarity" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sorensen-Dice coefficient.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.CosineSimilarity">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">CosineSimilarity</code><a class="reference internal" href="_modules/facet/simstring/similarity/cosine.html#CosineSimilarity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.CosineSimilarity" title="Permalink to this definition">¶</a></dt>
+<dd><p>Cosine similarity.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.JaccardSimilarity">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">JaccardSimilarity</code><a class="reference internal" href="_modules/facet/simstring/similarity/jaccard.html#JaccardSimilarity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.JaccardSimilarity" title="Permalink to this definition">¶</a></dt>
+<dd><p>Jaccard similarity coefficient.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.OverlapSimilarity">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">OverlapSimilarity</code><a class="reference internal" href="_modules/facet/simstring/similarity/overlap.html#OverlapSimilarity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.OverlapSimilarity" title="Permalink to this definition">¶</a></dt>
+<dd><p>Overlap coefficient (Szymkiewicz-Simpson coefficient).</p>
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.HammingSimilarity">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">HammingSimilarity</code><a class="reference internal" href="_modules/facet/simstring/similarity/hamming.html#HammingSimilarity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.HammingSimilarity" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hamming distance.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="serializer">
+<h2>Serializer<a class="headerlink" href="#serializer" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="facet.serializer.BaseSerializer">
+<em class="property">class </em><code class="sig-prename descclassname">facet.serializer.</code><code class="sig-name descname">BaseSerializer</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/serializer/base.html#BaseSerializer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.serializer.BaseSerializer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Interface for Serializer instances.</p>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>Follows a mixin classes approach - parent class supplies helper
+methods that depend on augment capabilities supplied in subclass.</p></li>
+</ul>
+<dl class="py method">
+<dt id="facet.serializer.BaseSerializer.encode">
+<code class="sig-name descname">encode</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">string</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span> &#x2192; bytes<a class="reference internal" href="_modules/facet/serializer/base.html#BaseSerializer.encode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.serializer.BaseSerializer.encode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function wrapper over str.encode().</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.serializer.BaseSerializer.decode">
+<code class="sig-name descname">decode</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">string_b</span><span class="p">:</span> <span class="n">bytes</span></em><span class="sig-paren">)</span> &#x2192; str<a class="reference internal" href="_modules/facet/serializer/base.html#BaseSerializer.decode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.serializer.BaseSerializer.decode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function wrapper over str.decode().</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.serializer.BaseSerializer.normalize_unicode">
+<code class="sig-name descname">normalize_unicode</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">string_u</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span> &#x2192; str<a class="reference internal" href="_modules/facet/serializer/base.html#BaseSerializer.normalize_unicode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.serializer.BaseSerializer.normalize_unicode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert Unicode string to a normal form.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.serializer.BaseSerializer.dumps">
+<em class="property">abstract </em><code class="sig-name descname">dumps</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obj</span><span class="p">:</span> <span class="n">Any</span></em><span class="sig-paren">)</span> &#x2192; bytes<a class="reference internal" href="_modules/facet/serializer/base.html#BaseSerializer.dumps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.serializer.BaseSerializer.dumps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Serialize arbitrary parameter.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.serializer.BaseSerializer.loads">
+<em class="property">abstract </em><code class="sig-name descname">loads</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obj</span><span class="p">:</span> <span class="n">bytes</span></em><span class="sig-paren">)</span> &#x2192; Any<a class="reference internal" href="_modules/facet/serializer/base.html#BaseSerializer.loads"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.serializer.BaseSerializer.loads" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deserialize parameter to arbitrary object.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.PickleSerializer">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">PickleSerializer</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/serializer/pickle.html#PickleSerializer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.PickleSerializer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Pickle serializer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>protocol</strong> (<em>int</em>) – Protocol version to use.
+Default is pickle.HIGHEST_PROTOCOL.</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="facet.PickleSerializer.dumps">
+<code class="sig-name descname">dumps</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obj</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/serializer/pickle.html#PickleSerializer.dumps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.PickleSerializer.dumps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Serialize arbitrary parameter.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.PickleSerializer.loads">
+<code class="sig-name descname">loads</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obj</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/serializer/pickle.html#PickleSerializer.loads"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.PickleSerializer.loads" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deserialize parameter to arbitrary object.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.JSONSerializer">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">JSONSerializer</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/serializer/json.html#JSONSerializer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.JSONSerializer" title="Permalink to this definition">¶</a></dt>
+<dd><p>JSON serializer.</p>
+<dl class="py method">
+<dt id="facet.JSONSerializer.dumps">
+<code class="sig-name descname">dumps</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obj</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/serializer/json.html#JSONSerializer.dumps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.JSONSerializer.dumps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Serialize arbitrary parameter.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.JSONSerializer.loads">
+<code class="sig-name descname">loads</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obj</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/serializer/json.html#JSONSerializer.loads"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.JSONSerializer.loads" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deserialize parameter to arbitrary object.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.YAMLSerializer">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">YAMLSerializer</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/serializer/yaml.html#YAMLSerializer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.YAMLSerializer" title="Permalink to this definition">¶</a></dt>
+<dd><p>YAML serializer.</p>
+<dl class="py method">
+<dt id="facet.YAMLSerializer.dumps">
+<code class="sig-name descname">dumps</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obj</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/serializer/yaml.html#YAMLSerializer.dumps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.YAMLSerializer.dumps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Serialize arbitrary parameter.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.YAMLSerializer.loads">
+<code class="sig-name descname">loads</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obj</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/serializer/yaml.html#YAMLSerializer.loads"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.YAMLSerializer.loads" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deserialize parameter to arbitrary object.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.StringSerializer">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">StringSerializer</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/serializer/string.html#StringSerializer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.StringSerializer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Simple string serializer.</p>
+<dl class="py method">
+<dt id="facet.StringSerializer.dumps">
+<code class="sig-name descname">dumps</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obj</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/serializer/string.html#StringSerializer.dumps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.StringSerializer.dumps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Serialize arbitrary parameter.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.StringSerializer.loads">
+<code class="sig-name descname">loads</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obj</span></em><span class="sig-paren">)</span> &#x2192; str<a class="reference internal" href="_modules/facet/serializer/string.html#StringSerializer.loads"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.StringSerializer.loads" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deserialize parameter to arbitrary object.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.StringSJSerializer">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">StringSJSerializer</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/serializer/string.html#StringSJSerializer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.StringSJSerializer" title="Permalink to this definition">¶</a></dt>
+<dd><p>String split-join serializer for sequence-like objects.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>delimiter</strong> (<em>str</em>) – Character to delimit strings.</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="facet.StringSJSerializer.dumps">
+<code class="sig-name descname">dumps</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obj</span><span class="p">:</span> <span class="n">Iterable<span class="p">[</span>str<span class="p">]</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/serializer/string.html#StringSJSerializer.dumps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.StringSJSerializer.dumps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Serialize arbitrary parameter.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.StringSJSerializer.loads">
+<code class="sig-name descname">loads</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">obj</span></em><span class="sig-paren">)</span> &#x2192; List<span class="p">[</span>str<span class="p">]</span><a class="reference internal" href="_modules/facet/serializer/string.html#StringSJSerializer.loads"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.StringSJSerializer.loads" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deserialize parameter to arbitrary object.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="string-matching">
+<h2>String Matching<a class="headerlink" href="#string-matching" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="facet.Simstring">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">Simstring</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">db</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>BaseDatabase<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">'dict'</span></em>, <em class="sig-param"><span class="n">cache_db</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>BaseDatabase<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">alpha</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.7</span></em>, <em class="sig-param"><span class="n">similarity</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>BaseSimilarity<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">'cosine'</span></em>, <em class="sig-param"><span class="n">ngram</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>BaseNgram<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">'character'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/simstring/simstring.html#Simstring"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.Simstring" title="Permalink to this definition">¶</a></dt>
+<dd><p>Implementation of Simstring algorithm.</p>
+<p>Okazaki, Naoaki, and Jun’ichi Tsujii. “Simple and efficient algorithm for
+approximate dictionary matching.” Proceedings of the 23rd International
+Conference on Computational Linguistics. Association for Computational
+Linguistics, 2010.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>db</strong> (<em>str</em><em>, </em><a class="reference internal" href="#facet.database.BaseDatabase" title="facet.database.BaseDatabase"><em>BaseDatabase</em></a>) – Handle to database instance or database name
+for strings storage. Valid databases are: ‘dict’, ‘redis’,
+‘elasticsearch’. Default is ‘dict’.</p></li>
+<li><p><strong>cache_db</strong> (<em>str</em><em>, </em><a class="reference internal" href="#facet.database.BaseDatabase" title="facet.database.BaseDatabase"><em>BaseDatabase</em></a>) – Handle to database instance or database
+name for strings cache. Valid databases are: ‘dict’, ‘redis’,
+‘elasticsearch’. Default is ‘dict’.</p></li>
+<li><p><strong>alpha</strong> (<em>float</em>) – Similarity threshold in range (0,1]. Default is 0.7.</p></li>
+<li><p><strong>similarity</strong> (<em>str</em><em>, </em><a class="reference internal" href="#facet.simstring.similarity.BaseSimilarity" title="facet.simstring.similarity.BaseSimilarity"><em>BaseSimilarity</em></a>) – Instance of similarity measure or
+similarity name. Valid measures are: ‘cosine’, ‘jaccard’, ‘dice’,
+‘exact’, ‘overlap’, ‘hamming’. Default is ‘cosine’.</p></li>
+<li><p><strong>ngram</strong> (<em>str</em><em>, </em><a class="reference internal" href="#facet.simstring.ngram.BaseNgram" title="facet.simstring.ngram.BaseNgram"><em>BaseNgram</em></a>) – N-gram feature extractor instance
+or n-gram name. Valid n-gram extractors are: ‘word’, ‘character’.
+Default is ‘character’.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="facet.Simstring.insert">
+<code class="sig-name descname">insert</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">string</span><span class="p">:</span> <span class="n">str</span></em><span class="sig-paren">)</span> &#x2192; NoReturn<a class="reference internal" href="_modules/facet/simstring/simstring.html#Simstring.insert"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.Simstring.insert" title="Permalink to this definition">¶</a></dt>
+<dd><p>Insert string into database.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="facet.Simstring.search">
+<code class="sig-name descname">search</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">query_string</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">alpha</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">similarity</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>str<span class="p">, </span>BaseSimilarity<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">rank</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">update_cache</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em><span class="sig-paren">)</span> &#x2192; Union<span class="p">[</span>List<span class="p">[</span>Tuple<span class="p">[</span>str<span class="p">, </span>float<span class="p">]</span><span class="p">]</span><span class="p">, </span>List<span class="p">[</span>str<span class="p">]</span><span class="p">]</span><a class="reference internal" href="_modules/facet/simstring/simstring.html#Simstring.search"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.Simstring.search" title="Permalink to this definition">¶</a></dt>
+<dd><p>Approximate dictionary matching.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>alpha</strong> (<em>float</em>) – Similarity threshold.</p></li>
+<li><p><strong>similarity</strong> (<em>str</em><em>, </em><a class="reference internal" href="#facet.simstring.similarity.BaseSimilarity" title="facet.simstring.similarity.BaseSimilarity"><em>BaseSimilarity</em></a>) – Instance of similarity measure or
+similarity name. Valid measures are: ‘cosine’, ‘jaccard’,
+‘dice’, ‘exact’, ‘overlap’, ‘hamming’.</p></li>
+<li><p><strong>update_cache</strong> (<em>bool</em>) – If set, then cache database is updated with
+new queries. Default is True.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="facet.ESSimstring">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">ESSimstring</code><span class="sig-paren">(</span><em class="sig-param">*, db: Union[str, ElasticsearchDatabase], feature_extractor: NgramFeatures = &lt;facet.simstring.ngram.character.CharacterNgram object&gt;, similarity: BaseSimilarity = &lt;facet.simstring.similarity.cosine.CosineSimilarity object&gt;, case: str = 'L'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/simstring/elasticsearch.html#ESSimstring"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.ESSimstring" title="Permalink to this definition">¶</a></dt>
+<dd><p>Implementation of Simstring algorithm.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>db</strong> (<a class="reference internal" href="#facet.database.BaseDatabase" title="facet.database.BaseDatabase"><em>BaseDatabase</em></a><em>, </em><em>str</em>) – ES database instance or index for storage.</p></li>
+<li><p><strong>feature_extractor</strong> (<em>NgramFeatures</em>) – N-gram feature extractor instance.</p></li>
+<li><p><strong>similarity</strong> (<a class="reference internal" href="#facet.simstring.similarity.BaseSimilarity" title="facet.simstring.similarity.BaseSimilarity"><em>BaseSimilarity</em></a>) – Instance of similarity measure.</p></li>
+<li><p><strong>case</strong> (<em>str</em>) – Character to control string casing during insert/search.
+Valid values are ‘L’ (lower), ‘U’ (upper), or None (no casing).
+Default is ‘L’.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="facet.ESSimstring.insert">
+<code class="sig-name descname">insert</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">string</span><span class="p">:</span> <span class="n">str</span></em>, <em class="sig-param"><span class="n">attr</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; NoReturn<a class="reference internal" href="_modules/facet/simstring/elasticsearch.html#ESSimstring.insert"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.ESSimstring.insert" title="Permalink to this definition">¶</a></dt>
+<dd><p>Insert string into database.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="formatter">
+<h2>Formatter<a class="headerlink" href="#formatter" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="facet.Formatter">
+<em class="property">class </em><code class="sig-prename descclassname">facet.</code><code class="sig-name descname">Formatter</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">format</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/facet/formatter.html#Formatter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.Formatter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Format data and write to stream.</p>
+<dl class="py method">
+<dt id="facet.Formatter.__call__">
+<code class="sig-name descname">__call__</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span><span class="p">:</span> <span class="n">Dict<span class="p">[</span>str<span class="p">, </span>List<span class="p">[</span>List<span class="p">[</span>Dict<span class="p">[</span>str<span class="p">, </span>Any<span class="p">]</span><span class="p">]</span><span class="p">]</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="o">*</span></em>, <em class="sig-param"><span class="n">format</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">''</span></em>, <em class="sig-param"><span class="n">outfile</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; Any<a class="reference internal" href="_modules/facet/formatter.html#Formatter.__call__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#facet.Formatter.__call__" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>Dict</em><em>[</em><em>str</em><em>, </em><em>List</em><em>[</em><em>List</em><em>[</em><em>Dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>]</em><em>]</em><em>]</em>) – Mapping of data and
+attributes.</p></li>
+<li><p><strong>format</strong> (<em>str</em>) – Formatting mode for match results. Valid values
+are: ‘json’, ‘yaml’, ‘xml’, ‘pickle’, ‘csv’. Default is None.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="changelog.html" class="btn btn-neutral float-right" title="CHANGE LOG" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="readme.html" class="btn btn-neutral float-left" title="FACET - Framework for Annotation and Concept Extraction in Text" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020 Eduardo Ponce, Kris Brown, and Edmon Begoli
+                   Oak Ridge National Laboratory
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

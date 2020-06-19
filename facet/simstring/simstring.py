@@ -1,11 +1,17 @@
 from collections import defaultdict
-from .ngram import CharacterFeatures as Features
-from .similarity import (
-    get_similarity_measure,
-    BaseSimilarity,
-    CosineSimilarity as Similarity,
+from .base import BaseSimstring
+from ..database import (
+    database_map,
+    BaseDatabase,
 )
-from QuickerUMLS.database import DictDatabase as Database
+from .similarity import (
+    similarity_map,
+    BaseSimilarity,
+)
+from .ngram import (
+    ngram_map,
+    BaseNgram,
+)
 from typing import (
     List,
     Tuple,
@@ -18,7 +24,7 @@ from typing import (
 __all__ = ['Simstring']
 
 
-class Simstring:
+class Simstring(BaseSimstring):
     """Implementation of Simstring algorithm.
 
     Okazaki, Naoaki, and Jun'ichi Tsujii. "Simple and efficient algorithm for
@@ -27,11 +33,13 @@ class Simstring:
     Linguistics, 2010.
 
     Args:
-        db (BaseDatabase): Database instance for strings storage.
-            Default is a Python dictionary.
+        db (str, BaseDatabase): Handle to database instance or database name
+            for strings storage. Valid databases are: 'dict', 'redis',
+            'elasticsearch'. Default is 'dict'.
 
-        feature_extractor (NgramFeatures): N-gram feature extractor instance.
-            Default is CharacterFeatures.
+        cache_db (str, BaseDatabase): Handle to database instance or database
+            name for strings cache. Valid databases are: 'dict', 'redis',
+            'elasticsearch'. Default is 'dict'.
 
         alpha (float): Similarity threshold in range (0,1]. Default is 0.7.
 
@@ -39,26 +47,31 @@ class Simstring:
             similarity name. Valid measures are: 'cosine', 'jaccard', 'dice',
             'exact', 'overlap', 'hamming'. Default is 'cosine'.
 
-        cache_db (BaseDatabase): Database instance for strings cache.
+        ngram (str, BaseNgram): N-gram feature extractor instance
+            or n-gram name. Valid n-gram extractors are: 'word', 'character'.
+            Default is 'character'.
     """
 
     def __init__(
         self,
         *,
-        db: 'BaseDatabase' = Database(),
-        feature_extractor: 'NgramFeatures' = Features(),
+        db: Union[str, 'BaseDatabase'] = 'dict',
+        cache_db: Union[str, 'BaseDatabase'] = None,
         alpha: float = 0.7,
-        similarity: Union[str, 'BaseSimilarity'] = Similarity(),
-        cache_db: 'BaseDatabase' = None,
+        similarity: Union[str, 'BaseSimilarity'] = 'cosine',
+        ngram: Union[str, 'BaseNgram'] = 'character',
     ):
-        self._db = db
-        self._fe = feature_extractor
+        self._db = None
+        self._cache_db = None
         self._alpha = None
         self._similarity = None
-        self._cache_db = cache_db
+        self._ngram = None
 
+        self.db = db
+        self.cache_db = cache_db
         self.alpha = alpha
         self.similarity = similarity
+        self.ngram = ngram
 
         # NOTE: Can track max number of n-gram features when inserting strings
         # into database, but this value will not be available for other
@@ -72,6 +85,32 @@ class Simstring:
     @property
     def db(self):
         return self._db
+
+    @db.setter
+    def db(self, value: Union[str, 'BaseDatabase']):
+        obj = None
+        if isinstance(value, str):
+            obj = database_map[value]()
+        elif isinstance(value, BaseDatabase):
+            obj = value
+
+        if obj is None:
+            raise ValueError(f'invalid Simstring database, {value}')
+        self._db = obj
+
+    @property
+    def cache_db(self):
+        return self._cache_db
+
+    @cache_db.setter
+    def cache_db(self, value: Union[str, 'BaseDatabase']):
+        if isinstance(value, str):
+            obj = database_map[value]()
+        elif isinstance(value, BaseDatabase):
+            obj = value
+        else:
+            obj = None
+        self._cache_db = obj
 
     @property
     def alpha(self):
@@ -87,16 +126,32 @@ class Simstring:
         return self._similarity.name
 
     @similarity.setter
-    def similarity(self, similarity: Union[str, 'BaseSimilarity']):
-        measure = None
-        if isinstance(similarity, str):
-            measure = get_similarity_measure(similarity)
-        elif isinstance(similarity, BaseSimilarity):
-            measure = similarity
+    def similarity(self, value: Union[str, 'BaseSimilarity']):
+        obj = None
+        if isinstance(value, str):
+            obj = similarity_map[value]()
+        elif isinstance(value, BaseSimilarity):
+            obj = value
 
-        if measure is None:
-            raise ValueError(f'invalid similarity measure, {similarity}')
-        self._similarity = measure
+        if obj is None:
+            raise ValueError(f'invalid similarity measure, {value}')
+        self._similarity = obj
+
+    @property
+    def ngram(self):
+        return self._ngram
+
+    @ngram.setter
+    def ngram(self, value: Union[str, 'BaseNgram']):
+        obj = None
+        if isinstance(value, str):
+            obj = ngram_map[value]()
+        elif isinstance(value, BaseNgram):
+            obj = value
+
+        if obj is None:
+            raise ValueError(f'invalid n-gram feature extractor, {value}')
+        self._ngram = obj
 
     def _get_strings(self, size: int, feature: str) -> List[str]:
         """Get strings corresponding to feature size and query feature."""
@@ -105,7 +160,7 @@ class Simstring:
 
     def insert(self, string: str) -> NoReturn:
         """Insert string into database."""
-        features = self._fe.get_features(string)
+        features = self._ngram.get_features(string)
         self._db.set(
             str(len(features)),
             {feature: string for feature in features},
@@ -150,9 +205,11 @@ class Simstring:
             alpha = self._alpha
         if similarity is None:
             similarity = self._similarity
+        elif isinstance(similarity, str):
+            similarity = similarity_map[similarity]()
 
         # X = string_to_feature(x)
-        query_features = self._fe.get_features(query_string)
+        query_features = self._ngram.get_features(query_string)
 
         # Check if query string is in cache
         # NOTE: Cached data assumes all Simstring parameters are the same with
@@ -198,7 +255,7 @@ class Simstring:
         similarities = [
             self._similarity.similarity(
                 query_features,
-                self._fe.get_features(candidate_string),
+                self._ngram.get_features(candidate_string),
             )
             for candidate_string in candidate_strings
         ]
