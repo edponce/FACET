@@ -6,13 +6,10 @@ from typing import (
 )
 
 
-__all__ = [
-    'CharacterFeatures',
-    'WordFeatures',
-]
+__all__ = ['BaseNgram']
 
 
-class NgramFeatures(ABC):
+class BaseNgram(ABC):
     """Provided capabilities to extract N-gram features from a given
     text.
 
@@ -47,21 +44,3 @@ class NgramFeatures(ABC):
     @abstractmethod
     def get_features(self, text: str, **kwargs) -> List[Any]:
         pass
-
-
-class CharacterFeatures(NgramFeatures):
-    """Extract character N-gram features."""
-
-    def get_features(self, text) -> List[str]:
-        _boundary = self.boundary * (self.n - 1)
-        _text = _boundary + text + _boundary
-        return type(self)._extract_features(self.n, _text)
-
-
-class WordFeatures(NgramFeatures):
-    """Extract word N-gram features."""
-
-    def get_features(self, text, *, delimiter: str = ' ') -> List[List[str]]:
-        _boundary = [self.boundary] * (self.n - 1)
-        _text = _boundary + text.split(delimiter) + _boundary
-        return type(self)._extract_features(self.n, _text)

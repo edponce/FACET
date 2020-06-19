@@ -1,8 +1,19 @@
 import time
 import collections
-from .formatter import Formatter
 from .helpers import corpus_generator
-from .tokenizer import NLTKTokenizer as Tokenizer
+from .database import (
+    database_map,
+    BaseDatabase,
+)
+from .simstring import (
+    simstring_map,
+    BaseSimstring,
+)
+from .tokenizer import (
+    tokenizer_map,
+    BaseTokenizer,
+)
+from .formatter import Formatter
 from typing import (
     Any,
     List,
@@ -16,7 +27,7 @@ __all__ = ['Facet']
 
 
 # Enable/disable profiling
-PROFILE = True
+PROFILE = False
 if PROFILE:
     import cProfile
 
@@ -25,16 +36,20 @@ class Facet:
     """FACET installation tool.
 
     Args:
-        conso_db (BaseDatabase): Handle to database instance for CONCEPT-CUI
-            storage.
+        conso_db (str, BaseDatabase): Handle to database instance or database
+            name for CONCEPT-CUI storage. Valid database values are: 'dict',
+            'redis', 'elasticsearch'. Default is 'dict'.
 
-        cuisty_db (BaseDatabase): Handle to database instance for CUI-STY
-            storage.
+        cuisty_db (str, BaseDatabase): Handle to database instance or database
+            name for CUI-STY storage. Valid database values are: 'dict',
+            'redis', 'elasticsearch'. Default is 'dict'.
 
-        simstring (Simstring): Handle to Simstring instance.
-            Simstring requires an internal database.
+        simstring (str, BaseSimstring): Handle to Simstring instance or
+            simstring name for inverted list of text. Valid simstring values
+            are: 'simstring', 'elasticsearch'. Default is 'simstring'.
 
-        tokenizer (BaseTokenizer): Tokenizer instance.
+        tokenizer (str, BaseTokenizer): Tokenizer instance or tokenizer name.
+            Valid tokenizers are: 'ws', 'nltk', 'spacy'. Default is 'ws'.
 
         formatter (Formatter): Formatter instance.
     """
@@ -42,21 +57,86 @@ class Facet:
     def __init__(
         self,
         *,
-        conso_db: 'BaseDatabase',
-        cuisty_db: 'BaseDatabase',
-        simstring: 'Simstring',
-        tokenizer: 'BaseTokenizer' = Tokenizer(),
+        conso_db: Union[str, 'BaseDatabase'] = 'dict',
+        cuisty_db: Union[str, 'BaseDatabase'] = 'dict',
+        simstring: Union[str, 'BaseSimstring'] = 'simstring',
+        tokenizer: Union[str, 'BaseTokenizer'] = 'ws',
         formatter: 'Formatter' = Formatter(),
     ):
-        self._conso_db = conso_db
-        self._cuisty_db = cuisty_db
-        self._ss = simstring
-        self.tokenizer = tokenizer
+        self._conso_db = None
+        self._cuisty_db = None
+        self._ss = None
+        self._tokenizer = None
         self.formatter = formatter
+
+        self.conso_db = conso_db
+        self.cuisty_db = cuisty_db
+        self.tokenizer = tokenizer
+        self.ss = simstring
+
+    @property
+    def conso_db(self):
+        return self._conso_db
+
+    @conso_db.setter
+    def conso_db(self, value: Union[str, 'BaseDatabase']):
+        obj = None
+        if isinstance(value, str):
+            obj = database_map[value]()
+        elif isinstance(value, BaseDatabase):
+            obj = value
+
+        if obj is None:
+            raise ValueError(f'invalid CONSO-CUI database, {value}')
+        self._conso_db = obj
+
+    @property
+    def cuisty_db(self):
+        return self._cuisty_db
+
+    @cuisty_db.setter
+    def cuisty_db(self, value: Union[str, 'BaseDatabase']):
+        obj = None
+        if isinstance(value, str):
+            obj = database_map[value]()
+        elif isinstance(value, BaseDatabase):
+            obj = value
+
+        if obj is None:
+            raise ValueError(f'invalid CUI-STY database, {value}')
+        self._cuisty_db = obj
 
     @property
     def ss(self):
         return self._ss
+
+    @ss.setter
+    def ss(self, value: Union[str, 'BaseSimstring']):
+        obj = None
+        if isinstance(value, str):
+            obj = simstring_map[value]()
+        elif isinstance(value, BaseSimstring):
+            obj = value
+
+        if obj is None:
+            raise ValueError(f'invalid simstring, {value}')
+        self._ss = obj
+
+    @property
+    def tokenizer(self):
+        return self._tokenizer
+
+    @tokenizer.setter
+    def tokenizer(self, value: Union[str, 'BaseTokenizer']):
+        obj = None
+        if isinstance(value, str):
+            obj = tokenizer_map[value]()
+        elif isinstance(value, BaseTokenizer):
+            obj = value
+
+        if obj is None:
+            raise ValueError(f'invalid tokenizer value, {value}')
+        self._tokenizer = obj
 
     def _get_matches(
         self,
@@ -167,8 +247,8 @@ class Facet:
             if normalize_unicode:
                 corpus = unidecode(corpus)
 
-            for sentence in self.tokenizer.sentencize(corpus):
-                ngrams = self.tokenizer.tokenize(sentence)
+            for sentence in self._tokenizer.sentencize(corpus):
+                ngrams = self._tokenizer.tokenize(sentence)
                 _matches = self._get_matches(ngrams, **kwargs)
 
                 # if best_match:

@@ -1,0 +1,924 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>FACET - Framework for Annotation and Concept Extraction in Text &mdash; FACET 0.9 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/graphviz.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="MODULES" href="modules.html" />
+    <link rel="prev" title="FACET Documentation" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> FACET
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.9
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">FACET - Framework for Annotation and Concept Extraction in Text</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#features">Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#setup-and-installation">Setup and Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#usage">Usage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#databases-initialization">Databases Initialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#api-and-usage">API and Usage</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#benchmarks">BENCHMARKS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#redis">Redis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#plyvel-and-leveldb">Plyvel and LevelDB</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#spacy">spaCy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#todo">TODO</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#multiple-redis-instances">Multiple Redis Instances</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#umls-related-tools">UMLS Related Tools</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">MODULES</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">CHANGE LOG</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">CONTRIBUTING</a></li>
+<li class="toctree-l1"><a class="reference internal" href="credits.html">CREDITS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="license.html">LICENSE</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">FACET</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>FACET - Framework for Annotation and Concept Extraction in Text</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/readme.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="line-block">
+<div class="line"><br /></div>
+</div>
+<div class="section" id="facet-framework-for-annotation-and-concept-extraction-in-text">
+<h1>FACET - Framework for Annotation and Concept Extraction in Text<a class="headerlink" href="#facet-framework-for-annotation-and-concept-extraction-in-text" title="Permalink to this headline">¶</a></h1>
+<p>FACET is an extension of <a class="reference external" href="https://github.com/Georgetown-IR-Lab/QuickUMLS">QuickUMLS</a> and <a class="reference external" href="https://pypi.org/project/simstring-pure">SimstringPure</a> tools providing
+faster, scalable, and flexible concept extraction from medical narratives.
+Uses the simple and efficient CP-Merge approach of <a class="reference external" href="http://www.chokkan.org/software/simstring">Simstring</a> algorithm.</p>
+<div class="section" id="features">
+<h2>Features<a class="headerlink" href="#features" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Easy install process</p></li>
+<li><p>Utilizes Redis for faster UMLS key lookup</p></li>
+<li><p>Adds multiprocessing for:</p>
+<ul>
+<li><p>Processing batches of notes</p></li>
+<li><p>Process batches of n-grams from each note</p></li>
+</ul>
+</li>
+<li><p>Stores extracted annotations in an easy to analyze format</p>
+<ul>
+<li><p>Should this be OMOP ID’d annotations?</p></li>
+</ul>
+</li>
+<li><p>Can evaluate the quality of extracted terms for accuracy based on publicly available medical data sets</p></li>
+<li><p>Can evaluate the quality of extracted terms for accuracy based on comparison with an equivalent cTAKES pipeline</p></li>
+<li><p>New features are fully tested. Old features as well</p></li>
+<li><p>Integrated into a continuous-integration pipeline system in version control</p></li>
+<li><p>First release will have a demo with VA. So this needs to have a clean API, impressive performance, and demonstrable value over other tools.</p>
+<ul>
+<li><p>Easy config</p></li>
+<li><p>Easy to use programmatically</p></li>
+<li><p>Easy to scale up or run locally</p></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic">
+<li><p>Install Python3 development headers for host system</p>
+<blockquote>
+<div><p>&gt; apt install python3-dev</p>
+</div></blockquote>
+</li>
+<li><p>You can install requirements manually, pip install -r requirements.</p></li>
+<li><p>In order to use spaCy, download the relevant corpus, python3 -m spacy download en.</p></li>
+<li><p>In order to use NLTK, download stopwords</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">nltk</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">nltk</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="s1">&#39;stopwords&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">nltk</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="s1">&#39;punkt&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">nltk</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="s1">&#39;averaged_perceptron_tagger&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">nltk</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="s1">&#39;universal&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>You require to have a valid UMLS installation on disk. To install UMLS, you
+must first obtain a <a class="reference external" href="https://uts.nlm.nih.gov/license.html">UMLS license</a> from the National Library of Medicine,
+then download all <a class="reference external" href="https://www.nlm.nih.gov/research/umls/licensedcontent/umlsknowledgesources.html">UMLS files</a>. Finally, you can install UMLS using the
+<a class="reference external" href="https://www.nlm.nih.gov/research/umls/implementation_resources/metamorphosys/help.html">MetamorphoSys</a> tool. The installation can be removed once the system has
+been initialized.</p></li>
+</ol>
+</div>
+<div class="section" id="setup-and-installation">
+<h2>Setup and Installation<a class="headerlink" href="#setup-and-installation" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic">
+<li><p>Clone repository</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ git clone https://github.com/edponce/FACET.git
+$ cd FACET/
+</pre></div>
+</div>
+</li>
+<li><p>Install package</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ pip install .
+</pre></div>
+</div>
+</li>
+<li><p>Run tests</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ tox
+</pre></div>
+</div>
+</li>
+<li><p>Generate documentation</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ make -C doc/ html
+$ &lt;browser&gt; doc/_build/html/index.html
+</pre></div>
+</div>
+</li>
+<li><p>Browse commands and help descriptions</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ facet --help
+</pre></div>
+</div>
+</li>
+<li><p>Run demo</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ python examples/demo_install.py
+$ python examples/demo_match.py
+</pre></div>
+</div>
+</li>
+</ol>
+</div>
+<div class="section" id="usage">
+<h2>Usage<a class="headerlink" href="#usage" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li><p>Run REPL on command line</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ facet --cli
+$ &gt; cancer
+</pre></div>
+</div>
+</li>
+<li><p>Process file via command line</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ facet --format json --infile corpus.txt --outfile corpus.json
+</pre></div>
+</div>
+</li>
+<li><p>Process text via STDIN</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ cat corpus.txt | facet --pipe --format json --outfile corpus.json
+</pre></div>
+</div>
+</li>
+<li><p>Run as a web service</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ facet --port 4452 --format json
+</pre></div>
+</div>
+</li>
+<li><p>Run programmatically using Python’s API (see example scripts)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ &lt;editor&gt; examples/demo_match.py
+</pre></div>
+</div>
+</li>
+</ul>
+</div>
+<div class="section" id="databases-initialization">
+<h2>Databases Initialization<a class="headerlink" href="#databases-initialization" title="Permalink to this headline">¶</a></h2>
+<p>FACET supports the following databases for backend storage. Note that different
+databases can be used in the same installation.</p>
+<ul class="simple">
+<li><p>Redis - requires DSN information.</p></li>
+<li><p>Python dictionary (in-memory) - fast performance, but increases main process storage and does not persists after system shutdown.</p></li>
+<li><p>Python dictionary (file backed) - fast performance, but increases main process storage. Persists after system shutdown.</p></li>
+</ul>
+<p>Create databases for data (UMLS MRCONSO and MRSTY) and Simstring. This process takes approximately 30 minutes.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">python3</span> <span class="n">facet</span><span class="o">/</span><span class="n">install</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">lowercase</span> <span class="o">--</span><span class="n">normalize</span><span class="o">-</span><span class="n">unicode</span> <span class="o">--</span><span class="n">umls</span><span class="o">-</span><span class="nb">dir</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">UMLS</span><span class="o">/</span><span class="n">RRF</span><span class="o">/</span><span class="n">files</span> <span class="o">--</span><span class="n">install</span><span class="o">-</span><span class="nb">dir</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">install</span><span class="o">/</span><span class="n">UMLS</span><span class="o">/</span><span class="n">database</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">python3</span> <span class="n">facet</span><span class="o">/</span><span class="n">install</span><span class="o">.</span><span class="n">py</span> <span class="o">-</span><span class="n">l</span> <span class="o">-</span><span class="n">n</span> <span class="o">-</span><span class="n">u</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">UMLS</span><span class="o">/</span><span class="n">RRF</span><span class="o">/</span><span class="n">files</span> <span class="o">-</span><span class="n">i</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">database</span><span class="o">/</span><span class="n">installation</span>
+</pre></div>
+</div>
+<dl class="option-list">
+<dt><kbd><span class="option">-u <var>dir</var></span>, <span class="option">--umls-dir=<var>dir</var></span></kbd></dt>
+<dd><p>Directory of the UMLS installation (in particular, we need MRCONSO.RRF and MRSTY.RRF).</p>
+</dd>
+<dt><kbd><span class="option">-i <var>dir</var></span>, <span class="option">--install-dir=<var>dir</var></span></kbd></dt>
+<dd><p>Directory where the QuickUMLS data files will be installed.</p>
+</dd>
+<dt><kbd><span class="option">-L</span>, <span class="option">--lowercase</span></kbd></dt>
+<dd><p>Fold all concept terms to lowercase before being processed. This option typically increases recall, but it might reduce precision.</p>
+</dd>
+<dt><kbd><span class="option">-U</span>, <span class="option">--normalize-unicode</span></kbd></dt>
+<dd><p>Expressions with non-ASCII characters are converted to the closest combination of ASCII characters.</p>
+</dd>
+<dt><kbd><span class="option">-E</span>, <span class="option">--language</span></kbd></dt>
+<dd><p>Specify the language to consider for UMLS concepts (defuault is English). For a complete list of languages, see <a class="reference external" href="https://www.nlm.nih.gov/research/umls/knowledge_sources/metathesaurus/release/abbreviations.html#LAT">NLM language table</a>.</p>
+</dd>
+</dl>
+<p>The following are results for a subset of UMLS 2018-AA:
+200,110 concepts, 1,783,491 CUIs (all MRSTY.RRF).</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 72%" />
+<col style="width: 28%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Task (dict)</p></th>
+<th class="head"><p>Runtime (s)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Load concepts</p></td>
+<td><p>5.48e-05</p></td>
+</tr>
+<tr class="row-odd"><td><p>Write concepts and Simstring</p></td>
+<td><p>59.00</p></td>
+</tr>
+<tr class="row-even"><td><p>Load semantic types</p></td>
+<td><p>2.28e-05</p></td>
+</tr>
+<tr class="row-odd"><td><p>Write semantic types</p></td>
+<td><p>10.49</p></td>
+</tr>
+</tbody>
+</table>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 72%" />
+<col style="width: 28%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Task (Redis)</p></th>
+<th class="head"><p>Runtime (s)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Load concepts</p></td>
+<td><p>5.76e-05</p></td>
+</tr>
+<tr class="row-odd"><td><p>Write concepts and Simstring</p></td>
+<td><p>816.18</p></td>
+</tr>
+<tr class="row-even"><td><p>Load semantic types</p></td>
+<td><p>2.38e-05</p></td>
+</tr>
+<tr class="row-odd"><td><p>Write semantic types</p></td>
+<td><p>153.19</p></td>
+</tr>
+</tbody>
+</table>
+<p>The following are results for a subset of UMLS 2018-AA:
+20,347 concepts, 943 CUIs (filtered MRSTY.RRF).</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 72%" />
+<col style="width: 28%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Task (2 Redis/Elasticsearch)</p></th>
+<th class="head"><p>Runtime (s)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Load concepts (iter_data)</p></td>
+<td><p>8.77e-05</p></td>
+</tr>
+<tr class="row-odd"><td><p>Write concepts and Simstring</p></td>
+<td><p>309.36</p></td>
+</tr>
+<tr class="row-even"><td><p>Load semantic types</p></td>
+<td><p>5.05e-05</p></td>
+</tr>
+<tr class="row-odd"><td><p>Write semantic types</p></td>
+<td><p>0.20</p></td>
+</tr>
+</tbody>
+</table>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 72%" />
+<col style="width: 28%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Task (2 Redis/Elasticsearch)</p></th>
+<th class="head"><p>Runtime (s)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Load concepts (data_to_dict)</p></td>
+<td><p>0.49</p></td>
+</tr>
+<tr class="row-odd"><td><p>Write concepts and Simstring</p></td>
+<td><p>314.95</p></td>
+</tr>
+<tr class="row-even"><td><p>Load semantic types</p></td>
+<td><p>0.17</p></td>
+</tr>
+<tr class="row-odd"><td><p>Write semantic types</p></td>
+<td><p>0.11</p></td>
+</tr>
+</tbody>
+</table>
+<p>The following are results for a subset of UMLS 2018-AA:
+20,269 concepts, 31154 CUIs using bulk API.
+Redis 2.3 MB (incorrect b/c other tables were populated)
+Elasticsearch 14 MB</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 72%" />
+<col style="width: 28%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Task (2 Redis/Elasticsearch)</p></th>
+<th class="head"><p>Runtime (s)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Load concepts (data_to_dict)</p></td>
+<td><p>0.30</p></td>
+</tr>
+<tr class="row-odd"><td><p>Write concepts</p></td>
+<td><p>0.24</p></td>
+</tr>
+<tr class="row-even"><td><p>Write Simstring</p></td>
+<td><p>2.13</p></td>
+</tr>
+<tr class="row-odd"><td><p>Load semantic types</p></td>
+<td><p>0.19</p></td>
+</tr>
+<tr class="row-even"><td><p>Write semantic types</p></td>
+<td><p>0.34</p></td>
+</tr>
+</tbody>
+</table>
+<p>The following are results for a subset of UMLS 2018-AA:
+198,696 concepts, 1,782,484 CUIs using bulk API.
+Redis 41 MB (incorrect b/c other tables were populated)
+Elasticsearch 79 MB</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 72%" />
+<col style="width: 28%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Task (2 Redis/Elasticsearch)</p></th>
+<th class="head"><p>Runtime (s)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Load concepts (data_to_dict)</p></td>
+<td><p>2.82</p></td>
+</tr>
+<tr class="row-odd"><td><p>Write concepts</p></td>
+<td><p>2.24</p></td>
+</tr>
+<tr class="row-even"><td><p>Write Simstring</p></td>
+<td><p>22.75</p></td>
+</tr>
+<tr class="row-odd"><td><p>Load semantic types</p></td>
+<td><p>6.90</p></td>
+</tr>
+<tr class="row-even"><td><p>Write semantic types</p></td>
+<td><p>19.19</p></td>
+</tr>
+</tbody>
+</table>
+<p>The following are results for a subset of UMLS 2018-AA:
+198,696 concepts, 9,518 CUIs using bulk API.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 72%" />
+<col style="width: 28%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Task (2 Redis/Elasticsearch)</p></th>
+<th class="head"><p>Runtime (s)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Load concepts (data_to_dict)</p></td>
+<td><p>3.10</p></td>
+</tr>
+<tr class="row-odd"><td><p>Write concepts</p></td>
+<td><p>2.18</p></td>
+</tr>
+<tr class="row-even"><td><p>Write Simstring</p></td>
+<td><p>23.79</p></td>
+</tr>
+<tr class="row-odd"><td><p>Load semantic types</p></td>
+<td><p>4.32</p></td>
+</tr>
+<tr class="row-even"><td><p>Write semantic types</p></td>
+<td><p>0.10</p></td>
+</tr>
+</tbody>
+</table>
+<p>The following are results for full UMLS 2018-AA:
+8,015,988 concepts, ? CUIs (all MRSTY.RRF).</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 39%" />
+<col style="width: 22%" />
+<col style="width: 39%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Task</p></th>
+<th class="head"><p>Runtime (s)</p></th>
+<th class="head"><p>Comments</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Load concepts</p></td>
+<td><p>0.0000205</p></td>
+<td><p>File (pandas)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Write concepts</p></td>
+<td><p>247.99</p></td>
+<td><p>Level DB</p></td>
+</tr>
+<tr class="row-even"><td><p>Write Simstring DB</p></td>
+<td><p>444.90</p></td>
+<td><p>Files (Simstring DB)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Load semantic types</p></td>
+<td><p>0.02</p></td>
+<td><p>File (pandas)</p></td>
+</tr>
+<tr class="row-even"><td><p>Write semantic types</p></td>
+<td><p>10.10</p></td>
+<td><p>Level DB</p></td>
+</tr>
+<tr class="row-odd"><td><p>Total install</p></td>
+<td><p>736.32</p></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="api-and-usage">
+<h2>API and Usage<a class="headerlink" href="#api-and-usage" title="Permalink to this headline">¶</a></h2>
+<p>QuickUMLS(quickumls_fp, overlapping_criteria, threshold, similarity_name, window, accepted_semtypes):</p>
+<ul class="simple">
+<li><p>quickumls_fp is the directory for the UMLS installation</p></li>
+<li><p>overlapping_criteria (optional, default=”score”) is the criteria used to deal
+with overlapping concepts; choose “score” if the matching score of the concepts
+should be consider first, “length” if the longest should be considered first
+instead.</p></li>
+<li><p>threshold (optional, default: 0.7) is the minimum similarity value between strings.</p></li>
+<li><p>similarity_name (optional, default: “jaccard”) is the name of similarity to use.
+Choose between “dice”, “jaccard”, “cosine”, or “overlap”.</p></li>
+<li><p>window (optional, default: 5) is the maximum number of tokens to consider for
+matching.</p></li>
+<li><p>accepted_semtypes (optional, default: see constants.py) is the set of UMLS
+semantic types concepts should belong to. Semantic types are identified by the
+letter “T” followed by three numbers (e.g., “T131”, which identifies the
+type of <a class="reference external" href="https://metamap.nlm.nih.gov/Docs/SemanticTypes_2018AB.txt">Hazardous or Poisonous Substance</a>).</p></li>
+</ul>
+<dl>
+<dt>Instantiate a QuickUMLS object:</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">matcher</span> <span class="o">=</span> <span class="n">QuickUMLS</span><span class="p">(</span><span class="s1">&#39;path/to/database/installation&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+<p>NOTE: This command will invoke NLTK which in turn downloads a package of stopwords
+which are placed in the home directory. For English language there 179 stopwords.</p>
+<dl>
+<dt>Use the QuickUMLS object:</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">text</span> <span class="o">=</span> <span class="s2">&quot;The ulna has dislocated posteriorly from the trochlea of the humerus.&quot;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">matches</span> <span class="o">=</span> <span class="n">matcher</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">best_match</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ignore_syntax</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">matches</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="p">[[{</span><span class="s1">&#39;start&#39;</span><span class="p">:</span> <span class="mi">61</span><span class="p">,</span> <span class="s1">&#39;end&#39;</span><span class="p">:</span><span class="mi">68</span><span class="p">,</span> <span class="s1">&#39;ngram&#39;</span><span class="p">:</span> <span class="s1">&#39;humerus&#39;</span><span class="p">,</span> <span class="s1">&#39;term&#39;</span><span class="p">:</span> <span class="s1">&#39;humerus&#39;</span><span class="p">,</span> <span class="s1">&#39;cui&#39;</span><span class="p">:</span> <span class="s1">&#39;C0020164&#39;</span><span class="p">,</span> <span class="s1">&#39;similarity&#39;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span> <span class="s1">&#39;semtypes&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;T023&#39;</span><span class="p">},</span> <span class="s1">&#39;preferred&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}],</span> <span class="p">[</span><span class="o">...</span><span class="p">]]</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+<p>Set ‘best_match’ to ‘False’ if you want to return overlapping candidates.
+Set ‘ignore_syntax’ to ‘True’ to disable all heuristics introduced in Soldaini
+and Goharian 2016.</p>
+</div>
+</div>
+<div class="section" id="benchmarks">
+<h1>BENCHMARKS<a class="headerlink" href="#benchmarks" title="Permalink to this headline">¶</a></h1>
+<p>Tests were done using UMLS 2018-AA knowledge base.
+Number of workers is None (number of cores or more).
+Input text is processed as a single string passed to match().</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 14%" />
+<col style="width: 15%" />
+<col style="width: 15%" />
+<col style="width: 21%" />
+<col style="width: 17%" />
+<col style="width: 7%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Version</p></th>
+<th class="head"><p>Num ws/ngs</p></th>
+<th class="head"><p>Nmatch/best</p></th>
+<th class="head"><p>make_ngrams</p></th>
+<th class="head"><p>get_all_matches</p></th>
+<th class="head"><p>select_terms</p></th>
+<th class="head"><p>Total</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>orig</p></td>
+<td><p>2248/5528</p></td>
+<td><p>305/250</p></td>
+<td><p>8e-06</p></td>
+<td><p>0.63</p></td>
+<td><p>0.009</p></td>
+<td><p>0.89</p></td>
+</tr>
+<tr class="row-odd"><td><p>gam_p1</p></td>
+<td></td>
+<td></td>
+<td></td>
+<td><p>2.2</p></td>
+<td><p>0.02</p></td>
+<td><p>2.5</p></td>
+</tr>
+<tr class="row-even"><td><p>gam_p2</p></td>
+<td></td>
+<td></td>
+<td></td>
+<td><p>0.8</p></td>
+<td><p>0.02</p></td>
+<td><p>1.2</p></td>
+</tr>
+<tr class="row-odd"><td><p>gam_p2b</p></td>
+<td></td>
+<td></td>
+<td></td>
+<td><p>0.7</p></td>
+<td><p>0.01</p></td>
+<td><p>1.0</p></td>
+</tr>
+<tr class="row-even"><td><p>gam_p3</p></td>
+<td></td>
+<td></td>
+<td></td>
+<td><p>1.2</p></td>
+<td><p>0.03</p></td>
+<td><p>1.4</p></td>
+</tr>
+<tr class="row-odd"><td><p>gam_p4b</p></td>
+<td></td>
+<td></td>
+<td></td>
+<td><p>0.66</p></td>
+<td><p>0.008</p></td>
+<td><p>0.9</p></td>
+</tr>
+<tr class="row-even"><td><p>mn_2</p></td>
+<td></td>
+<td></td>
+<td><p>7e-06</p></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>mn_p1b</p></td>
+<td></td>
+<td></td>
+<td><p>0.1</p></td>
+<td><p>0.43</p></td>
+<td><p>0.008</p></td>
+<td><p>0.75</p></td>
+</tr>
+<tr class="row-even"><td><p>mn_p2b</p></td>
+<td></td>
+<td></td>
+<td><p>0.1</p></td>
+<td><p>0.42</p></td>
+<td><p>0.008</p></td>
+<td><p>0.74</p></td>
+</tr>
+<tr class="row-odd"><td><p>merg_b</p></td>
+<td></td>
+<td></td>
+<td></td>
+<td><p>0.72</p></td>
+<td><p>0.009</p></td>
+<td><p>0.92</p></td>
+</tr>
+<tr class="row-even"><td><p>orig</p></td>
+<td><p>2248/8881</p></td>
+<td><p>525/252</p></td>
+<td><p>3e-06 (mts)</p></td>
+<td><p>0.95</p></td>
+<td><p>0.012</p></td>
+<td><p>1.2</p></td>
+</tr>
+<tr class="row-odd"><td><p>mts_p1b</p></td>
+<td></td>
+<td></td>
+<td><p>0.1</p></td>
+<td><p>1.0</p></td>
+<td><p>0.012</p></td>
+<td><p>1.3</p></td>
+</tr>
+<tr class="row-even"><td><p>mts_p2b</p></td>
+<td></td>
+<td></td>
+<td><p>0.1</p></td>
+<td><p>1.0</p></td>
+<td><p>0.012</p></td>
+<td><p>1.3</p></td>
+</tr>
+</tbody>
+</table>
+<p>Real values represent time in seconds.</p>
+<p>Legend:</p>
+<ul class="simple">
+<li><p>orig - original code</p></li>
+<li><p>gam_pX - get_all_matches_parX</p></li>
+<li><p>gam_pXb - get_all_matches_parX_batch</p></li>
+<li><p>mn_X - make_ngramsX</p></li>
+<li><p>mn_pXb - make_ngrams_parX_batch</p></li>
+<li><p>mts - uses make_token_sequence instead of make_ngrams</p></li>
+<li><p>mts_pXb - make_token_sequence_par2_batch</p></li>
+<li><p>merg_b - merge make_ngrams and get_all_matches using batches</p></li>
+<li><p>get_all_matches_par1 - uses concurrent.futures.ThreadPoolExecutor distributing one data at a time. Checks if partial results are None, then combines with the final result.</p></li>
+<li><p>get_all_matches_par2 - uses multiprocessing.pool.ThreadPool with single blocking map, then applies filter for ignoring Nones. Converts final results to a list.</p></li>
+<li><p>get_all_matches_par2_batch - uses multiprocessing.pool.ThreadPool with multiple apply_async that operate on batches (1024) of data. Partial results are combined into the final result.</p></li>
+<li><p>get_all_matches_par3 - uses multiprocessing.pool.ThreadPool with multiple apply_async that operate on single data at a time. Checks if partial results are None, then combines with the final result.</p></li>
+<li><p>get_all_matches_par4_batch - uses threading.Thread to spawn multiple threads that operate on batches (1024) of data. Each thread adds partial results to a shared final result.</p></li>
+<li><p>make_ngrams2 - removes lists used for identifying spans to ignore, etc. Performs those checks as data is processed.</p></li>
+<li><p>make_ngrams_par1_batch - uses multiprocessing.pool.ThreadPool with multiple apply_async that operate on batches (64) of data. Partial results from generators are combined into the final result.</p></li>
+<li><p>make_ngrams_par2_batch - uses multiprocessing.pool.ThreadPool with multiple apply_async that operate on batches (64) of data. Partial results from list are combined into the final result.</p></li>
+<li><p>make_token_sequences_par1_batch - uses multiprocessing.pool.ThreadPool with multiple apply_async that operate on batches (64) of data. Partial results from generators are combined into the final result.</p></li>
+<li><p>make_token_sequences_par2_batch - uses multiprocessing.pool.ThreadPool with multiple apply_async that operate on batches (64) of data. Partial results from list are combined into the final result.</p></li>
+</ul>
+</div>
+<div class="section" id="redis">
+<h1>Redis<a class="headerlink" href="#redis" title="Permalink to this headline">¶</a></h1>
+<p>Redis database perform queries using a single-thread at a time (lock).</p>
+<ul class="simple">
+<li><p>Install Redis server/client packages in computer system (e.g., apt install redis-server).</p></li>
+<li><p>Install redis-py Python package (pip install redis).</p></li>
+</ul>
+</div>
+<div class="section" id="plyvel-and-leveldb">
+<h1>Plyvel and LevelDB<a class="headerlink" href="#plyvel-and-leveldb" title="Permalink to this headline">¶</a></h1>
+<p>Using plyvel (<a class="reference external" href="https://github.com/wbolster/plyvel">https://github.com/wbolster/plyvel</a>) interface for LevelDB (<a class="reference external" href="https://github.com/google/leveldb">https://github.com/google/leveldb</a>).</p>
+<p>LevelDB Features:</p>
+<ul class="simple">
+<li><p>Keys and values are arbitrary byte arrays.</p></li>
+<li><p>Data is stored sorted by key.</p></li>
+<li><p>Basic operations: Put(key, value), Get(key), Delete(key).</p></li>
+<li><p>Multiple changes can be made in one atomic batch.</p></li>
+<li><p>Forward and backward iteration is supported over the data.</p></li>
+<li><p>Data is automatically compressed (Snappy compression library).</p></li>
+</ul>
+<p>LevelDB Limitations:</p>
+<ul class="simple">
+<li><p>Only a single process (possibly multi-threaded) can access a particular database at a time.</p>
+<ul>
+<li><p>plyvel._plyvel.IOError: b’IO error: lock test.db/LOCK: Resource temporarily unavailable’</p></li>
+</ul>
+</li>
+</ul>
+<p>Plyvel Info:</p>
+<ul class="simple">
+<li><p>Uses Cython, can be installed manually on system (repo contains Dockerfile). This might be good to increase performance for the target architecture.</p></li>
+</ul>
+<p>Plyvel API:</p>
+<ul>
+<li><p>close() - closing the database while other threads are busy accessing it may result in hard crashes. Applications should make sure not to close databases that are concurrently used from other threads.</p></li>
+<li><p>write_batch(transaction=False, sync=False) - create a WriteBatch instance for this database.</p>
+<ul class="simple">
+<li><p>transaction - whether to enable transaction-like behaviour when used in ‘with’ block.</p></li>
+<li><p>sync - whether to use synchronous writes</p></li>
+</ul>
+</li>
+<li><p>class WriteBatch - batch put/delete operations. Instances of this class can be used as context managers, when the ‘with’ block terminates, the batch will be automatically written to the database without an explicit call to ‘WriteBatch.write()’.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">db</span><span class="o">.</span><span class="n">write_batch</span><span class="p">()</span> <span class="k">as</span> <span class="n">b</span><span class="p">:</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">b</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;key&#39;</span><span class="p">,</span> <span class="sa">b</span><span class="s1">&#39;value&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</div>
+<div class="section" id="spacy">
+<h1>spaCy<a class="headerlink" href="#spacy" title="Permalink to this headline">¶</a></h1>
+<dl>
+<dt>spaCy has limits into the size of text processed:</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span>&gt;&gt;&gt; import spacy
+&gt;&gt;&gt; nlp = spacy.load(&#39;en&#39;)
+&gt;&gt;&gt; doc = nlp(&#39;very long text ...&#39;)
+&gt;&gt;&gt; ValueError: [E088] Text of length 1639120 exceeds maximum of 1000000. The v2.x parser and NER models require roughly 1GB of temporary memory per 100,000 characters in the input. This means long texts may cause memory allocation errors. If you&#39;re not using the parser or NER, it&#39;s probably safe to increase the `nlp.max_length` limit. The limit is in number of characters, so you can check whether your inputs are too long by checking `len(text)`.
+</pre></div>
+</div>
+</dd>
+</dl>
+</div>
+<div class="section" id="todo">
+<h1>TODO<a class="headerlink" href="#todo" title="Permalink to this headline">¶</a></h1>
+<ul>
+<li><p>Fix setup.py, __init__, modules, etc.  * Use multiprocessing in method “_get_all_matches” from “quickumls.py”</p></li>
+<li><p>QuickUMLS uses CPMerge, see following papers</p>
+<ul class="simple">
+<li><p>2016boguszewski</p></li>
+<li><p>2010okazaki</p></li>
+</ul>
+</li>
+<li><p>Code follows the open/close principle</p></li>
+<li><p>The input text should not contain encoded symbols as FACET assumes ASCII/UTF-8
+text. To decode HTML characters, use</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">html</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">html</span><span class="o">.</span><span class="n">unescape</span><span class="p">(</span><span class="s1">&#39;a&amp;#32;space&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<div class="section" id="multiple-redis-instances">
+<h2>Multiple Redis Instances<a class="headerlink" href="#multiple-redis-instances" title="Permalink to this headline">¶</a></h2>
+<p>If multiple databases are required, it is recommended to run multiple Redis
+instances (and use database 0 only). This is because Redis is single-threaded
+and using same instance will block when using any of its databases.
+To configure multiple Redis instances:
+<a class="reference external" href="https://www.digitalocean.com/community/questions/multiple-redis-instances-on-ubuntu-16-04">https://www.digitalocean.com/community/questions/multiple-redis-instances-on-ubuntu-16-04</a></p>
+<p>Also, consider Redis cluster
+<a class="reference external" href="https://github.com/Grokzen/redis-py-cluster">https://github.com/Grokzen/redis-py-cluster</a></p>
+</div>
+<div class="section" id="umls-related-tools">
+<h2>UMLS Related Tools<a class="headerlink" href="#umls-related-tools" title="Permalink to this headline">¶</a></h2>
+<p>py-umls: <a class="reference external" href="https://github.com/chb/py-umls">https://github.com/chb/py-umls</a>
+UMLS Description:
+* <a class="reference external" href="http://text-analytics101.rxnlp.com/2013/11/what-tui-cui-lui-you-silly-sui.html">http://text-analytics101.rxnlp.com/2013/11/what-tui-cui-lui-you-silly-sui.html</a>
+* <a class="reference external" href="https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-2001-108.pdf">https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-2001-108.pdf</a></p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="modules.html" class="btn btn-neutral float-right" title="MODULES" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="index.html" class="btn btn-neutral float-left" title="FACET Documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020 Eduardo Ponce, Kris Brown, and Edmon Begoli
+                   Oak Ridge National Laboratory
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

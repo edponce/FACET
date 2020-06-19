@@ -1,6 +1,7 @@
 from collections import defaultdict
+from .base import BaseSimstring
 from typing import Any, List, Tuple, Union, NoReturn
-from .ngram import CharacterFeatures as Features
+from .ngram import CharacterNgram as Features
 from .similarity import CosineSimilarity as Similarity
 from QuickerUMLS.database import ElasticsearchDatabase as Database
 
@@ -8,7 +9,7 @@ from QuickerUMLS.database import ElasticsearchDatabase as Database
 __all__ = ['ESSimstring']
 
 
-class ESSimstring:
+class ESSimstring(BaseSimstring):
     """Implementation of Simstring algorithm.
 
     Args:

@@ -1,6 +1,7 @@
 import io
 import csv
 import json
+import yaml
 import pickle
 import dicttoxml
 import xml.dom.minidom
@@ -25,7 +26,7 @@ class Formatter:
     def format(self, format: str):
         if format is not None:
             format = format.lower()
-            if format not in ('json', 'xml', 'pickle', 'csv'):
+            if format not in ('json', 'yaml', 'xml', 'pickle', 'csv'):
                 raise ValueError(
                     f'Error: invalid format option, {format} is not supported'
                 )
@@ -44,7 +45,7 @@ class Formatter:
                 attributes.
 
             format (str): Formatting mode for match results. Valid values
-                are: 'json', 'xml', 'pickle', 'csv'. Default is None.
+                are: 'json', 'yaml', 'xml', 'pickle', 'csv'. Default is None.
         """
         if format == '':
             format = self._format
@@ -52,10 +53,12 @@ class Formatter:
         # NOTE: Some of the formatters support writing to a file stream
         # directly. This is an alternative instead of generating in-memory
         # string and then writing to file.
-        if format is None:
+        if format is None or format == 'none':
             formatted_data = data
         elif format == 'json':
             formatted_data = json.dumps(data, indent=2)
+        elif format == 'yaml':
+            formatted_data = yaml.dump(data)
         elif format == 'xml':
             formatted_data = xml.dom.minidom.parseString(
                 dicttoxml.dicttoxml(data, attr_type=False)
@@ -63,20 +66,24 @@ class Formatter:
         elif format == 'pickle':
             formatted_data = pickle.dumps(data)
         elif format == 'csv':
-            # Find fieldnames
+            # Find field names
             fieldnames = []
-            for k, v in data.items():
+            for _, v in data.items():
                 if len(v) > 0 and len(v[0]) > 0:
-                    fieldnames = list(v[0][0].keys())
+                    fieldnames = ['source'] + list(v[0][0].keys())
                     break
             # Write to in-memory stream
             fd = io.StringIO()
             writer = csv.DictWriter(fd, fieldnames, lineterminator='\n')
             writer.writeheader()
-            for k1, v1 in data.items():
+            for src, v1 in data.items():
                 for v2 in v1:
+                    for v3 in v2:
+                        v3['source'] = src
                     writer.writerows(v2)
             formatted_data = fd.getvalue()
+        else:
+            raise ValueError(f'invalid format value, {format}')
 
         if outfile is not None:
             with open(outfile, 'w') as fd:

@@ -1,0 +1,402 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>facet.simstring.elasticsearch &mdash; FACET 0.9 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/graphviz.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> FACET
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.9
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html">FACET - Framework for Annotation and Concept Extraction in Text</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html#benchmarks">BENCHMARKS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html#redis">Redis</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html#plyvel-and-leveldb">Plyvel and LevelDB</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html#spacy">spaCy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme.html#todo">TODO</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">MODULES</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">CHANGE LOG</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing.html">CONTRIBUTING</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../credits.html">CREDITS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../license.html">LICENSE</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">FACET</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>facet.simstring.elasticsearch</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for facet.simstring.elasticsearch</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span> <span class="nn">.base</span> <span class="k">import</span> <span class="n">BaseSimstring</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">NoReturn</span>
+<span class="kn">from</span> <span class="nn">.ngram</span> <span class="k">import</span> <span class="n">CharacterNgram</span> <span class="k">as</span> <span class="n">Features</span>
+<span class="kn">from</span> <span class="nn">.similarity</span> <span class="k">import</span> <span class="n">CosineSimilarity</span> <span class="k">as</span> <span class="n">Similarity</span>
+<span class="kn">from</span> <span class="nn">QuickerUMLS.database</span> <span class="k">import</span> <span class="n">ElasticsearchDatabase</span> <span class="k">as</span> <span class="n">Database</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;ESSimstring&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="ESSimstring"><a class="viewcode-back" href="../../../modules.html#facet.ESSimstring">[docs]</a><span class="k">class</span> <span class="nc">ESSimstring</span><span class="p">(</span><span class="n">BaseSimstring</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Implementation of Simstring algorithm.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        db (BaseDatabase, str): ES database instance or index for storage.</span>
+
+<span class="sd">        feature_extractor (NgramFeatures): N-gram feature extractor instance.</span>
+
+<span class="sd">        similarity (BaseSimilarity): Instance of similarity measure.</span>
+
+<span class="sd">        case (str): Character to control string casing during insert/search.</span>
+<span class="sd">            Valid values are &#39;L&#39; (lower), &#39;U&#39; (upper), or None (no casing).</span>
+<span class="sd">            Default is &#39;L&#39;.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">SETTINGS</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;settings&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;number_of_shards&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s1">&#39;number_of_replicas&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;max_result_window&#39;</span><span class="p">:</span> <span class="mi">10000</span><span class="p">,</span>
+            <span class="c1"># disable for bulk processing, enable for real-time</span>
+            <span class="c1"># &#39;refresh_interval&#39;: -1,</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+
+    <span class="n">MAPPINGS</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;mappings&#39;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s1">&#39;properties&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;term&#39;</span><span class="p">:</span> <span class="p">{</span>
+                   <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;text&#39;</span><span class="p">,</span>
+                   <span class="s1">&#39;index&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                <span class="p">},</span>
+                <span class="s1">&#39;ng&#39;</span><span class="p">:</span> <span class="p">{</span>
+                   <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;text&#39;</span><span class="p">,</span>
+                   <span class="s1">&#39;norms&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                   <span class="s1">&#39;similarity&#39;</span><span class="p">:</span> <span class="s1">&#39;boolean&#39;</span><span class="p">,</span>
+                <span class="p">},</span>
+                <span class="s1">&#39;sz&#39;</span><span class="p">:</span> <span class="p">{</span>
+                   <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;integer&#39;</span><span class="p">,</span>
+                   <span class="s1">&#39;similarity&#39;</span><span class="p">:</span> <span class="s1">&#39;boolean&#39;</span><span class="p">,</span>
+                <span class="p">},</span>
+                <span class="s1">&#39;attr&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;text&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;index&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                <span class="p">},</span>
+            <span class="p">},</span>
+        <span class="p">},</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">db</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="s1">&#39;ElasticsearchDatabase&#39;</span><span class="p">],</span>
+        <span class="n">feature_extractor</span><span class="p">:</span> <span class="s1">&#39;NgramFeatures&#39;</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(),</span>
+        <span class="n">similarity</span><span class="p">:</span> <span class="s1">&#39;BaseSimilarity&#39;</span> <span class="o">=</span> <span class="n">Similarity</span><span class="p">(),</span>
+        <span class="n">case</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;L&#39;</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">db</span> <span class="o">=</span> <span class="n">Database</span><span class="p">(</span>
+                <span class="n">index</span><span class="o">=</span><span class="n">db</span><span class="p">,</span>
+                <span class="n">body</span><span class="o">=</span><span class="p">{</span><span class="o">**</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">SETTINGS</span><span class="p">,</span> <span class="o">**</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">MAPPINGS</span><span class="p">},</span>
+            <span class="p">)</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">fields</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;sz&#39;</span><span class="p">,</span> <span class="s1">&#39;ng&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_db</span> <span class="o">=</span> <span class="n">db</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fe</span> <span class="o">=</span> <span class="n">feature_extractor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_measure</span> <span class="o">=</span> <span class="n">similarity</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_case</span> <span class="o">=</span> <span class="n">case</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">db</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_db</span>
+
+    <span class="k">def</span> <span class="nf">_get_strings</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">feature</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Get strings corresponding to feature size and query feature.&quot;&quot;&quot;</span>
+        <span class="n">meta_hits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_db</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">feature</span><span class="p">)[</span><span class="s1">&#39;hits&#39;</span><span class="p">]</span>
+        <span class="n">hits</span> <span class="o">=</span> <span class="n">meta_hits</span><span class="p">[</span><span class="s1">&#39;hits&#39;</span><span class="p">]</span>
+        <span class="n">strings</span> <span class="o">=</span> <span class="p">[</span><span class="n">hit</span><span class="p">[</span><span class="s1">&#39;_source&#39;</span><span class="p">][</span><span class="s1">&#39;term&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">hit</span> <span class="ow">in</span> <span class="n">hits</span><span class="p">]</span>
+        <span class="n">attrs</span> <span class="o">=</span> <span class="p">[</span><span class="n">hit</span><span class="p">[</span><span class="s1">&#39;_source&#39;</span><span class="p">][</span><span class="s1">&#39;attr&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">hit</span> <span class="ow">in</span> <span class="n">hits</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">strings</span><span class="p">,</span> <span class="n">attrs</span>
+
+    <span class="k">def</span> <span class="nf">_strcase</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">string</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_case</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;l&#39;</span><span class="p">,</span> <span class="s1">&#39;L&#39;</span><span class="p">):</span>
+            <span class="n">string</span> <span class="o">=</span> <span class="n">string</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_case</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;u&#39;</span><span class="p">,</span> <span class="s1">&#39;U&#39;</span><span class="p">):</span>
+            <span class="n">string</span> <span class="o">=</span> <span class="n">string</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">string</span>
+
+    <span class="c1"># NOTE: Consider supporting iterable data so that</span>
+    <span class="c1"># it can be passed directly to underlying database</span>
+    <span class="c1"># when pipe is enabled.</span>
+<div class="viewcode-block" id="ESSimstring.insert"><a class="viewcode-back" href="../../../modules.html#facet.ESSimstring.insert">[docs]</a>    <span class="k">def</span> <span class="nf">insert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">string</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">attr</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NoReturn</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Insert string into database.&quot;&quot;&quot;</span>
+        <span class="n">features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fe</span><span class="o">.</span><span class="n">get_features</span><span class="p">(</span><span class="n">string</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_db</span><span class="o">.</span><span class="n">set</span><span class="p">({</span>
+            <span class="s1">&#39;term&#39;</span><span class="p">:</span> <span class="n">string</span><span class="p">,</span>
+            <span class="s1">&#39;sz&#39;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">features</span><span class="p">),</span>
+            <span class="c1"># NOTE: Create set here to remove duplicates and not</span>
+            <span class="c1"># affect the numbers of features extracted.</span>
+            <span class="s1">&#39;ng&#39;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_strcase</span><span class="p">,</span> <span class="n">features</span><span class="p">))),</span>
+            <span class="s1">&#39;attr&#39;</span><span class="p">:</span> <span class="n">attr</span><span class="p">,</span>
+        <span class="p">})</span></div>
+
+    <span class="k">def</span> <span class="nf">search</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">query_string</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.7</span><span class="p">,</span>
+        <span class="n">rank</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]],</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+        <span class="n">query_features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fe</span><span class="o">.</span><span class="n">get_features</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_strcase</span><span class="p">(</span><span class="n">query_string</span><span class="p">))</span>
+        <span class="n">min_features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_measure</span><span class="o">.</span><span class="n">min_features</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">query_features</span><span class="p">),</span> <span class="n">alpha</span><span class="p">)</span>
+        <span class="n">max_features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_measure</span><span class="o">.</span><span class="n">max_features</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">query_features</span><span class="p">),</span> <span class="n">alpha</span><span class="p">)</span>
+
+        <span class="n">similar_strings</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">attrs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">candidate_feature_size</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">min_features</span><span class="p">,</span> <span class="n">max_features</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">tau</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_measure</span><span class="o">.</span><span class="n">min_common_features</span><span class="p">(</span>
+                <span class="nb">len</span><span class="p">(</span><span class="n">query_features</span><span class="p">),</span>
+                <span class="n">candidate_feature_size</span><span class="p">,</span>
+                <span class="n">alpha</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">string</span><span class="p">,</span> <span class="n">attr</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_overlap_join</span><span class="p">(</span>
+                <span class="n">query_features</span><span class="p">,</span>
+                <span class="n">candidate_feature_size</span><span class="p">,</span>
+                <span class="n">tau</span><span class="p">,</span>
+            <span class="p">)):</span>
+                <span class="n">similar_strings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">string</span><span class="p">)</span>
+                <span class="n">attrs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">attr</span><span class="p">)</span>
+
+        <span class="n">similarities</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_measure</span><span class="o">.</span><span class="n">similarity</span><span class="p">(</span>
+                <span class="n">query_features</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_fe</span><span class="o">.</span><span class="n">get_features</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_strcase</span><span class="p">(</span><span class="n">similar_string</span><span class="p">)),</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">similar_string</span> <span class="ow">in</span> <span class="n">similar_strings</span>
+        <span class="p">]</span>
+        <span class="n">strings_and_similarities</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
+            <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">ss</span><span class="p">:</span> <span class="n">ss</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">alpha</span><span class="p">,</span>
+                   <span class="nb">zip</span><span class="p">(</span><span class="n">similar_strings</span><span class="p">,</span> <span class="n">similarities</span><span class="p">,</span> <span class="n">attrs</span><span class="p">))</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">rank</span><span class="p">:</span>
+            <span class="n">strings_and_similarities</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">ss</span><span class="p">:</span> <span class="n">ss</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">strings_and_similarities</span>
+
+    <span class="k">def</span> <span class="nf">_overlap_join</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query_features</span><span class="p">,</span> <span class="n">candidate_feature_size</span><span class="p">,</span> <span class="n">tau</span><span class="p">):</span>
+        <span class="n">strings</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">attrs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">feature</span> <span class="ow">in</span> <span class="n">query_features</span><span class="p">:</span>
+            <span class="n">_strings</span><span class="p">,</span> <span class="n">_attrs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_strings</span><span class="p">(</span><span class="n">candidate_feature_size</span><span class="p">,</span>
+                                                 <span class="n">feature</span><span class="p">)</span>
+            <span class="n">strings</span><span class="p">[</span><span class="n">feature</span><span class="p">]</span> <span class="o">=</span> <span class="n">_strings</span>
+            <span class="k">for</span> <span class="n">_string</span> <span class="ow">in</span> <span class="n">_strings</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">_string</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">attrs</span><span class="p">:</span>
+                    <span class="n">attrs</span><span class="p">[</span><span class="n">_string</span><span class="p">]</span> <span class="o">=</span> <span class="n">_attrs</span>
+        <span class="n">query_features</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">feature</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">strings</span><span class="p">[</span><span class="n">feature</span><span class="p">]))</span>
+
+        <span class="c1"># Use tau parameter to split sorted features</span>
+        <span class="n">tau_split</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">query_features</span><span class="p">)</span> <span class="o">-</span> <span class="n">tau</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="c1"># Frequency dictionary of strings in first half of tau-limited features</span>
+        <span class="n">strings_frequency</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">feature</span> <span class="ow">in</span> <span class="n">query_features</span><span class="p">[:</span><span class="n">tau_split</span><span class="p">]:</span>
+            <span class="k">for</span> <span class="n">string</span> <span class="ow">in</span> <span class="n">strings</span><span class="p">[</span><span class="n">feature</span><span class="p">]:</span>
+                <span class="n">strings_frequency</span><span class="p">[</span><span class="n">string</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="c1"># For strings in frequency dictionary, add frequency in second half</span>
+        <span class="c1"># of tau-limited features.</span>
+        <span class="n">candidate_strings</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">candidate_attrs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">string</span> <span class="ow">in</span> <span class="n">strings_frequency</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">feature</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">query_features</span><span class="p">[</span><span class="n">tau_split</span><span class="p">:],</span>
+                                        <span class="n">start</span><span class="o">=</span><span class="n">tau_split</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">string</span> <span class="ow">in</span> <span class="n">strings</span><span class="p">[</span><span class="n">feature</span><span class="p">]:</span>
+                    <span class="n">strings_frequency</span><span class="p">[</span><span class="n">string</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+                <span class="c1"># If candidate string has enough frequency count, select it.</span>
+                <span class="k">if</span> <span class="n">strings_frequency</span><span class="p">[</span><span class="n">string</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">tau</span><span class="p">:</span>
+                    <span class="n">candidate_strings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">string</span><span class="p">)</span>
+                    <span class="n">candidate_attrs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">attrs</span><span class="p">[</span><span class="n">string</span><span class="p">])</span>
+                    <span class="k">break</span>
+
+                <span class="c1"># Check if a limit is reached where no further candidates will</span>
+                <span class="c1"># have enough frequency counts.</span>
+                <span class="n">remaining_feature_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">query_features</span><span class="p">)</span> <span class="o">-</span> <span class="n">i</span> <span class="o">-</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="n">strings_frequency</span><span class="p">[</span><span class="n">string</span><span class="p">]</span> <span class="o">+</span> <span class="n">remaining_feature_count</span> <span class="o">&lt;</span> <span class="n">tau</span><span class="p">:</span>
+                    <span class="k">break</span>
+
+        <span class="k">return</span> <span class="n">candidate_strings</span><span class="p">,</span> <span class="n">candidate_attrs</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020 Eduardo Ponce, Kris Brown, and Edmon Begoli
+                   Oak Ridge National Laboratory
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

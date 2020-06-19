@@ -1,7 +1,7 @@
 import os
 import json
 import copy
-from ruamel import yaml
+import yaml
 
 
 class Configuration:

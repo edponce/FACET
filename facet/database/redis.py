@@ -1,7 +1,11 @@
 import copy
 import redis
 from .base import BaseDatabase
-from ..serializer import JSONSerializer as Serializer
+from ..serializer import (
+    serializer_map,
+    BaseSerializer,
+)
+from typing import Union
 
 
 __all__ = ['RedisDatabase']
@@ -21,6 +25,10 @@ class RedisDatabase(BaseDatabase):
             Run 'sync' command to submit commands in pipe.
             Default is False.
 
+        serializer (str, BaseSerializer): Serializer instance or serializer
+            name. Valid serializers are: 'json', 'yaml', 'pickle', 'string',
+            'stringsj'. Default is 'json'.
+
     Kwargs:
         Options forwarded to 'Redis' class.
 
@@ -39,11 +47,15 @@ class RedisDatabase(BaseDatabase):
         port=6379,
         db=0,
         pipe=False,
+        serializer: Union[str, 'BaseSerializer'] = 'json',
         **kwargs
     ):
         self._host = host
         self._port = port
         self._db_id = db
+
+        self._serializer = None
+        self.serializer = serializer
 
         # Connect to database
         self._db = redis.Redis(
@@ -58,8 +70,6 @@ class RedisDatabase(BaseDatabase):
         self._dbp = None
         self._is_pipe = pipe
         self.set_pipe(pipe)
-
-        self._serializer = kwargs.get('serializer', Serializer())
 
     def set_pipe(self, pipe):
         # NOTE: Invoke sync() when disabling pipe and pipe was enabled
@@ -90,6 +100,22 @@ class RedisDatabase(BaseDatabase):
     # def config(self, mapping):
     #     for key, value in mapping.items():
     #         self._db.config_set(key, value)
+
+    @property
+    def serializer(self):
+        return self._serializer
+
+    @serializer.setter
+    def serializer(self, value: Union[str, 'BaseSerializer']):
+        obj = None
+        if isinstance(value, str):
+            obj = serializer_map[value]()
+        elif isinstance(value, BaseSerializer):
+            obj = value
+
+        if obj is None:
+            raise ValueError(f'invalid serializer, {value}')
+        self._serializer = obj
 
     def __iter__(self):
         return map(lambda key: key.decode(), self._db.scan_iter())

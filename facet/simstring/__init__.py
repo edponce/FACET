@@ -7,8 +7,15 @@ from .similarity import (
     HammingSimilarity,
 )
 from .ngram import (
-    WordFeatures,
-    CharacterFeatures,
+    WordNgram,
+    CharacterNgram,
 )
+from .base import BaseSimstring
 from .simstring import Simstring
-from .simstring_es import ESSimstring
+from .elasticsearch import ESSimstring
+
+
+simstring_map = {
+    'simstring': Simstring,
+    'elasticsearch': ESSimstring,
+}
