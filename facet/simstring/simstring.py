@@ -244,7 +244,7 @@ class Simstring(BaseSimstring):
                         len(query_features),
                         candidate_feature_size,
                         alpha,
-                    )
+                    ),
                 )
             ]
 

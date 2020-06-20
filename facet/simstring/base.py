@@ -23,7 +23,7 @@ class BaseSimstring(ABC):
         query_string: str,
         *,
         alpha: float = None,
-        similarity: Union[str, 'BaseSimilarity'] = None,
+        similarity = None,
         rank: bool = True,
         update_cache: bool = True,
     ) -> Union[List[Tuple[str, float]], List[str]]:

@@ -188,11 +188,7 @@ class Installer:
         if VERBOSE:
             print(f'Num keys: {i}')
 
-    def install(
-        self,
-        umls_dir: str,
-        **kwargs
-    ):
+    def install(self, umls_dir: str, **kwargs):
         """
         Args:
             umls_dir (str): Directory of UMLS RRF files.

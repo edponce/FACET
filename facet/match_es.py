@@ -1,8 +1,20 @@
 import time
 import collections
-from .formatter import Formatter
 from .helpers import corpus_generator
-from .tokenizer import NLTKTokenizer as Tokenizer
+from unidecode import unidecode
+from .database import (
+    database_map,
+    BaseDatabase,
+)
+from .simstring import (
+    simstring_map,
+    BaseSimstring,
+)
+from .tokenizer import (
+    tokenizer_map,
+    BaseTokenizer,
+)
+from .formatter import Formatter
 from typing import (
     Any,
     List,
@@ -25,26 +37,36 @@ class ESFacet:
     """FACET installation tool.
 
     Args:
-        cuisty_db (BaseDatabase): Handle to database instance for CUI-STY
-            storage.
+        cuisty_db (str, BaseDatabase): Handle to database instance or database
+            name for CUI-STY storage. Valid database values are: 'dict',
+            'redis', 'elasticsearch'. Default is 'dict'.
 
-        simstring (Simstring): Handle to Simstring instance.
-            Simstring requires an internal database.
+        simstring (str, BaseSimstring): Handle to Simstring instance or
+            simstring name for inverted list of text. Valid simstring values
+            are: 'simstring', 'elasticsearch'. Default is 'simstring'.
 
-        tokenizer (BaseTokenizer): Tokenizer instance.
+        tokenizer (str, BaseTokenizer): Tokenizer instance or tokenizer name.
+            Valid tokenizers are: 'ws', 'nltk', 'spacy'. Default is 'ws'.
+
+        formatter (Formatter): Formatter instance.
     """
 
     def __init__(
         self,
         *,
-        cuisty_db: 'BaseDatabase',
-        simstring: 'Simstring',
-        tokenizer: 'BaseTokenizer' = Tokenizer(),
+        cuisty_db: Union[str, 'BaseDatabase'] = 'dict',
+        simstring: Union[str, 'BaseSimstring'] = 'simstring',
+        tokenizer: Union[str, 'BaseTokenizer'] = 'ws',
+        formatter: 'Formatter' = Formatter(),
     ):
-        self._cuisty_db = cuisty_db
-        self._ss = simstring
+        self._cuisty_db = None
+        self._ss = None
+        self._tokenizer = None
+        self.formatter = formatter
+
+        self.cuisty_db = cuisty_db
         self.tokenizer = tokenizer
-        self.formatter = Formatter()
+        self.ss = simstring
 
     def __call__(self, corpora: Union[str, Iterable[str]], **kwargs):
         """
@@ -53,27 +75,70 @@ class ESFacet:
         """
         return self.match(corpora, **kwargs)
 
+    @property
+    def cuisty_db(self):
+        return self._cuisty_db
+
+    @cuisty_db.setter
+    def cuisty_db(self, value: Union[str, 'BaseDatabase']):
+        obj = None
+        if isinstance(value, str):
+            obj = database_map[value]()
+        elif isinstance(value, BaseDatabase):
+            obj = value
+
+        if obj is None:
+            raise ValueError(f'invalid CUI-STY database, {value}')
+        self._cuisty_db = obj
+
+    @property
+    def ss(self):
+        return self._ss
+
+    @ss.setter
+    def ss(self, value: Union[str, 'BaseSimstring']):
+        obj = None
+        if isinstance(value, str):
+            obj = simstring_map[value]()
+        elif isinstance(value, BaseSimstring):
+            obj = value
+
+        if obj is None:
+            raise ValueError(f'invalid simstring, {value}')
+        self._ss = obj
+
+    @property
+    def tokenizer(self):
+        return self._tokenizer
+
+    @tokenizer.setter
+    def tokenizer(self, value: Union[str, 'BaseTokenizer']):
+        obj = None
+        if isinstance(value, str):
+            obj = tokenizer_map[value]()
+        elif isinstance(value, BaseTokenizer):
+            obj = value
+
+        if obj is None:
+            raise ValueError(f'invalid tokenizer value, {value}')
+        self._tokenizer = obj
+
     def _get_matches(
         self,
         ngrams: Iterable[Any],
-        *,
-        alpha: float = 0.7,
-        # normalize_unicode: bool = True,
-        # lowercase: bool = False,
+        **kwargs,
     ) -> List[List[Dict[str, Any]]]:
         """
         Args:
             ngrams (Iterable[int, int, str]): Parsed N-grams with span.
 
-            normalize_unicode (bool): Enable Unicode normalization.
-                Default is True.
+        Kwargs:
+            Options passed directly to `Simstring.search`.
         """
         matches = []
         for begin, end, ngram in ngrams:
             ngram_matches = []
-            for candidate, similarity, cuis in self._ss.search(ngram,
-                                                               alpha=alpha,
-                                                               rank=False):
+            for candidate, similarity, cuis in self._ss.search(ngram, **kwargs):
                 for cui in filter(None, cuis):
                     # NOTE: Using ACCEPTED_SEMTYPES will always result
                     # in true. If not so, should we include the match
@@ -91,8 +156,6 @@ class ESFacet:
                         })
 
             # Sort matches by similarity
-            # NOTE: If Simstring results are sorted the same way, then
-            # we can skip this extra sorting.
             if len(ngram_matches) > 0:
                 ngram_matches.sort(
                     key=lambda x: x['similarity'],
@@ -105,18 +168,39 @@ class ESFacet:
         self,
         corpora: Union[str, Iterable[str]],
         *,
-        best_match: bool = True,
-        alpha: float = 0.7,
+        # best_match: bool = True,
+        case: str = None,
+        normalize_unicode: bool = False,
+        # NOTE: The following default values are based on the corresponding
+        # function/method call using them.
+        format: str = '',
+        outfile: str = None,
+        corpus_kwargs: Dict[str, Any] = {},
         **kwargs
     ) -> Dict[str, List[List[Dict[str, Any]]]]:
         """
         Args:
             corpora (Union[str, Iterable[str]]): Corpora items.
 
-            best_match (bool):
+            best_match (bool): ?
+
+            case (str, None): Controls string casing during insert/search.
+                Valid values are 'lL' (lower), 'uU' (upper), or None.
+                Default is None.
+
+            normalize_unicode (bool): Enable Unicode normalization.
+                Default is False.
+
+            format (str): Formatting mode for match results. Valid values
+                are: 'json', 'xml', 'pickle', 'csv'.
+
+            outfile (str): Output file for match results.
+
+            corpus_kwargs (Dict[str, Any]): Options passed directly to
+                `corpus_generator`.
 
         Kwargs:
-            Options passed directly to `corpus_generator`.
+            Options passed directly to `Simstring.search` via `_get_matches`.
 
         Examples:
 
@@ -124,20 +208,37 @@ class ESFacet:
         >>> for terms in matches['file1.txt']:
         >>>     for term in terms:
         >>>         print(term['concept'], term['cui'], term['semantic type'])
+
+        >>> matches = Facet().match([('filename1', 'text1'), (...), ...])
+        >>> for terms in matches['filename1']:
+        >>>     for term in terms:
+        >>>         print(term['concept'], term['cui'], term['semantic type'])
         """
-        # Profile
         if PROFILE:
             prof = cProfile.Profile(subcalls=True, builtins=True)
             prof.enable()
 
+        if case in ('L', 'l'):
+            strcase = str.lower
+        elif case in ('U', 'u'):
+            strcase = str.upper
+        elif case is None:
+            strcase = None
+        else:
+            raise ValueError(f'invalid string case option, {case}')
+
         t1 = time.time()
         matches = collections.defaultdict(list)
-        for source, corpus in corpus_generator(corpora, **kwargs):
+        for source, corpus in corpus_generator(corpora, **corpus_kwargs):
+            if strcase is not None:
+                corpus = strcase(corpus)
+
+            if normalize_unicode:
+                corpus = unidecode(corpus)
+
             for sentence in self.tokenizer.sentencize(corpus):
                 ngrams = self.tokenizer.tokenize(sentence)
-
-                _matches = self._get_matches(ngrams, alpha=alpha)
-                print(f'Num matches: {len(_matches)}')
+                _matches = self._get_matches(ngrams, **kwargs)
 
                 # if best_match:
                 #     matches = self._select_terms(_matches)
@@ -149,11 +250,10 @@ class ESFacet:
         t2 = time.time()
         print(f'Matching N-grams: {t2 - t1} s')
 
-        # Profile
         if PROFILE:
             prof.disable()
             prof.create_stats()
             prof.print_stats('time')
             prof.clear()
 
-        return self.formatter(matches)
+        return self.formatter(matches, format=format, outfile=outfile)

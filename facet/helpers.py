@@ -10,6 +10,7 @@ from typing import (
     Tuple,
     Callable,
     Iterable,
+    Iterator,
 )
 
 
@@ -148,7 +149,7 @@ def iter_data(
     invalids: Dict[Union[str, int], Iterable[Any]] = None,
     unique_keys: bool = False,
     **kwargs
-) -> 'Generator[Any, Any]':
+) -> Iterator[Tuple[Any, Any]]:
     """Generator for data.
 
     Use Pandas 'read_csv()' to load data into a dataframe which is then
