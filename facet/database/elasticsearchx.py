@@ -1,6 +1,20 @@
 from elasticsearch import Elasticsearch
-from elasticsearch.helpers import scan, bulk, parallel_bulk, streaming_bulk
-from typing import Any, List, Dict, Tuple, Union, Iterable, Iterator, Optional
+from elasticsearch.helpers import (
+    scan,
+    bulk,
+    parallel_bulk,
+    streaming_bulk,
+)
+from typing import (
+    Any,
+    List,
+    Dict,
+    Tuple,
+    Union,
+    Iterable,
+    Iterator,
+    Optional,
+)
 
 
 __all__ = ['ElasticsearchDatabase', 'Elasticsearchx']
