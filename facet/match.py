@@ -1,6 +1,7 @@
 import time
 import collections
 from .helpers import corpus_generator
+from unidecode import unidecode
 from .database import (
     database_map,
     BaseDatabase,

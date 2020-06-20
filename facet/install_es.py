@@ -4,7 +4,19 @@ import itertools
 import multiprocessing
 from .helpers import load_data
 from unidecode import unidecode
-from .database import DictDatabase
+from .database import (
+    database_map,
+    BaseDatabase,
+)
+from .simstring import (
+    simstring_map,
+    BaseSimstring,
+)
+from typing import (
+    Any,
+    Dict,
+    Union,
+)
 from .umls_constants import (
     HEADERS_MRSTY,
     HEADERS_MRCONSO,
@@ -28,19 +40,66 @@ class ESInstaller:
     """FACET installation tool.
 
     Args:
-        cuisty_db (BaseDatabase): Handle to database instance for CUI-STY
-            storage.
+        cuisty_db (str, BaseDatabase): Handle to database instance or database
+            name for CUI-STY storage. Valid database values are: 'dict',
+            'redis', 'elasticsearch'. Default is 'dict'.
 
-        simstring (Simstring): Handle to Simstring instance.
-            The database handle should differ from the internal Simstring
-            database handle (to prevent collisions with N-grams).
+        simstring (str, BaseSimstring): Handle to Simstring instance or
+            simstring name for inverted list of text. Valid simstring values
+            are: 'simstring', 'elasticsearch'. Default is 'elasticsearch'.
     """
 
-    def __init__(self, *, cuisty_db: 'BaseDatabase', simstring: 'Simstring'):
-        self._cuisty_db = cuisty_db
-        self._ss = simstring
+    def __init__(
+        self,
+        *,
+        cuisty_db: Union[str, 'BaseDatabase'] = 'dict',
+        simstring: Union[str, 'BaseSimstring'] = 'elasticsearch',
+    ):
+        self._cuisty_db = None
+        self._ss = None
 
-    def _dump_simstring(self, data, *, bulk_size=1000, status_step=10000):
+        self.cuisty_db = cuisty_db
+        self.ss = simstring
+
+    @property
+    def cuisty_db(self):
+        return self._cuisty_db
+
+    @cuisty_db.setter
+    def cuisty_db(self, value: Union[str, 'BaseDatabase']):
+        obj = None
+        if isinstance(value, str):
+            obj = database_map[value]()
+        elif isinstance(value, BaseDatabase):
+            obj = value
+
+        if obj is None:
+            raise ValueError(f'invalid CUI-STY database, {value}')
+        self._cuisty_db = obj
+
+    @property
+    def ss(self):
+        return self._ss
+
+    @ss.setter
+    def ss(self, value: Union[str, 'BaseSimstring']):
+        obj = None
+        if isinstance(value, str):
+            obj = simstring_map[value]()
+        elif isinstance(value, BaseSimstring):
+            obj = value
+
+        if obj is None:
+            raise ValueError(f'invalid simstring, {value}')
+        self._ss = obj
+
+    def _dump_simstring(
+        self,
+        data: Dict[str, Any],
+        *,
+        bulk_size: int = 1000,
+        status_step: int = 10000,
+    ):
         """Stores {Term:...} in Simstring database.
 
         Args:
@@ -70,8 +129,15 @@ class ESInstaller:
         if VERBOSE:
             print(f'Num simstring terms: {i}')
 
-    def _dump_cuisty(self, data, *, bulk_size=1000, status_step=10000):
-        """Stores {CUI:Semantic Type} mapping, cui: [sty, ...].
+    def _dump_kv(
+        self,
+        data: Dict[str, Any],
+        db: 'BaseDatabase',
+        *,
+        bulk_size: int = 1000,
+        status_step: int = 10000,
+    ):
+        """Stores {key:val} mapping, key: [val, ...].
 
         Args:
             bulk_size (int): Size of chunks to use for dumping data into
@@ -83,11 +149,11 @@ class ESInstaller:
         # Profile
         prev_time = time.time()
 
-        self._cuisty_db.set_pipe(True)
-        for i, (cui, sty) in enumerate(data.items(), start=1):
-            self._cuisty_db.set(cui, sty)
+        db.set_pipe(True)
+        for i, (key, val) in enumerate(data.items(), start=1):
+            db.set(key, val)
             if i % bulk_size == 0:
-                self._cuisty_db.sync()
+                db.sync()
 
             # Profile
             if VERBOSE and i % status_step == 0:
@@ -95,39 +161,24 @@ class ESInstaller:
                 elapsed_time = curr_time - prev_time
                 print(f'{i}: {elapsed_time} s')
                 prev_time = curr_time
-        self._cuisty_db.set_pipe(False)
+        db.close()
 
         if VERBOSE:
-            print(f'Num CUIs: {i}')
+            print(f'Num keys: {i}')
 
-    # NOTE: This method should only take **kwargs and this is a user-defined
-    # dictionary passed to corresponding '_load_*()' and '_dump_*()' methods.
-    def install(
-        self,
-        umls_dir,
-        *,
-        mrconso='MRCONSO.RRF',
-        mrsty='MRSTY.RRF',
-        **kwargs
-    ):
+    def install(self, umls_dir: str, **kwargs):
         """
         Args:
             umls_dir (str): Directory of UMLS RRF files.
 
-            mrconso (str): UMLS concepts file.
-                Default is MRCONSO.RRF.
-
-            mrsty (str): UMLS semantic types file.
-                Default is MRSTY.RRF.
-
         Kwargs:
-            Options passed directly to '_load_*()' and '_dump_*()' methods.
+            Options passed directly to '_dump_*()' methods.
         """
         t1 = time.time()
 
         print('Loading/parsing concepts...')
         start = time.time()
-        mrconso_file = os.path.join(umls_dir, mrconso)
+        mrconso_file = os.path.join(umls_dir, 'MRCONSO.RRF')
         conso = load_data(
             data=mrconso_file,
             keys=['str'],
@@ -142,7 +193,7 @@ class ESInstaller:
 
         print('Loading/parsing semantic types...')
         start = time.time()
-        mrsty_file = os.path.join(umls_dir, mrsty)
+        mrsty_file = os.path.join(umls_dir, 'MRSTY.RRF')
         cuisty = load_data(
             data=mrsty_file,
             keys=['cui'],
@@ -165,7 +216,8 @@ class ESInstaller:
 
         print('Writing semantic types...')
         start = time.time()
-        self._dump_cuisty(cuisty, **kwargs)
+        # Stores {CUI:Semantic Type} mapping, cui: [sty, ...]
+        self._dump_kv(cuisty, self._cuisty_db, **kwargs)
         curr_time = time.time()
         print(f'Writing semantic types: {curr_time - start} s')
 
