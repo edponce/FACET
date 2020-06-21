@@ -1,24 +1,10 @@
 """FACET package."""
 
 
-__title__ = "FACET"
-__name__ = "FACET"
-__version__ = "0.9"
-__description__ = """Framework for Annotation and Concept Extraction in Text"""
-__keywords__ = [
-    "information extraction",
-    "UMLS",
-    "concepts",
-    "text annotation",
-    "medical text",
-    "natural language processing",
-]
-__url__ = "https://github.com/edponce/FACET"
-__author__ = "Eduardo Ponce, Oak Ridge National Laboratory, Oak Ridge, TN"
-__author_email__ = "edponce2010@gmail.com"
-__license__ = "MIT"
-__copyright__ = """2020 Eduardo Ponce, Kris Brown, and Edmon Begoli
-                   Oak Ridge National Laboratory"""
+import os
+import sys
+sys.path.append(os.path.abspath('..'))
+from meta import *  # noqa: E402
 
 
 __all__ = []

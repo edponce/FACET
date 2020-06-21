@@ -39,34 +39,36 @@ class ESFacet:
     Args:
         cuisty_db (str, BaseDatabase): Handle to database instance or database
             name for CUI-STY storage. Valid database values are: 'dict',
-            'redis', 'elasticsearch'. Default is 'dict'.
+            'redis', 'elasticsearch', None.
 
         simstring (str, BaseSimstring): Handle to Simstring instance or
             simstring name for inverted list of text. Valid simstring values
-            are: 'simstring', 'elasticsearch'. Default is 'simstring'.
+            are: 'simstring', 'elasticsearch'.
 
         tokenizer (str, BaseTokenizer): Tokenizer instance or tokenizer name.
-            Valid tokenizers are: 'ws', 'nltk', 'spacy'. Default is 'ws'.
+            Valid tokenizers are: 'ws', 'nltk', 'spacy'.
 
-        formatter (Formatter): Formatter instance.
+        formatter (str, Formatter): Formatter instance or formatter name.
+            Valid formatters are: 'json', 'yaml', 'xml', 'pickle', 'csv', None.
     """
 
     def __init__(
         self,
         *,
-        cuisty_db: Union[str, 'BaseDatabase'] = 'dict',
-        simstring: Union[str, 'BaseSimstring'] = 'simstring',
+        cuisty_db: Union[str, 'BaseDatabase'] = None,
+        simstring: Union[str, 'BaseSimstring'] = 'elasticsearch',
         tokenizer: Union[str, 'BaseTokenizer'] = 'ws',
-        formatter: 'Formatter' = Formatter(),
+        formatter: Union[str, 'Formatter'] = None,
     ):
         self._cuisty_db = None
-        self._ss = None
+        self._simstring = None
         self._tokenizer = None
-        self.formatter = formatter
+        self._formatter = None
 
         self.cuisty_db = cuisty_db
+        self.simstring = simstring
         self.tokenizer = tokenizer
-        self.ss = simstring
+        self.formatter = formatter
 
     def __call__(self, corpora: Union[str, Iterable[str]], **kwargs):
         """
@@ -81,22 +83,20 @@ class ESFacet:
 
     @cuisty_db.setter
     def cuisty_db(self, value: Union[str, 'BaseDatabase']):
-        obj = None
         if isinstance(value, str):
             obj = database_map[value]()
-        elif isinstance(value, BaseDatabase):
+        elif value is None or isinstance(value, BaseDatabase):
             obj = value
-
-        if obj is None:
+        else:
             raise ValueError(f'invalid CUI-STY database, {value}')
         self._cuisty_db = obj
 
     @property
-    def ss(self):
-        return self._ss
+    def simstring(self):
+        return self._simstring
 
-    @ss.setter
-    def ss(self, value: Union[str, 'BaseSimstring']):
+    @simstring.setter
+    def simstring(self, value: Union[str, 'BaseSimstring']):
         obj = None
         if isinstance(value, str):
             obj = simstring_map[value]()
@@ -105,7 +105,7 @@ class ESFacet:
 
         if obj is None:
             raise ValueError(f'invalid simstring, {value}')
-        self._ss = obj
+        self._simstring = obj
 
     @property
     def tokenizer(self):
@@ -113,15 +113,29 @@ class ESFacet:
 
     @tokenizer.setter
     def tokenizer(self, value: Union[str, 'BaseTokenizer']):
-        obj = None
-        if isinstance(value, str):
+        if value is None or isinstance(value, str):
             obj = tokenizer_map[value]()
         elif isinstance(value, BaseTokenizer):
             obj = value
-
-        if obj is None:
+        else:
             raise ValueError(f'invalid tokenizer value, {value}')
         self._tokenizer = obj
+
+    @property
+    def formatter(self):
+        return self._formatter
+
+    @formatter.setter
+    def formatter(self, value: Union[str, 'Formatter']):
+        if value is None:
+            obj = Formatter()
+        elif isinstance(value, str):
+            obj = Formatter(value)
+        elif isinstance(value, Formatter):
+            obj = value
+        else:
+            raise ValueError(f'invalid formatter value, {value}')
+        self._formatter = obj
 
     def _get_matches(
         self,
@@ -138,22 +152,33 @@ class ESFacet:
         matches = []
         for begin, end, ngram in ngrams:
             ngram_matches = []
-            for candidate, similarity, cuis in self._ss.search(ngram, **kwargs):
-                for cui in filter(None, cuis):
-                    # NOTE: Using ACCEPTED_SEMTYPES will always result
-                    # in true. If not so, should we include the match
-                    # with a semtype=None or skip it?
-                    semtypes = self._cuisty_db.get(cui)
-                    if semtypes is not None:
-                        ngram_matches.append({
-                            'begin': begin,
-                            'end': end,
-                            'ngram': ngram,
-                            'concept': candidate,
-                            'similarity': similarity,
-                            'cui': cui,
-                            'semantic type': semtypes,
-                        })
+            for candidate, similarity, attrs in self._simstring.search(
+                ngram,
+                **kwargs,
+            ):
+                ngram_match = {
+                    'begin': begin,
+                    'end': end,
+                    'ngram': ngram,
+                    'concept': candidate,
+                    'similarity': similarity,
+                }
+
+                if attrs is not None:
+                    for cui in filter(None, attrs):
+                        if self._cuisty_db is None:
+                            ngram_match.update({'cui': cui})
+                        else:
+                            # NOTE: Using ACCEPTED_SEMTYPES will always result
+                            # in true. If not so, should we include the match
+                            # with a semtype=None or skip it?
+                            semtypes = self._cuisty_db.get(cui)
+                            if semtypes is not None:
+                                ngram_match.update({
+                                    'cui': cui,
+                                    'semantic type': semtypes,
+                                })
+                        ngram_matches.append(ngram_match)
 
             # Sort matches by similarity
             if len(ngram_matches) > 0:
@@ -256,4 +281,4 @@ class ESFacet:
             prof.print_stats('time')
             prof.clear()
 
-        return self.formatter(matches, format=format, outfile=outfile)
+        return self._formatter(matches, format=format, outfile=outfile)

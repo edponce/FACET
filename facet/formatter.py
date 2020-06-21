@@ -14,7 +14,7 @@ __all__ = ['Formatter']
 class Formatter:
     """Format data and write to stream."""
 
-    def __init__(self, *, format=None):
+    def __init__(self, format=None):
         self._format = None
         self.format = format
 
