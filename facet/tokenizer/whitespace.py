@@ -64,4 +64,4 @@ class WhitespaceTokenizer(BaseTokenizer):
         for match in re.finditer(r'\w+', text):
             token = match.group(0)
             if token not in type(self)._STOPWORDS:
-                yield (0, 0, token)
+                yield (match.start(), match.end() - 1, token)

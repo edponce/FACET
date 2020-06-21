@@ -17,7 +17,8 @@ from .install_es import ESInstaller
 from .formatter import Formatter
 from .tokenizer import (
     NLTKTokenizer,
-    SpacyTokenizer,
+    SpaCyTokenizer,
+    SimpleTokenizer,
     WhitespaceTokenizer,
 )
 from .database import (

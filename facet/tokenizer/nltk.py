@@ -49,7 +49,7 @@ class NLTKTokenizer(BaseTokenizer):
         spans = []
         tokens = []
         for begin, end, token in self._tokenize(text):
-            spans.append((begin, end))
+            spans.append((begin, end - 1))
             tokens.append(token)
 
         # NOTE: Language for nltk.pos_tag() is based on
@@ -61,5 +61,8 @@ class NLTKTokenizer(BaseTokenizer):
                                                 tagset='universal',
                                                 lang=self._language[:3])):
             token, pos = token_pos
-            if pos in ('NOUN', 'VERB', 'ADV', 'ADJ'):
+            if self._is_valid_token(pos):
                 yield (*span, token)
+
+    def _is_valid_token(self, pos) -> bool:
+        return pos in {'NOUN', 'VERB', 'ADV', 'ADJ'}
