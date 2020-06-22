@@ -1,11 +1,9 @@
 import time
 import collections
+# NOTE: Add multiprocessing
+# import multiprocessing
 from .helpers import corpus_generator
 from unidecode import unidecode
-from .database import (
-    database_map,
-    BaseDatabase,
-)
 from .simstring import (
     simstring_map,
     BaseSimstring,
@@ -14,7 +12,14 @@ from .tokenizer import (
     tokenizer_map,
     BaseTokenizer,
 )
-from .formatter import Formatter
+from .formatter import (
+    formatter_map,
+    BaseFormatter,
+)
+from abc import (
+    ABC,
+    abstractmethod,
+)
 from typing import (
     Any,
     List,
@@ -22,11 +27,14 @@ from typing import (
     Tuple,
     Union,
     Iterable,
+    Callable,
 )
 
 
-__all__ = ['Facet']
+__all__ = ['BaseFacet']
 
+
+VERBOSE = True
 
 # Enable/disable profiling
 PROFILE = False
@@ -34,18 +42,13 @@ if PROFILE:
     import cProfile
 
 
-class Facet:
-    """FACET text matcher.
+__all__ = ['BaseFacet']
+
+
+class BaseFacet(ABC):
+    """Class supporting FACET installers and matchers.
 
     Args:
-        conso_db (str, BaseDatabase): Handle to database instance or database
-            name for CONCEPT-CUI storage. Valid database values are: 'dict',
-            'redis', 'elasticsearch', None.
-
-        cuisty_db (str, BaseDatabase): Handle to database instance or database
-            name for CUI-STY storage. Valid database values are: 'dict',
-            'redis', 'elasticsearch', None.
-
         simstring (str, BaseSimstring): Handle to Simstring instance or
             simstring name for inverted list of text. Valid simstring values
             are: 'simstring', 'elasticsearch'.
@@ -53,65 +56,24 @@ class Facet:
         tokenizer (str, BaseTokenizer): Tokenizer instance or tokenizer name.
             Valid tokenizers are: 'simple', 'ws', 'nltk', 'spacy'.
 
-        formatter (str, Formatter): Formatter instance or formatter name.
-            Valid formatters are: 'json', 'yaml', 'xml', 'pickle', 'csv', None.
+        formatter (str, BaseFormatter): Formatter instance or formatter name.
+            Valid formatters are: 'json', 'yaml', 'xml', 'pickle', 'csv'.
     """
 
     def __init__(
         self,
         *,
-        conso_db: Union[str, 'BaseDatabase'] = None,
-        cuisty_db: Union[str, 'BaseDatabase'] = None,
         simstring: Union[str, 'BaseSimstring'] = 'simstring',
         tokenizer: Union[str, 'BaseTokenizer'] = 'ws',
-        formatter: Union[str, 'Formatter'] = None,
+        formatter: Union[str, 'BaseFormatter'] = None,
     ):
-        self._conso_db = None
-        self._cuisty_db = None
         self._simstring = None
         self._tokenizer = None
         self._formatter = None
 
-        self.conso_db = conso_db
-        self.cuisty_db = cuisty_db
         self.simstring = simstring
         self.tokenizer = tokenizer
         self.formatter = formatter
-
-    def __call__(self, corpora: Union[str, Iterable[str]], **kwargs):
-        """
-        Kwargs:
-            Options passed directly to `match`.
-        """
-        return self.match(corpora, **kwargs)
-
-    @property
-    def conso_db(self):
-        return self._conso_db
-
-    @conso_db.setter
-    def conso_db(self, value: Union[str, 'BaseDatabase']):
-        if isinstance(value, str):
-            obj = database_map[value]()
-        elif value is None or isinstance(value, BaseDatabase):
-            obj = value
-        else:
-            raise ValueError(f'invalid CONSO-CUI database, {value}')
-        self._conso_db = obj
-
-    @property
-    def cuisty_db(self):
-        return self._cuisty_db
-
-    @cuisty_db.setter
-    def cuisty_db(self, value: Union[str, 'BaseDatabase']):
-        if isinstance(value, str):
-            obj = database_map[value]()
-        elif value is None or isinstance(value, BaseDatabase):
-            obj = value
-        else:
-            raise ValueError(f'invalid CUI-STY database, {value}')
-        self._cuisty_db = obj
 
     @property
     def simstring(self):
@@ -148,65 +110,14 @@ class Facet:
         return self._formatter
 
     @formatter.setter
-    def formatter(self, value: Union[str, 'Formatter']):
-        if value is None:
-            obj = Formatter()
-        elif isinstance(value, str):
-            obj = Formatter(value)
-        elif isinstance(value, Formatter):
+    def formatter(self, value: Union[str, 'BaseFormatter']):
+        if value is None or isinstance(value, str):
+            obj = formatter_map[value]()
+        elif isinstance(value, BaseFormatter):
             obj = value
         else:
             raise ValueError(f'invalid formatter value, {value}')
         self._formatter = obj
-
-    def _match(
-        self,
-        ngram_struct: Tuple[int, int, str],
-        **kwargs,
-    ) -> List[List[Dict[str, Any]]]:
-        """
-        Args:
-            ngram (Tuple[int, int, str]): Parsed N-grams with span.
-
-        Kwargs:
-            Options passed directly to `Simstring.search`.
-        """
-        begin, end, ngram = ngram_struct
-        ngram_matches = []
-        for candidate, similarity in self._simstring.search(
-            ngram,
-            **kwargs,
-        ):
-            ngram_match = {
-                'begin': begin,
-                'end': end,
-                'ngram': ngram,
-                'concept': candidate,
-                'similarity': similarity,
-            }
-
-            if self._conso_db is None:
-                ngram_matches.append(ngram_match)
-                continue
-
-            cui = self._conso_db.get(candidate)[0]
-            if cui is None:
-                continue
-
-            ngram_match['CUI'] = cui
-
-            if self._cuisty_db is None:
-                ngram_matches.append(ngram_match)
-                continue
-
-            semtypes = self._cuisty_db.get(cui)
-            if semtypes is None:
-                continue
-
-            ngram_match['semantic types'] = semtypes
-            ngram_matches.append(ngram_match)
-
-        return ngram_matches
 
     def match(
         self,
@@ -262,20 +173,12 @@ class Facet:
             prof = cProfile.Profile(subcalls=True, builtins=True)
             prof.enable()
 
-        if case in ('L', 'l'):
-            strcase = str.lower
-        elif case in ('U', 'u'):
-            strcase = str.upper
-        elif case is None:
-            strcase = None
-        else:
-            raise ValueError(f'invalid string case option, {case}')
+        casefunc = self._get_case_func(case)
 
         t1 = time.time()
         matches = collections.defaultdict(list)
         for source, corpus in corpus_generator(corpora, **corpus_kwargs):
-            if strcase is not None:
-                corpus = strcase(corpus)
+            corpus = casefunc(corpus)
 
             if normalize_unicode:
                 corpus = unidecode(corpus)
@@ -302,4 +205,108 @@ class Facet:
             prof.print_stats('time')
             prof.clear()
 
-        return self._formatter(matches, format=format, outfile=outfile)
+        formatter = (
+            self._formatter
+            if format == ''
+            else formatter_map[format]()
+        )
+        return formatter(matches, outfile=outfile)
+
+    def _dump_simstring(
+        self,
+        data: Dict[str, Any],
+        *,
+        bulk_size: int = 1000,
+        status_step: int = 10000,
+    ):
+        """Stores {Term:...} in Simstring database.
+
+        Args:
+            bulk_size (int): Size of chunks to use for dumping data into
+                databases. Default is 1000.
+
+            status_step (int): Print status message after this number of
+                records is dumped to databases. Default is 10000.
+        """
+        # Profile
+        prev_time = time.time()
+
+        self._simstring.db.set_pipe(True)
+        for i, term in enumerate(data.keys(), start=1):
+            self._simstring.insert(term)
+            if i % bulk_size == 0:
+                self._simstring.db.sync()
+
+            # Profile
+            if VERBOSE and i % status_step == 0:
+                curr_time = time.time()
+                elapsed_time = curr_time - prev_time
+                print(f'{i}: {elapsed_time} s')
+                prev_time = curr_time
+        self._simstring.db.close()
+
+        if VERBOSE:
+            print(f'Num simstring terms: {i}')
+
+    def _dump_kv(
+        self,
+        data: Dict[str, Any],
+        db: 'BaseDatabase',
+        *,
+        bulk_size: int = 1000,
+        status_step: int = 10000,
+    ):
+        """Stores {key:val} mapping, key: [val, ...].
+
+        Args:
+            bulk_size (int): Size of chunks to use for dumping data into
+                databases. Default is 1000.
+
+            status_step (int): Print status message after this number of
+                records is dumped to databases. Default is 10000.
+        """
+        # Profile
+        prev_time = time.time()
+
+        db.set_pipe(True)
+        for i, (key, val) in enumerate(data.items(), start=1):
+            db.set(key, val)
+            if i % bulk_size == 0:
+                db.sync()
+
+            # Profile
+            if VERBOSE and i % status_step == 0:
+                curr_time = time.time()
+                elapsed_time = curr_time - prev_time
+                print(f'{i}: {elapsed_time} s')
+                prev_time = curr_time
+        db.close()
+
+        if VERBOSE:
+            print(f'Num keys: {i}')
+
+    def _get_case_func(self, case: str = None) -> Callable[[str], str]:
+        if case in {'L', 'l'}:
+            func = str.lower
+        elif case in {'U', 'u'}:
+            func = str.upper
+        elif case is None:
+            func = str
+        else:
+            raise ValueError(f'invalid string case option, {case}')
+        return func
+
+    def install(self, *args, **kwargs):
+        self._install(*args, **kwargs)
+
+    @abstractmethod
+    def _match(
+        self,
+        ngram_struct: Tuple[int, int, str],
+        **kwargs,
+    ) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    def _install(self, data):
+        pass

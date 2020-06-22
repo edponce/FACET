@@ -4,17 +4,21 @@
 import os
 import sys
 sys.path.append(os.path.abspath('..'))
-from meta import *  # noqa: E402
+from meta import *
 
 
 __all__ = []
 
 
-from .match import Facet
-from .match_es import ESFacet
-from .install import Installer
-from .install_es import ESInstaller
-from .formatter import Formatter
+from .umls import UMLSFacet
+from .formatter import (
+    JSONFormatter,
+    YAMLFormatter,
+    XMLFormatter,
+    PickleFormatter,
+    CSVFormatter,
+    SimpleFormatter,
+)
 from .tokenizer import (
     NLTKTokenizer,
     SpaCyTokenizer,
