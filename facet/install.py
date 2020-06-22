@@ -1,6 +1,8 @@
 import os
 import time
 import itertools
+# NOTE: Add multiprocessing
+# import multiprocessing
 from .helpers import load_data
 from unidecode import unidecode
 from .database import (
@@ -11,15 +13,15 @@ from .simstring import (
     simstring_map,
     BaseSimstring,
 )
-from .umls_constants import (
-    HEADERS_MRSTY,
-    HEADERS_MRCONSO,
-    ACCEPTED_SEMTYPES,
-)
 from typing import (
     Any,
     Dict,
     Union,
+)
+from .umls_constants import (
+    HEADERS_MRSTY,
+    HEADERS_MRCONSO,
+    ACCEPTED_SEMTYPES,
 )
 
 
@@ -34,22 +36,21 @@ if PROFILE:
     import cProfile
 
 
-# TODO: Convert this class into an abstract class.
 class Installer:
     """FACET installation tool.
 
     Args:
         conso_db (str, BaseDatabase): Handle to database instance or database
             name for CONCEPT-CUI storage. Valid database values are: 'dict',
-            'redis', 'elasticsearch'. Default is 'dict'.
+            'redis', 'elasticsearch', None.
 
         cuisty_db (str, BaseDatabase): Handle to database instance or database
             name for CUI-STY storage. Valid database values are: 'dict',
-            'redis', 'elasticsearch'. Default is 'dict'.
+            'redis', 'elasticsearch', None.
 
         simstring (str, BaseSimstring): Handle to Simstring instance or
             simstring name for inverted list of text. Valid simstring values
-            are: 'simstring', 'elasticsearch'. Default is 'simstring'.
+            are: 'simstring', 'elasticsearch'.
     """
 
     def __init__(
@@ -61,11 +62,11 @@ class Installer:
     ):
         self._conso_db = None
         self._cuisty_db = None
-        self._ss = None
+        self._simstring = None
 
         self.conso_db = conso_db
         self.cuisty_db = cuisty_db
-        self.ss = simstring
+        self.simstring = simstring
 
     @property
     def conso_db(self):
@@ -73,13 +74,11 @@ class Installer:
 
     @conso_db.setter
     def conso_db(self, value: Union[str, 'BaseDatabase']):
-        obj = None
         if isinstance(value, str):
             obj = database_map[value]()
-        elif isinstance(value, BaseDatabase):
+        elif value is None or isinstance(value, BaseDatabase):
             obj = value
-
-        if obj is None:
+        else:
             raise ValueError(f'invalid CONSO-CUI database, {value}')
         self._conso_db = obj
 
@@ -89,22 +88,20 @@ class Installer:
 
     @cuisty_db.setter
     def cuisty_db(self, value: Union[str, 'BaseDatabase']):
-        obj = None
         if isinstance(value, str):
             obj = database_map[value]()
-        elif isinstance(value, BaseDatabase):
+        elif value is None or isinstance(value, BaseDatabase):
             obj = value
-
-        if obj is None:
+        else:
             raise ValueError(f'invalid CUI-STY database, {value}')
         self._cuisty_db = obj
 
     @property
-    def ss(self):
-        return self._ss
+    def simstring(self):
+        return self._simstring
 
-    @ss.setter
-    def ss(self, value: Union[str, 'BaseSimstring']):
+    @simstring.setter
+    def simstring(self, value: Union[str, 'BaseSimstring']):
         obj = None
         if isinstance(value, str):
             obj = simstring_map[value]()
@@ -113,7 +110,7 @@ class Installer:
 
         if obj is None:
             raise ValueError(f'invalid simstring, {value}')
-        self._ss = obj
+        self._simstring = obj
 
     def _dump_simstring(
         self,
@@ -134,11 +131,11 @@ class Installer:
         # Profile
         prev_time = time.time()
 
-        self._ss.db.set_pipe(True)
+        self._simstring.db.set_pipe(True)
         for i, term in enumerate(data.keys(), start=1):
-            self._ss.insert(term)
+            self._simstring.insert(term)
             if i % bulk_size == 0:
-                self._ss.db.sync()
+                self._simstring.db.sync()
 
             # Profile
             if VERBOSE and i % status_step == 0:
@@ -146,7 +143,7 @@ class Installer:
                 elapsed_time = curr_time - prev_time
                 print(f'{i}: {elapsed_time} s')
                 prev_time = curr_time
-        self._ss.db.close()
+        self._simstring.db.close()
 
         if VERBOSE:
             print(f'Num simstring terms: {i}')

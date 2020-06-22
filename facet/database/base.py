@@ -60,11 +60,6 @@ class BaseDatabase(ABC):
     def __exit__(self, *exc_info) -> NoReturn:
         self.close()
 
-    # NOTE: Can close() be called multiple times without side effects
-    # on all databases?
-    # def __del__(self):
-    #     self.close()
-
     @property
     def config(self) -> Dict[str, Any]:
         """Get configuraton information of database."""

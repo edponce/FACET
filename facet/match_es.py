@@ -34,9 +34,13 @@ if PROFILE:
 
 
 class ESFacet:
-    """FACET installation tool.
+    """FACET text matcher with Elasticsearch support.
 
     Args:
+        conso_db (str, BaseDatabase): Handle to database instance or database
+            name for CONCEPT-CUI storage. Valid database values are: 'dict',
+            'redis', 'elasticsearch', None.
+
         cuisty_db (str, BaseDatabase): Handle to database instance or database
             name for CUI-STY storage. Valid database values are: 'dict',
             'redis', 'elasticsearch', None.
@@ -46,7 +50,7 @@ class ESFacet:
             are: 'simstring', 'elasticsearch'.
 
         tokenizer (str, BaseTokenizer): Tokenizer instance or tokenizer name.
-            Valid tokenizers are: 'ws', 'nltk', 'spacy'.
+            Valid tokenizers are: 'simple', 'ws', 'nltk', 'spacy'.
 
         formatter (str, Formatter): Formatter instance or formatter name.
             Valid formatters are: 'json', 'yaml', 'xml', 'pickle', 'csv', None.
@@ -55,16 +59,19 @@ class ESFacet:
     def __init__(
         self,
         *,
+        conso_db: Union[str, 'BaseDatabase'] = None,
         cuisty_db: Union[str, 'BaseDatabase'] = None,
         simstring: Union[str, 'BaseSimstring'] = 'elasticsearch',
         tokenizer: Union[str, 'BaseTokenizer'] = 'ws',
         formatter: Union[str, 'Formatter'] = None,
     ):
+        self._conso_db = None
         self._cuisty_db = None
         self._simstring = None
         self._tokenizer = None
         self._formatter = None
 
+        self.conso_db = conso_db
         self.cuisty_db = cuisty_db
         self.simstring = simstring
         self.tokenizer = tokenizer
@@ -76,6 +83,20 @@ class ESFacet:
             Options passed directly to `match`.
         """
         return self.match(corpora, **kwargs)
+
+    @property
+    def conso_db(self):
+        return self._conso_db
+
+    @conso_db.setter
+    def conso_db(self, value: Union[str, 'BaseDatabase']):
+        if isinstance(value, str):
+            obj = database_map[value]()
+        elif value is None or isinstance(value, BaseDatabase):
+            obj = value
+        else:
+            raise ValueError(f'invalid CONSO-CUI database, {value}')
+        self._conso_db = obj
 
     @property
     def cuisty_db(self):
@@ -152,7 +173,7 @@ class ESFacet:
         matches = []
         for begin, end, ngram in ngrams:
             ngram_matches = []
-            for candidate, similarity, attrs in self._simstring.search(
+            for candidate, similarity in self._simstring.search(
                 ngram,
                 **kwargs,
             ):
@@ -164,8 +185,9 @@ class ESFacet:
                     'similarity': similarity,
                 }
 
-                if attrs is not None:
-                    for cui in filter(None, attrs):
+                cuis = self._conso_db.get(candidate)
+                if cuis is not None:
+                    for cui in filter(None, cuis):
                         if self._cuisty_db is None:
                             ngram_match.update({'cui': cui})
                         else:
@@ -176,16 +198,11 @@ class ESFacet:
                             if semtypes is not None:
                                 ngram_match.update({
                                     'cui': cui,
-                                    'semantic type': semtypes,
+                                    'semantic types': semtypes,
                                 })
                         ngram_matches.append(ngram_match)
 
-            # Sort matches by similarity
             if len(ngram_matches) > 0:
-                ngram_matches.sort(
-                    key=lambda x: x['similarity'],
-                    reverse=True
-                )
                 matches.append(ngram_matches)
         return matches
 
@@ -201,7 +218,7 @@ class ESFacet:
         format: str = '',
         outfile: str = None,
         corpus_kwargs: Dict[str, Any] = {},
-        **kwargs
+        **kwargs,
     ) -> Dict[str, List[List[Dict[str, Any]]]]:
         """
         Args:
@@ -261,8 +278,8 @@ class ESFacet:
             if normalize_unicode:
                 corpus = unidecode(corpus)
 
-            for sentence in self.tokenizer.sentencize(corpus):
-                ngrams = self.tokenizer.tokenize(sentence)
+            for sentence in self._tokenizer.sentencize(corpus):
+                ngrams = self._tokenizer.tokenize(sentence)
                 _matches = self._get_matches(ngrams, **kwargs)
 
                 # if best_match:

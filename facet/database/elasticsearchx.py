@@ -158,6 +158,9 @@ class ElasticsearchDatabase:
         body = self._resolve_search_body(key1, key2, max_size=max_size)
         return self._db.scan(body, index=self._index, **kwargs)
 
+    def close(self):
+        pass
+
     def _resolve_search_body(
         self,
         key1: Union[int, Tuple[int, int]],

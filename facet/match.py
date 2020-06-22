@@ -19,6 +19,7 @@ from typing import (
     Any,
     List,
     Dict,
+    Tuple,
     Union,
     Iterable,
 )
@@ -34,46 +35,55 @@ if PROFILE:
 
 
 class Facet:
-    """FACET installation tool.
+    """FACET text matcher.
 
     Args:
         conso_db (str, BaseDatabase): Handle to database instance or database
             name for CONCEPT-CUI storage. Valid database values are: 'dict',
-            'redis', 'elasticsearch'. Default is 'dict'.
+            'redis', 'elasticsearch', None.
 
         cuisty_db (str, BaseDatabase): Handle to database instance or database
             name for CUI-STY storage. Valid database values are: 'dict',
-            'redis', 'elasticsearch'. Default is 'dict'.
+            'redis', 'elasticsearch', None.
 
         simstring (str, BaseSimstring): Handle to Simstring instance or
             simstring name for inverted list of text. Valid simstring values
-            are: 'simstring', 'elasticsearch'. Default is 'simstring'.
+            are: 'simstring', 'elasticsearch'.
 
         tokenizer (str, BaseTokenizer): Tokenizer instance or tokenizer name.
-            Valid tokenizers are: 'ws', 'nltk', 'spacy'. Default is 'ws'.
+            Valid tokenizers are: 'simple', 'ws', 'nltk', 'spacy'.
 
-        formatter (Formatter): Formatter instance.
+        formatter (str, Formatter): Formatter instance or formatter name.
+            Valid formatters are: 'json', 'yaml', 'xml', 'pickle', 'csv', None.
     """
 
     def __init__(
         self,
         *,
-        conso_db: Union[str, 'BaseDatabase'] = 'dict',
-        cuisty_db: Union[str, 'BaseDatabase'] = 'dict',
+        conso_db: Union[str, 'BaseDatabase'] = None,
+        cuisty_db: Union[str, 'BaseDatabase'] = None,
         simstring: Union[str, 'BaseSimstring'] = 'simstring',
         tokenizer: Union[str, 'BaseTokenizer'] = 'ws',
-        formatter: 'Formatter' = Formatter(),
+        formatter: Union[str, 'Formatter'] = None,
     ):
         self._conso_db = None
         self._cuisty_db = None
-        self._ss = None
+        self._simstring = None
         self._tokenizer = None
-        self.formatter = formatter
+        self._formatter = None
 
         self.conso_db = conso_db
         self.cuisty_db = cuisty_db
+        self.simstring = simstring
         self.tokenizer = tokenizer
-        self.ss = simstring
+        self.formatter = formatter
+
+    def __call__(self, corpora: Union[str, Iterable[str]], **kwargs):
+        """
+        Kwargs:
+            Options passed directly to `match`.
+        """
+        return self.match(corpora, **kwargs)
 
     @property
     def conso_db(self):
@@ -81,13 +91,11 @@ class Facet:
 
     @conso_db.setter
     def conso_db(self, value: Union[str, 'BaseDatabase']):
-        obj = None
         if isinstance(value, str):
             obj = database_map[value]()
-        elif isinstance(value, BaseDatabase):
+        elif value is None or isinstance(value, BaseDatabase):
             obj = value
-
-        if obj is None:
+        else:
             raise ValueError(f'invalid CONSO-CUI database, {value}')
         self._conso_db = obj
 
@@ -97,22 +105,20 @@ class Facet:
 
     @cuisty_db.setter
     def cuisty_db(self, value: Union[str, 'BaseDatabase']):
-        obj = None
         if isinstance(value, str):
             obj = database_map[value]()
-        elif isinstance(value, BaseDatabase):
+        elif value is None or isinstance(value, BaseDatabase):
             obj = value
-
-        if obj is None:
+        else:
             raise ValueError(f'invalid CUI-STY database, {value}')
         self._cuisty_db = obj
 
     @property
-    def ss(self):
-        return self._ss
+    def simstring(self):
+        return self._simstring
 
-    @ss.setter
-    def ss(self, value: Union[str, 'BaseSimstring']):
+    @simstring.setter
+    def simstring(self, value: Union[str, 'BaseSimstring']):
         obj = None
         if isinstance(value, str):
             obj = simstring_map[value]()
@@ -121,7 +127,7 @@ class Facet:
 
         if obj is None:
             raise ValueError(f'invalid simstring, {value}')
-        self._ss = obj
+        self._simstring = obj
 
     @property
     def tokenizer(self):
@@ -129,52 +135,78 @@ class Facet:
 
     @tokenizer.setter
     def tokenizer(self, value: Union[str, 'BaseTokenizer']):
-        obj = None
-        if isinstance(value, str):
+        if value is None or isinstance(value, str):
             obj = tokenizer_map[value]()
         elif isinstance(value, BaseTokenizer):
             obj = value
-
-        if obj is None:
+        else:
             raise ValueError(f'invalid tokenizer value, {value}')
         self._tokenizer = obj
 
-    def _get_matches(
+    @property
+    def formatter(self):
+        return self._formatter
+
+    @formatter.setter
+    def formatter(self, value: Union[str, 'Formatter']):
+        if value is None:
+            obj = Formatter()
+        elif isinstance(value, str):
+            obj = Formatter(value)
+        elif isinstance(value, Formatter):
+            obj = value
+        else:
+            raise ValueError(f'invalid formatter value, {value}')
+        self._formatter = obj
+
+    def _match(
         self,
-        ngrams: Iterable[Any],
+        ngram_struct: Tuple[int, int, str],
         **kwargs,
     ) -> List[List[Dict[str, Any]]]:
         """
         Args:
-            ngrams (Iterable[int, int, str]): Parsed N-grams with span.
+            ngram (Tuple[int, int, str]): Parsed N-grams with span.
 
         Kwargs:
             Options passed directly to `Simstring.search`.
         """
-        matches = []
-        for begin, end, ngram in ngrams:
-            ngram_matches = []
-            for candidate, similarity in self._ss.search(ngram, **kwargs):
-                for cui in filter(None, self._conso_db.get(candidate)):
-                    # NOTE: Using ACCEPTED_SEMTYPES will always result
-                    # in true. If not so, should we include the match
-                    # with a semtype=None or skip it?
-                    semtypes = self._cuisty_db.get(cui)
-                    if semtypes is not None:
-                        ngram_matches.append({
-                            'begin': begin,
-                            'end': end,
-                            'ngram': ngram,
-                            'concept': candidate,
-                            'similarity': similarity,
-                            'cui': cui,
-                            'semantic type': semtypes,
-                        })
+        begin, end, ngram = ngram_struct
+        ngram_matches = []
+        for candidate, similarity in self._simstring.search(
+            ngram,
+            **kwargs,
+        ):
+            ngram_match = {
+                'begin': begin,
+                'end': end,
+                'ngram': ngram,
+                'concept': candidate,
+                'similarity': similarity,
+            }
 
-            if len(ngram_matches) > 0:
-                matches.append(ngram_matches)
+            if self._conso_db is None:
+                ngram_matches.append(ngram_match)
+                continue
 
-        return matches
+            cui = self._conso_db.get(candidate)[0]
+            if cui is None:
+                continue
+
+            ngram_match['CUI'] = cui
+
+            if self._cuisty_db is None:
+                ngram_matches.append(ngram_match)
+                continue
+
+            semtypes = self._cuisty_db.get(cui)
+            if semtypes is None:
+                continue
+
+            ngram_match['semantic types'] = semtypes
+            ngram_matches.append(ngram_match)
+
+        return ngram_matches
 
     def match(
         self,
@@ -212,7 +244,7 @@ class Facet:
                 `corpus_generator`.
 
         Kwargs:
-            Options passed directly to `Simstring.search` via `_get_matches`.
+            Options passed directly to `Simstring.search` via `_match`.
 
         Examples:
 
@@ -249,16 +281,18 @@ class Facet:
                 corpus = unidecode(corpus)
 
             for sentence in self._tokenizer.sentencize(corpus):
-                ngrams = self._tokenizer.tokenize(sentence)
-                _matches = self._get_matches(ngrams, **kwargs)
+                for ngram_struct in self._tokenizer.tokenize(sentence):
+                    ngram_matches = self._match(ngram_struct, **kwargs)
+                    if len(ngram_matches) == 0:
+                        continue
 
-                # if best_match:
-                #     matches = self._select_terms(_matches)
-                #     print(f'Num best matches: {len(_matches)}')
+                    # if best_match:
+                    #     ngram_matches = self._select_terms(ngram_matches)
+                    #     print(f'Num best matches: {len(ngram_matches)}')
 
-                # NOTE: Matches are not checked for duplication if placed
-                # in the same key.
-                matches[source].extend(_matches)
+                    # NOTE: Matches are not checked for duplication if placed
+                    # in the same key.
+                    matches[source].append(ngram_matches)
         t2 = time.time()
         print(f'Matching N-grams: {t2 - t1} s')
 
@@ -268,4 +302,4 @@ class Facet:
             prof.print_stats('time')
             prof.clear()
 
-        return self.formatter(matches, format=format, outfile=outfile)
+        return self._formatter(matches, format=format, outfile=outfile)

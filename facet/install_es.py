@@ -1,7 +1,8 @@
 import os
 import time
 import itertools
-import multiprocessing
+# NOTE: Add multiprocessing
+# import multiprocessing
 from .helpers import load_data
 from unidecode import unidecode
 from .database import (
@@ -35,31 +36,51 @@ if PROFILE:
     import cProfile
 
 
-# TODO: Convert this class into an abstract class.
 class ESInstaller:
     """FACET installation tool.
 
     Args:
+        conso_db (str, BaseDatabase): Handle to database instance or database
+            name for CONCEPT-CUI storage. Valid database values are: 'dict',
+            'redis', 'elasticsearch', None.
+
         cuisty_db (str, BaseDatabase): Handle to database instance or database
             name for CUI-STY storage. Valid database values are: 'dict',
-            'redis', 'elasticsearch'. Default is 'dict'.
+            'redis', 'elasticsearch', None.
 
         simstring (str, BaseSimstring): Handle to Simstring instance or
             simstring name for inverted list of text. Valid simstring values
-            are: 'simstring', 'elasticsearch'. Default is 'elasticsearch'.
+            are: 'simstring', 'elasticsearch'.
     """
 
     def __init__(
         self,
         *,
+        conso_db: Union[str, 'BaseDatabase'] = 'dict',
         cuisty_db: Union[str, 'BaseDatabase'] = 'dict',
         simstring: Union[str, 'BaseSimstring'] = 'elasticsearch',
     ):
+        self._conso_db = None
         self._cuisty_db = None
-        self._ss = None
+        self._simstring = None
 
+        self.conso_db = conso_db
         self.cuisty_db = cuisty_db
-        self.ss = simstring
+        self.simstring = simstring
+
+    @property
+    def conso_db(self):
+        return self._conso_db
+
+    @conso_db.setter
+    def conso_db(self, value: Union[str, 'BaseDatabase']):
+        if isinstance(value, str):
+            obj = database_map[value]()
+        elif value is None or isinstance(value, BaseDatabase):
+            obj = value
+        else:
+            raise ValueError(f'invalid CONSO-CUI database, {value}')
+        self._conso_db = obj
 
     @property
     def cuisty_db(self):
@@ -67,22 +88,20 @@ class ESInstaller:
 
     @cuisty_db.setter
     def cuisty_db(self, value: Union[str, 'BaseDatabase']):
-        obj = None
         if isinstance(value, str):
             obj = database_map[value]()
-        elif isinstance(value, BaseDatabase):
+        elif value is None or isinstance(value, BaseDatabase):
             obj = value
-
-        if obj is None:
+        else:
             raise ValueError(f'invalid CUI-STY database, {value}')
         self._cuisty_db = obj
 
     @property
-    def ss(self):
-        return self._ss
+    def simstring(self):
+        return self._simstring
 
-    @ss.setter
-    def ss(self, value: Union[str, 'BaseSimstring']):
+    @simstring.setter
+    def simstring(self, value: Union[str, 'BaseSimstring']):
         obj = None
         if isinstance(value, str):
             obj = simstring_map[value]()
@@ -91,7 +110,7 @@ class ESInstaller:
 
         if obj is None:
             raise ValueError(f'invalid simstring, {value}')
-        self._ss = obj
+        self._simstring = obj
 
     def _dump_simstring(
         self,
@@ -112,11 +131,11 @@ class ESInstaller:
         # Profile
         prev_time = time.time()
 
-        self._ss.db.set_pipe(True)
-        for i, (term, cui) in enumerate(data.items(), start=1):
-            self._ss.insert(term, cui)
+        self._simstring.db.set_pipe(True)
+        for i, term in enumerate(data.keys(), start=1):
+            self._simstring.insert(term)
             if i % bulk_size == 0:
-                self._ss.db.sync()
+                self._simstring.db.sync()
 
             # Profile
             if VERBOSE and i % status_step == 0:
@@ -124,7 +143,7 @@ class ESInstaller:
                 elapsed_time = curr_time - prev_time
                 print(f'{i}: {elapsed_time} s')
                 prev_time = curr_time
-        self._ss.db.set_pipe(False)
+        self._simstring.db.close()
 
         if VERBOSE:
             print(f'Num simstring terms: {i}')
@@ -180,7 +199,7 @@ class ESInstaller:
         start = time.time()
         mrconso_file = os.path.join(umls_dir, 'MRCONSO.RRF')
         conso = load_data(
-            data=mrconso_file,
+            mrconso_file,
             keys=['str'],
             values=['cui'],
             headers=HEADERS_MRCONSO,
@@ -191,11 +210,26 @@ class ESInstaller:
         curr_time = time.time()
         print(f'Loading/parsing concepts: {curr_time - start} s')
 
+        print('Writing concepts...')
+        start = time.time()
+        # Stores {Term:CUI} mapping, term: [CUI, ...]
+        self._dump_kv(conso, self._conso_db, **kwargs)
+        curr_time = time.time()
+        print(f'Writing concepts: {curr_time - start} s')
+
+        print('Writing simstring...')
+        start = time.time()
+        self._dump_simstring(conso, **kwargs)
+        curr_time = time.time()
+        print(f'Writing simstring: {curr_time - start} s')
+
+        # NOTE: 'valids' option does not removes keys if no value is
+        # available.
         print('Loading/parsing semantic types...')
         start = time.time()
         mrsty_file = os.path.join(umls_dir, 'MRSTY.RRF')
         cuisty = load_data(
-            data=mrsty_file,
+            mrsty_file,
             keys=['cui'],
             values=['sty'],
             headers=HEADERS_MRSTY,
@@ -207,12 +241,6 @@ class ESInstaller:
         )
         curr_time = time.time()
         print(f'Loading/parsing semantic types: {curr_time - start} s')
-
-        print('Writing simstring...')
-        start = time.time()
-        self._dump_simstring(conso, **kwargs)
-        curr_time = time.time()
-        print(f'Writing simstring: {curr_time - start} s')
 
         print('Writing semantic types...')
         start = time.time()
