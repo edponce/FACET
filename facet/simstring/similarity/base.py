@@ -8,10 +8,6 @@ __all__ = ['BaseSimilarity']
 class BaseSimilarity(ABC):
     """Interface for similarity measures."""
 
-    @property
-    def name(self):
-        return type(self)._name
-
     @abstractmethod
     def min_features(self, length: int, alpha: float) -> int:
         """Minimum number of features for searching similar strings."""
