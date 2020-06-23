@@ -108,7 +108,6 @@ class UMLSFacet(BaseFacet):
             headers=HEADERS_MRCONSO,
             valids={'lat': ['ENG']},
             converters={'str': [unidecode, str.lower]},
-            unique_values=True,
         )
         curr_time = time.time()
         print(f'Loading/parsing concepts: {curr_time - start} s')
@@ -123,7 +122,7 @@ class UMLSFacet(BaseFacet):
 
         print('Writing simstring...')
         start = time.time()
-        self._dump_simstring(conso, **kwargs)
+        self._dump_simstring(conso.keys(), **kwargs)
         curr_time = time.time()
         print(f'Writing simstring: {curr_time - start} s')
 
@@ -142,6 +141,7 @@ class UMLSFacet(BaseFacet):
                     'sty': ACCEPTED_SEMTYPES,
                     'cui': set(itertools.chain(*conso.values())),
                 },
+                multi_values=True,
                 unique_values=True,
             )
             curr_time = time.time()
@@ -187,7 +187,7 @@ class UMLSFacet(BaseFacet):
                 ngram_matches.append(ngram_match)
                 continue
 
-            cui = self._conso_db.get(candidate)[0]
+            cui = self._conso_db.get(candidate)
             if cui is None:
                 continue
 
@@ -205,3 +205,9 @@ class UMLSFacet(BaseFacet):
             ngram_matches.append(ngram_match)
 
         return ngram_matches
+
+    def _close(self):
+        if self._conso_db is not None:
+            self._conso_db.close()
+        if self._cuisty_db is not None:
+            self._cuisty_db.close()

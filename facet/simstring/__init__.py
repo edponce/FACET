@@ -12,10 +12,10 @@ from .ngram import (
 )
 from .base import BaseSimstring
 from .simstring import Simstring
-from .elasticsearch import ESSimstring
+from .elasticsearch import ElasticsearchSimstring
 
 
 simstring_map = {
     'simstring': Simstring,
-    'elasticsearch': ESSimstring,
+    'elasticsearch': ElasticsearchSimstring,
 }

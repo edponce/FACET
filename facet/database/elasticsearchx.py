@@ -135,6 +135,8 @@ class ElasticsearchDatabase:
             self._dbp = []
             return response
 
+    save = sync
+
     def get(
         self,
         key1: Union[int, Tuple[int, int]],
@@ -159,7 +161,7 @@ class ElasticsearchDatabase:
         return self._db.scan(body, index=self._index, **kwargs)
 
     def close(self):
-        pass
+        self._db.close()
 
     def _resolve_search_body(
         self,

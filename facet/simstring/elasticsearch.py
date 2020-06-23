@@ -22,10 +22,10 @@ from typing import (
 )
 
 
-__all__ = ['ESSimstring']
+__all__ = ['ElasticsearchSimstring']
 
 
-class ESSimstring(BaseSimstring):
+class ElasticsearchSimstring(BaseSimstring):
     """Implementation of Simstring algorithm.
 
     Okazaki, Naoaki, and Jun'ichi Tsujii. "Simple and efficient algorithm for
@@ -34,8 +34,8 @@ class ESSimstring(BaseSimstring):
     Linguistics, 2010.
 
     Args:
-        db (str, ElasticsearchDatabase): ES database instance or index for
-            storage.
+        db (str, ElasticsearchDatabase): Elasticsearch database instance or
+            index for storage.
 
         cache_db (str, BaseDatabase): Handle to database instance or database
             name for strings cache. Valid databases are: 'dict', 'redis',

@@ -40,7 +40,7 @@ from .serializer import (
 )
 from .simstring import (
     Simstring,
-    ESSimstring,
+    ElasticsearchSimstring,
     WordNgram,
     CharacterNgram,
     DiceSimilarity,

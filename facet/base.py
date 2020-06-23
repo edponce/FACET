@@ -71,7 +71,7 @@ class BaseFacet(ABC):
         self._tokenizer = None
         self._formatter = None
 
-        self.simstring = simstring
+        self._set_simstring(simstring)
         self.tokenizer = tokenizer
         self.formatter = formatter
 
@@ -79,8 +79,7 @@ class BaseFacet(ABC):
     def simstring(self):
         return self._simstring
 
-    @simstring.setter
-    def simstring(self, value: Union[str, 'BaseSimstring']):
+    def _set_simstring(self, value: Union[str, 'BaseSimstring']):
         obj = None
         if isinstance(value, str):
             obj = simstring_map[value]()
@@ -214,7 +213,7 @@ class BaseFacet(ABC):
 
     def _dump_simstring(
         self,
-        data: Dict[str, Any],
+        data: Iterable[str],
         *,
         bulk_size: int = 1000,
         status_step: int = 10000,
@@ -232,7 +231,7 @@ class BaseFacet(ABC):
         prev_time = time.time()
 
         self._simstring.db.set_pipe(True)
-        for i, term in enumerate(data.keys(), start=1):
+        for i, term in enumerate(data, start=1):
             self._simstring.insert(term)
             if i % bulk_size == 0:
                 self._simstring.db.sync()
@@ -243,7 +242,6 @@ class BaseFacet(ABC):
                 elapsed_time = curr_time - prev_time
                 print(f'{i}: {elapsed_time} s')
                 prev_time = curr_time
-        self._simstring.db.close()
 
         if VERBOSE:
             print(f'Num simstring terms: {i}')
@@ -280,7 +278,6 @@ class BaseFacet(ABC):
                 elapsed_time = curr_time - prev_time
                 print(f'{i}: {elapsed_time} s')
                 prev_time = curr_time
-        db.close()
 
         if VERBOSE:
             print(f'Num keys: {i}')
@@ -299,6 +296,10 @@ class BaseFacet(ABC):
     def install(self, *args, **kwargs):
         self._install(*args, **kwargs)
 
+    def close(self):
+        self._simstring.db.close()
+        self._close()
+
     @abstractmethod
     def _match(
         self,
@@ -309,4 +310,8 @@ class BaseFacet(ABC):
 
     @abstractmethod
     def _install(self, data):
+        pass
+
+    @abstractmethod
+    def _close(self):
         pass

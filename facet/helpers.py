@@ -147,7 +147,6 @@ def iter_data(
     headers: Iterable[Union[str, int]] = None,
     valids: Dict[Union[str, int], Iterable[Any]] = None,
     invalids: Dict[Union[str, int], Iterable[Any]] = None,
-    unique_keys: bool = False,
     **kwargs
 ) -> Iterator[Tuple[Any, Any]]:
     """Generator for data.
@@ -159,6 +158,7 @@ def iter_data(
         data (str): File or buffer.
             See Pandas 'filepath_or_buffer' option from 'read_csv()'.
 
+    Kwargs:
         keys (Iterable[str|int]): Columns to use as dictionary keys.
             Multiple keys are stored as tuples in same order as given.
             If str, then it corresponds to 'headers' names.
@@ -169,7 +169,6 @@ def iter_data(
             If str, then it corresponds to 'headers' names.
             If int, then it corresponds to column indices.
 
-    Kwargs:
         headers (Iterable[str|int]): Column names.
             Headers are required when keys/values are str.
             Headers do not need to be complete, but do need to be in order
@@ -183,8 +182,6 @@ def iter_data(
             and sequences of invalid values to skip.
             Invalid values have precedence over valid values.
             If values is None, then corresponding columns are included.
-
-        unique_keys (bool): Control if keys can be repeated or not.
 
         converters (Dict[Any:Callable|Iterable[Callable]]): Mapping between
             headers and (sequences of) converter functions to be applied after
@@ -285,10 +282,6 @@ def iter_data(
         engine=kwargs.get('engine', 'c'),
     )
 
-    # Internal data structure for tracking unique keys.
-    if unique_keys:
-        keys_processed = set()
-
     # Place the dataframe into an iterable even if not iterating and
     # chunking through the data, so that it uses the same logic
     # as if it was a TextFileReader object.
@@ -308,11 +301,15 @@ def iter_data(
         for kv in map(list, zip(*usecols_values)):
 
             # Filter valid/invalid keys/values
-            if key_value_check \
-               and not valid_items_from_dict(usecols,
-                                             kv,
-                                             valids=valids,
-                                             invalids=invalids):
+            if (
+                key_value_check
+                and not valid_items_from_dict(
+                    usecols,
+                    kv,
+                    valids=valids,
+                    invalids=invalids,
+                )
+            ):
                 continue
 
             # Apply post-converter functions
@@ -328,12 +325,6 @@ def iter_data(
             ks = (kv[0] if num_keys == 1
                   else tuple(kv[:num_keys]))
 
-            # Filter unique keys
-            if unique_keys:
-                if ks in keys_processed:
-                    continue
-                keys_processed.add(ks)
-
             # Organize values
             vs = (kv[num_keys] if num_values == 1
                   else tuple(kv[num_keys:values_stop]))
@@ -342,20 +333,42 @@ def iter_data(
 
 
 def load_data(
-    *args,
-    unique_values=False,
+    data,
+    *,
+    keys: Iterable[Union[str, int]],
+    unique_keys: bool = False,
+    multi_values: bool = False,
+    unique_values: bool =False,
     **kwargs,
-) -> Union[Set[Any], Dict[Any, Union[Any, List[Any]]]]:
-    """Load paired data into a dictionary or set.
+) -> Union[Set[Any], List[Any], Dict[Any, Union[Any, List[Any]]]]:
+    """Load data.
 
-    If no values are provided, then return a set from keys.
+    If no values are provided, then return a set/list from keys.
     If values are provided, then return a dictionary of keys/values.
 
-    Args (see 'iter_data')
+    Args:
+        data (str): File or buffer.
+            See Pandas 'filepath_or_buffer' option from 'read_csv()'.
 
-    Kwargs (see 'iter_data'):
+    Kwargs:
+        keys (Iterable[str|int]): Columns to use as dictionary keys.
+            Multiple keys are stored as tuples in same order as given.
+            If str, then it corresponds to 'headers' names.
+            If int, then it corresponds to column indices.
+
+        unique_keys (bool): Control if keys can be repeated or not.
+            Only applies if 'values' is None.
+
+        multi_values (bool): Specify if values consist of single or multiple
+            elements. For multi-value case, values are placed in an iterable
+            container. For single-value case, the value is used as-is.
+            Only applies if 'values' is not None.
+
         unique_values (bool): Control if values can be repeated or not.
-            Only applies if 'unique_keys' is False.
+            Only applies if 'multi_values' is True.
+
+    Kwargs:
+        Options passed directly to 'iter_data()'.
 
     Examples:
         >>> data = data_to_set('MRSTY.RRF', keys=['cui'],
@@ -372,30 +385,27 @@ def load_data(
         >>> data = data_to_dict('MRSTY.RRF', keys=[0], values=[1, 2],
                                 nrows=10, valids={1:None, 2:None})
     """
-    if 'values' not in kwargs:
-        kwargs['unique_keys'] = False
-        data = set()
-        for k, _ in iter_data(*args, **kwargs):
-            data.add(k)
-    else:
-        if kwargs.get('unique_keys', False):
-            # NOTE: Disable 'unique_keys' option for 'iter_data' because
-            # dictionary already does that. To make them semantically
-            # consistent, consider the first appearance of a key. This is
-            # because 'iter_data' considers the first appearance of a key
-            # and dictionary updates consider the last appearance of a key.
-            kwargs['unique_keys'] = False
-            data = collections.defaultdict()
-            for k, v in iter_data(*args, **kwargs):
-                if k not in data:
-                    # Assume there is a single value per key.
-                    data[k] = v
+    if kwargs.get('values') is None:
+        if unique_keys:
+            _data = {k for k, _ in iter_data(data, keys=keys, **kwargs)}
         else:
-            data = collections.defaultdict(list)
-            for k, v in iter_data(*args, **kwargs):
-                if not unique_values or v not in data[k]:
-                    data[k].append(v)
-    return data
+            _data = [k for k, _ in iter_data(data, keys=keys, **kwargs)]
+    elif multi_values:
+        if unique_values:
+            _data = collections.defaultdict(set)
+            for k, v in iter_data(data, keys=keys, **kwargs):
+                _data[k].add(v)
+        else:
+            _data = collections.defaultdict(list)
+            for k, v in iter_data(data, keys=keys, **kwargs):
+                _data[k].append(v)
+    else:
+        # Consider the value of the first appearance of the key.
+        _data = {}
+        for k, v in iter_data(data, keys=keys, **kwargs):
+            if k not in _data:
+                _data[k] = v
+    return _data
 
 
 def unpack_dir(

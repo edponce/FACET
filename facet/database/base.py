@@ -61,6 +61,7 @@ class BaseDatabase(ABC):
         return self
 
     def __exit__(self, *exc_info) -> NoReturn:
+        self.save()
         self.close()
 
     @property
@@ -296,12 +297,12 @@ class BaseDatabase(ABC):
     def _hdelete(self, key: str, fields: Iterable[str]) -> NoReturn:
         pass
 
+    @abstractmethod
     def sync(self) -> NoReturn:
-        """Submit queued commands.
-        Not all databases support this functionality.
-        """
+        """Submit queued commands."""
         pass
 
+    @abstractmethod
     def close(self) -> NoReturn:
         """Close database connection."""
         pass
@@ -311,6 +312,7 @@ class BaseDatabase(ABC):
         """Delete all keys in database."""
         pass
 
+    @abstractmethod
     def save(self, **kwargs: Dict[str, Any]) -> NoReturn:
-        """Save database, if supported."""
+        """Save database."""
         pass

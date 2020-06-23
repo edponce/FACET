@@ -143,7 +143,7 @@ class DictDatabase(BaseDatabase):
         value = self._resolve_hset(key, field, value, **kwargs)
         if value is not None:
             if key in self._db:
-                self._db[key].update({field: value})
+                self._db[key][field] = value
             else:
                 self._db[key] = {field: value}
 
@@ -187,14 +187,16 @@ class DictDatabase(BaseDatabase):
         if self._is_pipe:
             self._db.sync()
 
+    save = sync
+
     def close(self):
         if self._persistent:
             self._db.close()
+        else:
+            self._db = None
 
     def clear(self):
         if self._persistent:
             self._db.clear()
         else:
             self._db = {}
-
-    save = sync
