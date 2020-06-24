@@ -2,7 +2,7 @@ import time
 import collections
 # NOTE: Add multiprocessing
 # import multiprocessing
-from .helpers import corpus_generator
+from .utils import corpus_generator
 from unidecode import unidecode
 from .simstring import (
     simstring_map,
@@ -40,9 +40,6 @@ VERBOSE = True
 PROFILE = False
 if PROFILE:
     import cProfile
-
-
-__all__ = ['BaseFacet']
 
 
 class BaseFacet(ABC):
@@ -378,6 +375,9 @@ class BaseFacet(ABC):
         self._simstring.db.close()
         self._close()
 
+    def _close(self):
+        pass
+
     @abstractmethod
     def _match(
         self,
@@ -388,8 +388,4 @@ class BaseFacet(ABC):
 
     @abstractmethod
     def _install(self, data, *, overwrite: str = True, **kwargs):
-        pass
-
-    @abstractmethod
-    def _close(self):
         pass

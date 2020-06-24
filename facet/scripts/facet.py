@@ -1,6 +1,13 @@
 import sys
 import click
-import facet
+from ..utils import load_configuration
+from .. import (
+    __version__,
+    UMLSFacet,
+    RedisDatabase,
+    DictDatabase,
+    Simstring,
+)
 
 
 CONTEXT_SETTINGS = {
@@ -14,8 +21,31 @@ CONTEXT_SETTINGS = {
 }
 
 
+def facet_config(ctx, param, value):
+    """Set up configuration.
+
+    Parameters supported:
+        * YAML/JSON/INI file
+        * dict/key=value string
+
+    Returns:
+        dict[str,Any]: Configuration mapping.
+    """
+    if not value:
+        return {}
+
+    config = load_configuration(value, key='FACET')
+    if config is None:
+        print('ERROR: invalid --config parameter', file=sys.stderr)
+        sys.exit(0)
+    elif len(config) == 0:
+        print('WARNING: unable to find configuration data for '
+              '--config parameter', file=sys.stderr)
+    return config
+
+
 @click.group(context_settings=CONTEXT_SETTINGS)
-@click.version_option(version=facet.__version__)
+@click.version_option(version=__version__)
 def cli():
     pass
 
@@ -55,17 +85,17 @@ def cli():
 )
 @click.option(
     '-t', '--tokenizer',
-    type=str,
-    default='ws',
+    type=click.Choice(('ws', 'nltk', 'spacy')),
+    default=None,
     show_default=True,
     help='Tokenizer for text procesing.',
 )
 def match(query, alpha, similarity, format, output, tokenizer):
-    db1 = facet.RedisDatabase(db=0)
-    db2 = facet.RedisDatabase(db=1)
-    db3 = facet.DictDatabase('db/umls_midsmall', flag='r')
-    ss = facet.Simstring(db=db3, alpha=alpha, similarity=similarity)
-    f = facet.Facet(
+    db1 = RedisDatabase(db=0)
+    db2 = RedisDatabase(db=1)
+    db3 = DictDatabase('db/umls_midsmall', flag='r')
+    ss = Simstring(db=db3, alpha=alpha, similarity=similarity)
+    f = UMLSFacet(
         conso_db=db1,
         cuisty_db=db2,
         simstring=ss,
@@ -97,11 +127,11 @@ def match(query, alpha, similarity, format, output, tokenizer):
     help='Similarity measure.',
 )
 def simstring(query, alpha, similarity):
-    db = facet.DictDatabase('db/umls_midsmall', flag='r')
-    ss = facet.Simstring(db=db, alpha=alpha, similarity=similarity)
+    db = DictDatabase('db/umls_midsmall', flag='r')
+    ss = Simstring(db=db, alpha=alpha, similarity=similarity)
     matches = ss.search(query)
-    for k,v in matches:
-        print(k,v)
+    for k, v in matches:
+        print(k, v)
 
 
 # Organize groups and commands

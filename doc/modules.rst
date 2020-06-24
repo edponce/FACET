@@ -10,23 +10,20 @@ FACET Command Line Interface
     :show-nested:
 
 
-Installer
----------
+Default FACET
+-------------
 
-.. autoclass:: facet.Installer
+.. autoclass:: facet.base.BaseFacet
     :members:
-
-.. autoclass:: facet.ESInstaller
-    :members:
-
-
-Matcher
--------
 
 .. autoclass:: facet.Facet
     :members:
 
-.. autoclass:: facet.ESFacet
+
+UMLS FACET
+----------
+
+.. autoclass:: facet.UMLSFacet
     :members:
 
 
@@ -39,7 +36,7 @@ Tokenizer
 .. autoclass:: facet.WhitespaceTokenizer
     :members:
 
-.. autoclass:: facet.SpacyTokenizer
+.. autoclass:: facet.SpaCyTokenizer
     :members:
 
 .. autoclass:: facet.NLTKTokenizer
@@ -97,19 +94,19 @@ Similarity Measures
 .. autoclass:: facet.HammingSimilarity
 
 
-Serializer
-----------
+Database Serializer
+-------------------
 
 .. autoclass:: facet.serializer.BaseSerializer
-    :members:
-
-.. autoclass:: facet.PickleSerializer
     :members:
 
 .. autoclass:: facet.JSONSerializer
     :members:
 
 .. autoclass:: facet.YAMLSerializer
+    :members:
+
+.. autoclass:: facet.PickleSerializer
     :members:
 
 .. autoclass:: facet.StringSerializer
@@ -119,18 +116,36 @@ Serializer
     :members:
 
 
-String Matching
----------------
+Simstring - Approximate String Matching
+---------------------------------------
 
 .. autoclass:: facet.Simstring
     :members:
 
-.. autoclass:: facet.ESSimstring
+.. autoclass:: facet.ElasticsearchSimstring
     :members:
 
 
 Formatter
 ---------
 
-.. autoclass:: facet.Formatter
+.. autoclass:: facet.formatter.BaseFormatter
+    :members:
+
+.. autoclass:: facet.JSONFormatter
+    :members:
+
+.. autoclass:: facet.YAMLFormatter
+    :members:
+
+.. autoclass:: facet.XMLFormatter
+    :members:
+
+.. autoclass:: facet.PickleFormatter
+    :members:
+
+.. autoclass:: facet.CSVFormatter
+    :members:
+
+.. autoclass:: facet.SimpleFormatter
     :members:

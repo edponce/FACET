@@ -10,6 +10,7 @@ from meta import *
 __all__ = []
 
 
+from .facet import Facet
 from .umls import UMLSFacet
 from .formatter import (
     JSONFormatter,
