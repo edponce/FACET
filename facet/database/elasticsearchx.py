@@ -63,7 +63,7 @@ class ElasticsearchDatabase:
         self,
         hosts: Any = None,
         *,
-        index: str,
+        index: str = 'facet',
         fields: Iterable[str] = None,
         body: Dict[str, Any] = None,
         pipe: bool = False,
@@ -86,7 +86,6 @@ class ElasticsearchDatabase:
         self.set_pipe(pipe)
 
     def set_pipe(self, pipe):
-        # NOTE: Invoke sync() when disabling pipe and pipe was enabled
         if not pipe:
             self.sync()
         self._is_pipe = pipe
@@ -135,6 +134,8 @@ class ElasticsearchDatabase:
             self._dbp = []
             return response
 
+    save = sync
+
     def get(
         self,
         key1: Union[int, Tuple[int, int]],
@@ -157,6 +158,15 @@ class ElasticsearchDatabase:
         """See 'Elasticsearchx.scan()'."""
         body = self._resolve_search_body(key1, key2, max_size=max_size)
         return self._db.scan(body, index=self._index, **kwargs)
+
+    def clear(self):
+        self._db.indices.delete(index=self._index)
+
+    def close(self):
+        self._db.close()
+
+    def __len__(self):
+        return self._db.count()['count']
 
     def _resolve_search_body(
         self,

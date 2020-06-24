@@ -108,3 +108,5 @@ cache/
 **/*.log
 data/
 db/
+doc/_build/
+doc/html/

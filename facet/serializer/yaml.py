@@ -1,4 +1,4 @@
-from ruamel import yaml
+import yaml
 from .base import BaseSerializer
 
 

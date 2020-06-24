@@ -1,6 +1,6 @@
 import os
 from setuptools import setup, find_packages
-import facet as pkg
+import meta
 
 
 def get_text_from_files(*filenames, delimiter=os.linesep * 2):
@@ -42,22 +42,22 @@ extras_requirements = {
 # Github hosting creates tarballs for download at
 #   https://github.com/{username}/{package}/archive/{tag}.tar.gz.
 # To create a git tag
-#   git tag pkg.__name__-pkg.__version__ -m 'Adds a tag so that we can put
+#   git tag meta.__name__-meta.__version__ -m 'Adds a tag so that we can put
 #                                            package on PyPI'
 #   git push --tags origin master
 setup(
-    name=pkg.__name__,
-    version=pkg.__version__,
-    description=pkg.__description__,
+    name=meta.__name__,
+    version=meta.__version__,
+    description=meta.__description__,
     long_description=long_description,
-    keywords=pkg.__keywords__,
-    url=pkg.__url__,
+    keywords=meta.__keywords__,
+    url=meta.__url__,
     download_url=(
-        f'{pkg.__url__}/archive/{pkg.__name__}-{pkg.__version__}.tar.gz'
+        f'{meta.__url__}/archive/{meta.__name__}-{meta.__version__}.tar.gz'
     ),
-    author=pkg.__author__,
-    author_email=pkg.__author_email__,
-    license=pkg.__license__,
+    author=meta.__author__,
+    author_email=meta.__author_email__,
+    license=meta.__license__,
     classifiers=[
         'Framework :: FACET',
         'Topic :: Documentation :: Sphinx',

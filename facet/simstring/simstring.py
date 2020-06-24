@@ -35,22 +35,23 @@ class Simstring(BaseSimstring):
     Args:
         db (str, BaseDatabase): Handle to database instance or database name
             for strings storage. Valid databases are: 'dict', 'redis',
-            'elasticsearch'. Default is 'dict'.
+            'elasticsearch'.
 
         cache_db (str, BaseDatabase): Handle to database instance or database
             name for strings cache. Valid databases are: 'dict', 'redis',
-            'elasticsearch'. Default is 'dict'.
+            'elasticsearch'.
 
-        alpha (float): Similarity threshold in range (0,1]. Default is 0.7.
+        alpha (float): Similarity threshold in range (0,1].
 
         similarity (str, BaseSimilarity): Instance of similarity measure or
             similarity name. Valid measures are: 'cosine', 'jaccard', 'dice',
-            'exact', 'overlap', 'hamming'. Default is 'cosine'.
+            'exact', 'overlap', 'hamming'.
 
         ngram (str, BaseNgram): N-gram feature extractor instance
             or n-gram name. Valid n-gram extractors are: 'word', 'character'.
-            Default is 'character'.
     """
+
+    _GLOBAL_MAX_FEATURES = 128
 
     def __init__(
         self,
@@ -78,9 +79,13 @@ class Simstring(BaseSimstring):
         # processes nor during a later search. Solution is to store the value
         # into the database. But what if the database is not a key-value store,
         # such as ElasticSearch.
-        self._global_max_features = self._db.get('__GLOBAL_MAX_FEATURES__')
-        if self._global_max_features is None:
-            self._global_max_features = 64
+        # gmf = self._db.get('__GLOBAL_MAX_FEATURES__')
+        # self._global_max_features = (
+        #     gmf
+        #     if gmf is not None
+        #     else type(self)._GLOBAL_MAX_FEATURES
+        # )
+        self._global_max_features = type(self)._GLOBAL_MAX_FEATURES
 
     @property
     def db(self):
@@ -118,22 +123,20 @@ class Simstring(BaseSimstring):
 
     @alpha.setter
     def alpha(self, alpha: float):
-        # Bound alpha to range [0,1]
-        self._alpha = min(1, max(alpha, 0))
+        # Bound alpha to range [0.01,1]
+        self._alpha = min(1, max(alpha, 0.01))
 
     @property
     def similarity(self):
-        return self._similarity.name
+        return self._similarity
 
     @similarity.setter
     def similarity(self, value: Union[str, 'BaseSimilarity']):
-        obj = None
         if isinstance(value, str):
             obj = similarity_map[value]()
         elif isinstance(value, BaseSimilarity):
             obj = value
-
-        if obj is None:
+        else:
             raise ValueError(f'invalid similarity measure, {value}')
         self._similarity = obj
 
@@ -143,13 +146,11 @@ class Simstring(BaseSimstring):
 
     @ngram.setter
     def ngram(self, value: Union[str, 'BaseNgram']):
-        obj = None
         if isinstance(value, str):
             obj = ngram_map[value]()
         elif isinstance(value, BaseNgram):
             obj = value
-
-        if obj is None:
+        else:
             raise ValueError(f'invalid n-gram feature extractor, {value}')
         self._ngram = obj
 
@@ -173,12 +174,9 @@ class Simstring(BaseSimstring):
         # fix a value or assume inserts occur during the same installation
         # phase and keep track using class variables, then require a "closing"
         # operation to store value into database.
-        if (
-            self._global_max_features is None
-            or len(features) > self._global_max_features
-        ):
-            self._global_max_features = len(features)
-            self._db.set('__GLOBAL_MAX_FEATURES__', self._global_max_features)
+        # if len(features) > self._global_max_features:
+        #     self._global_max_features = len(features)
+        #     self._db.set('__GLOBAL_MAX_FEATURES__', self._global_max_features)
 
     def search(
         self,
@@ -229,6 +227,7 @@ class Simstring(BaseSimstring):
                 self._global_max_features,
                 self._similarity.max_features(len(query_features), alpha)
             )
+
             # Y = list of strings similar to the query
             candidate_strings = [
                 candidate_string
