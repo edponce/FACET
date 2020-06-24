@@ -68,10 +68,10 @@ class RedisDatabase(BaseDatabase):
         # NOTE: Redis pipeline object is used only for 'set' operations
         # and requires invoking 'sync' to commit queued operations.
         self._dbp = None
-        self._is_pipe = pipe
+        self._is_pipe = None
         self.set_pipe(pipe)
 
-    def set_pipe(self, pipe):
+    def set_pipe(self, pipe: bool):
         # NOTE: Invoke sync() when disabling pipe and pipe was enabled
         if not pipe:
             self.sync()
@@ -107,13 +107,11 @@ class RedisDatabase(BaseDatabase):
 
     @serializer.setter
     def serializer(self, value: Union[str, 'BaseSerializer']):
-        obj = None
         if isinstance(value, str):
             obj = serializer_map[value]()
         elif isinstance(value, BaseSerializer):
             obj = value
-
-        if obj is None:
+        else:
             raise ValueError(f'invalid serializer, {value}')
         self._serializer = obj
 
@@ -248,10 +246,11 @@ class RedisDatabase(BaseDatabase):
         if self._is_pipe:
             self._dbp.execute()
 
-    # NOTE: Redis object is disconnected automatically when object
-    # goes out of scope.
-    # def close(self):
-        # pass
+    def close(self):
+        # NOTE: Redis object is disconnected automatically when object
+        # goes out of scope.
+        self._db = None
+        self._dbp = None
 
     def clear(self):
         self._db.flushdb()

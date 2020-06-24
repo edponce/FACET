@@ -81,7 +81,8 @@ class DictDatabase(BaseDatabase):
         self._dir = db_dir
         self._name = db_name
         self._persistent = persistent
-        self._is_pipe = pipe
+        self._is_pipe = None
+        self.set_pipe(pipe)
 
     def set_pipe(self, pipe):
         # NOTE: Given that this database type does not have a pipeline/stream
@@ -89,6 +90,10 @@ class DictDatabase(BaseDatabase):
         # reopen with writeback enabled (or viceversa).
         if not pipe:
             self.sync()
+
+        # NOTE: Pipeline only applies to persistent mode.
+        if self._persistent:
+            self._is_pipe = pipe
 
     @property
     def config(self):
@@ -143,7 +148,7 @@ class DictDatabase(BaseDatabase):
         value = self._resolve_hset(key, field, value, **kwargs)
         if value is not None:
             if key in self._db:
-                self._db[key].update({field: value})
+                self._db[key][field] = value
             else:
                 self._db[key] = {field: value}
 
@@ -187,14 +192,16 @@ class DictDatabase(BaseDatabase):
         if self._is_pipe:
             self._db.sync()
 
+    save = sync
+
     def close(self):
         if self._persistent:
             self._db.close()
+        else:
+            self._db = None
 
     def clear(self):
         if self._persistent:
             self._db.clear()
         else:
             self._db = {}
-
-    save = sync

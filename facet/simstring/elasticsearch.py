@@ -14,7 +14,6 @@ from .ngram import (
     BaseNgram,
 )
 from typing import (
-    Any,
     List,
     Tuple,
     Union,
@@ -23,29 +22,33 @@ from typing import (
 )
 
 
-__all__ = ['ESSimstring']
+__all__ = ['ElasticsearchSimstring']
 
 
-class ESSimstring(BaseSimstring):
+class ElasticsearchSimstring(BaseSimstring):
     """Implementation of Simstring algorithm.
 
+    Okazaki, Naoaki, and Jun'ichi Tsujii. "Simple and efficient algorithm for
+    approximate dictionary matching." Proceedings of the 23rd International
+    Conference on Computational Linguistics. Association for Computational
+    Linguistics, 2010.
+
     Args:
-        db (str, ElasticsearchDatabase): ES database instance or index for
-            storage.
+        db (str, ElasticsearchDatabase): Elasticsearch database instance or
+            index for storage.
 
         cache_db (str, BaseDatabase): Handle to database instance or database
             name for strings cache. Valid databases are: 'dict', 'redis',
-            'elasticsearch'. Default is 'dict'.
+            'elasticsearch'.
 
-        alpha (float): Similarity threshold in range (0,1]. Default is 0.7.
+        alpha (float): Similarity threshold in range (0,1].
 
         similarity (str, BaseSimilarity): Instance of similarity measure or
             similarity name. Valid measures are: 'cosine', 'jaccard', 'dice',
-            'exact', 'overlap', 'hamming'. Default is 'cosine'.
+            'exact', 'overlap', 'hamming'.
 
         ngram (str, BaseNgram): N-gram feature extractor instance
             or n-gram name. Valid n-gram extractors are: 'word', 'character'.
-            Default is 'character'.
     """
 
     SETTINGS = {
@@ -74,15 +77,11 @@ class ESSimstring(BaseSimstring):
                    'type': 'integer',
                    'similarity': 'boolean',
                 },
-                'attr': {
-                    'type': 'text',
-                    'index': False,
-                },
             },
         },
     }
 
-    _global_max_features = 48
+    _GLOBAL_MAX_FEATURES = 64
 
     def __init__(
         self,
@@ -104,6 +103,8 @@ class ESSimstring(BaseSimstring):
         self.alpha = alpha
         self.similarity = similarity
         self.ngram = ngram
+
+        self._global_max_features = type(self)._GLOBAL_MAX_FEATURES
 
     @property
     def db(self):
@@ -145,8 +146,8 @@ class ESSimstring(BaseSimstring):
 
     @alpha.setter
     def alpha(self, alpha: float):
-        # Bound alpha to range [0,1]
-        self._alpha = min(1, max(alpha, 0))
+        # Bound alpha to range [0.01,1]
+        self._alpha = min(1, max(alpha, 0.01))
 
     @property
     def similarity(self):
@@ -154,13 +155,11 @@ class ESSimstring(BaseSimstring):
 
     @similarity.setter
     def similarity(self, value: Union[str, 'BaseSimilarity']):
-        obj = None
         if isinstance(value, str):
             obj = similarity_map[value]()
         elif isinstance(value, BaseSimilarity):
             obj = value
-
-        if obj is None:
+        else:
             raise ValueError(f'invalid similarity measure, {value}')
         self._similarity = obj
 
@@ -170,37 +169,31 @@ class ESSimstring(BaseSimstring):
 
     @ngram.setter
     def ngram(self, value: Union[str, 'BaseNgram']):
-        obj = None
         if isinstance(value, str):
             obj = ngram_map[value]()
         elif isinstance(value, BaseNgram):
             obj = value
-
-        if obj is None:
+        else:
             raise ValueError(f'invalid n-gram feature extractor, {value}')
         self._ngram = obj
 
     def _get_strings(self, size: int, feature: str) -> List[str]:
         """Get strings corresponding to feature size and query feature."""
-        meta_hits = self._db.get(size, feature)['hits']
-        hits = meta_hits['hits']
-        strings = [hit['_source']['term'] for hit in hits]
-        attrs = [hit['_source']['attr'] for hit in hits]
-        return strings, attrs
+        return [
+            hit['_source']['term']
+            for hit in self._db.get(size, feature)['hits']['hits']
+        ]
 
     # NOTE: Consider supporting iterable data so that
     # it can be passed directly to underlying database
     # when pipe is enabled.
-    def insert(self, string: str, attr: Any = None) -> NoReturn:
+    def insert(self, string: str) -> NoReturn:
         """Insert string into database."""
         features = self._ngram.get_features(string)
         self._db.set({
             'term': string,
             'sz': len(features),
-            # NOTE: Create set here to remove duplicates and not
-            # affect the numbers of features extracted.
             'ng': features,
-            'attr': attr,
         })
 
     def search(
@@ -239,8 +232,7 @@ class ESSimstring(BaseSimstring):
         # the exception of 'alpha'.
         query_in_cache = False
         if self._cache_db is not None:
-            candidate_strings, attrs = self._cache_db.get(query_string,
-                                                          alpha)[0]
+            candidate_strings = self._cache_db.get(query_string, alpha)[0]
             if candidate_strings is not None:
                 query_in_cache = True
 
@@ -250,19 +242,19 @@ class ESSimstring(BaseSimstring):
                 self._similarity.min_features(len(query_features), alpha)
             )
             max_features = min(
-                48,
+                self._global_max_features,
                 self._similarity.max_features(len(query_features), alpha)
             )
 
             # Y = list of strings similar to the query
-            candidate_strings = []
-            candidate_attrs = []
-            # for l in range(min_y(|X|,a), max_y(|X|,a))
-            for candidate_feature_size in range(min_features,
-                                                max_features + 1):
+            candidate_strings = [
+                candidate_string
+                # for l in range(min_y(|X|,a), max_y(|X|,a))
+                for candidate_feature_size in range(min_features,
+                                                    max_features + 1)
                 # t = min_overlap(|X|,l,a)
                 # for r in overlapjoin(X,t,V,l)
-                for candidate_string, candidate_attr in self._overlap_join(
+                for candidate_string in self._overlap_join(
                     query_features,
                     candidate_feature_size,
                     self._similarity.min_common_features(
@@ -270,17 +262,12 @@ class ESSimstring(BaseSimstring):
                         candidate_feature_size,
                         alpha,
                     ),
-                ):
-                    candidate_strings.append(candidate_string)
-                    candidate_attrs.append(candidate_attr)
+                )
+            ]
 
             # Insert candidate strings into cache
             if update_cache and self._cache_db is not None:
-                self._cache_db.set(
-                    query_string,
-                    alpha,
-                    [candidate_strings, candidate_attrs],
-                )
+                self._cache_db.set(query_string, alpha, candidate_strings)
 
         similarities = [
             self._similarity.similarity(
@@ -289,62 +276,14 @@ class ESSimstring(BaseSimstring):
             )
             for candidate_string in candidate_strings
         ]
-        strings_and_similarities_and_attrs = list(
+        strings_and_similarities = list(
             filter(lambda ss: ss[1] >= alpha,
-                   zip(candidate_strings, similarities, candidate_attrs))
+                   zip(candidate_strings, similarities))
         )
         if rank:
-            strings_and_similarities_and_attrs.sort(
-                key=lambda ss: ss[1],
-                reverse=True,
-            )
+            strings_and_similarities.sort(key=lambda ss: ss[1], reverse=True)
 
-        return strings_and_similarities_and_attrs
-
-    # def _overlap_join(self, query_features, candidate_feature_size, tau):
-    #     strings = {}
-    #     attrs = {}
-    #     for feature in query_features:
-    #         _strings, _attrs = self._get_strings(candidate_feature_size,
-    #                                              feature)
-    #         strings[feature] = _strings
-    #         for _string in _strings:
-    #             if _string not in attrs:
-    #                 attrs[_string] = _attrs
-    #     query_features.sort(key=lambda feature: len(strings[feature]))
-    #
-    #     # Use tau parameter to split sorted features
-    #     tau_split = len(query_features) - tau + 1
-    #
-    #     # Frequency dictionary of strings in first half of tau-limited features
-    #     strings_frequency = defaultdict(int)
-    #     for feature in query_features[:tau_split]:
-    #         for string in strings[feature]:
-    #             strings_frequency[string] += 1
-    #
-    #     # For strings in frequency dictionary, add frequency in second half
-    #     # of tau-limited features.
-    #     candidate_strings = []
-    #     candidate_attrs = []
-    #     for string in strings_frequency.keys():
-    #         for i, feature in enumerate(query_features[tau_split:],
-    #                                     start=tau_split):
-    #             if string in strings[feature]:
-    #                 strings_frequency[string] += 1
-    #
-    #             # If candidate string has enough frequency count, select it.
-    #             if strings_frequency[string] >= tau:
-    #                 candidate_strings.append(string)
-    #                 candidate_attrs.append(attrs[string])
-    #                 break
-    #
-    #             # Check if a limit is reached where no further candidates will
-    #             # have enough frequency counts.
-    #             remaining_feature_count = len(query_features) - i - 1
-    #             if strings_frequency[string] + remaining_feature_count < tau:
-    #                 break
-    #
-    #     return candidate_strings, candidate_attrs
+        return strings_and_similarities
 
     def _overlap_join(
         self,
@@ -355,15 +294,10 @@ class ESSimstring(BaseSimstring):
         """CPMerge algorithm with pruning for solving the t-overlap join
         problem."""
         # Sort elements in X by ascending order of |get(V,l,Xk)|
-        strings = {}
-        attrs = {}
-        for feature in query_features:
-            _strings, _attrs = self._get_strings(candidate_feature_size,
-                                                 feature)
-            strings[feature] = _strings
-            for _string in _strings:
-                if _string not in attrs:
-                    attrs[_string] = _attrs
+        strings = {
+            feature: self._get_strings(candidate_feature_size, feature)
+            for feature in query_features
+        }
         query_features.sort(key=lambda feature: len(strings[feature]))
 
         # Use tau parameter to split sorted features
@@ -395,7 +329,7 @@ class ESSimstring(BaseSimstring):
                 if strings_frequency[string] >= tau:
                     # R = []
                     # Append s to R
-                    yield string, attrs[string]
+                    yield string
                     # Remove s from M
                     prune_strings.append(string)
 

@@ -1,4 +1,7 @@
-from abc import ABC, abstractmethod
+from abc import (
+    ABC,
+    abstractmethod,
+)
 from typing import (
     Any,
     List,
@@ -58,12 +61,8 @@ class BaseDatabase(ABC):
         return self
 
     def __exit__(self, *exc_info) -> NoReturn:
+        self.save()
         self.close()
-
-    # NOTE: Can close() be called multiple times without side effects
-    # on all databases?
-    # def __del__(self):
-    #     self.close()
 
     @property
     def config(self) -> Dict[str, Any]:
@@ -298,12 +297,16 @@ class BaseDatabase(ABC):
     def _hdelete(self, key: str, fields: Iterable[str]) -> NoReturn:
         pass
 
-    def sync(self) -> NoReturn:
-        """Submit queued commands.
-        Not all databases support this functionality.
-        """
+    def set_pipe(self, pipe: bool) -> NoReturn:
+        """Enable/disable pipeline mode."""
         pass
 
+    @abstractmethod
+    def sync(self) -> NoReturn:
+        """Submit queued commands."""
+        pass
+
+    @abstractmethod
     def close(self) -> NoReturn:
         """Close database connection."""
         pass
@@ -313,6 +316,7 @@ class BaseDatabase(ABC):
         """Delete all keys in database."""
         pass
 
+    @abstractmethod
     def save(self, **kwargs: Dict[str, Any]) -> NoReturn:
-        """Save database, if supported."""
+        """Save database."""
         pass

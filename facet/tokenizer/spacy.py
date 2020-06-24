@@ -3,10 +3,10 @@ from .base import BaseTokenizer
 from typing import Tuple, Generator
 
 
-__all__ = ['SpacyTokenizer']
+__all__ = ['SpaCyTokenizer']
 
 
-class SpacyTokenizer(BaseTokenizer):
+class SpaCyTokenizer(BaseTokenizer):
     """SpaCy-based tokenizer.
 
     Args:
@@ -78,7 +78,7 @@ class SpacyTokenizer(BaseTokenizer):
                 and len(token) >= min_match_length
                 and self._is_valid_end_token(token)
             ):
-                yield (token.idx, token.idx + len(token), token.text)
+                yield (token.idx, token.idx + len(token) - 1, token.text)
             else:
                 span_start = i + 1 + int(not self._is_valid_begin_token(token))
                 span_end = min(len(sentence), i + window) + 1
@@ -95,7 +95,7 @@ class SpacyTokenizer(BaseTokenizer):
                         continue
 
                     yield (
-                        span.start_char, span.end_char,
+                        span.start_char, span.end_char - 1,
                         ''.join(
                             token.text_with_ws
                             for token in span
@@ -107,13 +107,13 @@ class SpacyTokenizer(BaseTokenizer):
         return not(
             token.is_punct
             or token.is_space
-            or token.pos_ in ('ADP', 'DET', 'CONJ')
+            or token.pos_ in {'ADP', 'DET', 'CONJ'}
         )
 
     def _is_valid_begin_token(self, token) -> bool:
         return not(
             token.like_num
-            or token.pos_ in ('ADP', 'DET', 'CONJ')
+            or token.pos_ in {'ADP', 'DET', 'CONJ'}
             or token.text in self._stopwords
         )
 
@@ -128,5 +128,5 @@ class SpacyTokenizer(BaseTokenizer):
             token.is_punct
             or token.is_space
             or token.text in self._stopwords
-            or token.pos_ in ('ADP', 'DET', 'CONJ')
+            or token.pos_ in {'ADP', 'DET', 'CONJ'}
         )
