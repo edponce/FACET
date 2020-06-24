@@ -297,6 +297,10 @@ class BaseDatabase(ABC):
     def _hdelete(self, key: str, fields: Iterable[str]) -> NoReturn:
         pass
 
+    def set_pipe(self, pipe: bool) -> NoReturn:
+        """Enable/disable pipeline mode."""
+        pass
+
     @abstractmethod
     def sync(self) -> NoReturn:
         """Submit queued commands."""

@@ -1,7 +1,10 @@
 import os
 import time
 import itertools
-from ..helpers import load_data
+from ..helpers import (
+    iload_data,
+    load_data,
+)
 from unidecode import unidecode
 from ..database import (
     database_map,
@@ -14,6 +17,7 @@ from typing import (
     Dict,
     Tuple,
     Union,
+    Iterable,
 )
 from .constants import (
     HEADERS_MRSTY,
@@ -88,8 +92,35 @@ class UMLSFacet(BaseFacet):
             raise ValueError(f'invalid CUI-STY database, {value}')
         self._cuisty_db = obj
 
-    def _install(self, umls_dir: str, **kwargs):
-        """
+    def _install(
+        self,
+        umls_dir: str,
+        *,
+        overwrite: bool = True,
+        **kwargs,
+    ):
+        if overwrite:
+            if self._conso_db is not None:
+                self._conso_db.clear()
+            if self._cuisty_db is not None:
+                self._cuisty_db.clear()
+
+        self._install_join(umls_dir, **kwargs)
+
+    def _install_join(
+        self,
+        umls_dir: str,
+        *,
+        cui_valids: Dict[str, Iterable[Any]] = {},
+        sty_valids: Dict[str, Iterable[Any]] = {'sty': ACCEPTED_SEMTYPES},
+        **kwargs,
+    ):
+        """UMLS installation that minimizes database storage footprint
+        but requires more runtime memory during installation.
+
+        Database storage is less because CONCEPT-CUI and CUI-STY tables
+        are joined based on CUIs and ACCEPTED_SEMTYPES.
+
         Args:
             umls_dir (str): Directory of UMLS RRF files.
 
@@ -98,37 +129,7 @@ class UMLSFacet(BaseFacet):
         """
         t1 = time.time()
 
-        print('Loading/parsing concepts...')
-        start = time.time()
-        mrconso_file = os.path.join(umls_dir, 'MRCONSO.RRF')
-        conso = load_data(
-            mrconso_file,
-            keys=['str'],
-            values=['cui'],
-            headers=HEADERS_MRCONSO,
-            valids={'lat': ['ENG']},
-            converters={'str': [unidecode, str.lower]},
-        )
-        curr_time = time.time()
-        print(f'Loading/parsing concepts: {curr_time - start} s')
-
-        if self._conso_db is not None:
-            print('Writing concepts...')
-            start = time.time()
-            # Stores {Term:CUI} mapping, term: [CUI, ...]
-            self._dump_kv(conso, self._conso_db, **kwargs)
-            curr_time = time.time()
-            print(f'Writing concepts: {curr_time - start} s')
-
-        print('Writing simstring...')
-        start = time.time()
-        self._dump_simstring(conso.keys(), **kwargs)
-        curr_time = time.time()
-        print(f'Writing simstring: {curr_time - start} s')
-
         if self._cuisty_db is not None:
-            # NOTE: 'valids' option does not removes keys if no value is
-            # available.
             print('Loading/parsing semantic types...')
             start = time.time()
             mrsty_file = os.path.join(umls_dir, 'MRSTY.RRF')
@@ -137,11 +138,8 @@ class UMLSFacet(BaseFacet):
                 keys=['cui'],
                 values=['sty'],
                 headers=HEADERS_MRSTY,
-                valids={
-                    'sty': ACCEPTED_SEMTYPES,
-                    'cui': set(itertools.chain(*conso.values())),
-                },
-                multi_values=True,
+                valids={**cui_valids, **sty_valids},
+                multiple_values=True,
                 unique_values=True,
             )
             curr_time = time.time()
@@ -150,9 +148,47 @@ class UMLSFacet(BaseFacet):
             print('Writing semantic types...')
             start = time.time()
             # Stores {CUI:Semantic Type} mapping, cui: [sty, ...]
-            self._dump_kv(cuisty, self._cuisty_db, **kwargs)
+            self._dump_kv(cuisty.items(), db=self._cuisty_db, **kwargs)
             curr_time = time.time()
             print(f'Writing semantic types: {curr_time - start} s')
+
+            # Join tables based on CUIs
+            if len(cui_valids) == 0:
+                cui_valids = {'cui': cuisty.keys()}
+
+        print('Loading/parsing concepts...')
+        start = time.time()
+        mrconso_file = os.path.join(umls_dir, 'MRCONSO.RRF')
+        conso = load_data(
+            mrconso_file,
+            keys=['str'],
+            values=['cui'] if self._conso_db is not None else None,
+            headers=HEADERS_MRCONSO,
+            valids={**cui_valids, **{'lat': ['ENG']}},
+            converters={'str': [unidecode, str.lower]},
+            multiple_values=True,
+            unique_values=True,
+        )
+        curr_time = time.time()
+        print(f'Loading/parsing concepts: {curr_time - start} s')
+
+        if self._conso_db is not None:
+            print('Writing concepts and simstring...')
+            start = time.time()
+            # Stores {Term:CUI} mapping, term: [CUI, ...]
+            self._dump_simstring_kv(conso.items(), db=self._conso_db, **kwargs)
+            curr_time = time.time()
+            print(f'Writing concepts and simtring: {curr_time - start} s')
+
+        else:
+            # NOTE: List when 'load_data(values=None)' does not have an
+            # argument for 'values'.
+            print('Writing simstring...')
+            start = time.time()
+            # Stores Simstring inverted lists
+            self._dump_simstring(conso, **kwargs)
+            curr_time = time.time()
+            print(f'Writing simstring: {curr_time - start} s')
 
         t2 = time.time()
         print(f'Total runtime: {t2 - t1} s')

@@ -51,7 +51,7 @@ class Simstring(BaseSimstring):
             or n-gram name. Valid n-gram extractors are: 'word', 'character'.
     """
 
-    _GLOBAL_MAX_FEATURES = 64
+    _GLOBAL_MAX_FEATURES = 128
 
     def __init__(
         self,
@@ -79,12 +79,13 @@ class Simstring(BaseSimstring):
         # processes nor during a later search. Solution is to store the value
         # into the database. But what if the database is not a key-value store,
         # such as ElasticSearch.
-        gmf = self._db.get('__GLOBAL_MAX_FEATURES__')
-        self._global_max_features = (
-            gmf
-            if gmf is not None
-            else type(self)._GLOBAL_MAX_FEATURES
-        )
+        # gmf = self._db.get('__GLOBAL_MAX_FEATURES__')
+        # self._global_max_features = (
+        #     gmf
+        #     if gmf is not None
+        #     else type(self)._GLOBAL_MAX_FEATURES
+        # )
+        self._global_max_features = type(self)._GLOBAL_MAX_FEATURES
 
     @property
     def db(self):
@@ -173,9 +174,9 @@ class Simstring(BaseSimstring):
         # fix a value or assume inserts occur during the same installation
         # phase and keep track using class variables, then require a "closing"
         # operation to store value into database.
-        if len(features) > self._global_max_features:
-            self._global_max_features = len(features)
-            self._db.set('__GLOBAL_MAX_FEATURES__', self._global_max_features)
+        # if len(features) > self._global_max_features:
+        #     self._global_max_features = len(features)
+        #     self._db.set('__GLOBAL_MAX_FEATURES__', self._global_max_features)
 
     def search(
         self,

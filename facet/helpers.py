@@ -16,7 +16,7 @@ from typing import (
 
 __all__ = [
     'load_data',
-    'iter_data',
+    'iload_data',
     'unpack_dir',
     'valid_item',
     'is_iterable',
@@ -139,7 +139,7 @@ def filter_indices_and_values(
     return ((idx, val) for idx, val in enumerate(iterable) if predicate(val))
 
 
-def iter_data(
+def iload_data(
     data,
     *,
     keys: Iterable[Union[str, int]],
@@ -286,13 +286,14 @@ def iter_data(
     # chunking through the data, so that it uses the same logic
     # as if it was a TextFileReader object.
     if not isinstance(reader, pandas.io.parsers.TextFileReader):
-        reader = [reader]
+        reader = (reader,)
 
     # Iterate through dataframes or TextFileReader:
     #   a) Row filtering based on valid/invalid keys/values
     #   b) Apply post-converter functions
     #   c) Organize keys/values
     for df in reader:
+
         # Keys/values generator
         usecols_values = (df[col] for col in usecols)
 
@@ -325,11 +326,14 @@ def iter_data(
             ks = (kv[0] if num_keys == 1
                   else tuple(kv[:num_keys]))
 
-            # Organize values
-            vs = (kv[num_keys] if num_values == 1
-                  else tuple(kv[num_keys:values_stop]))
+            if num_values > 0:
+                # Organize values
+                vs = (kv[num_keys] if num_values == 1
+                      else tuple(kv[num_keys:values_stop]))
 
-            yield ks, vs
+                yield ks, vs
+            else:
+                yield ks
 
 
 def load_data(
@@ -337,13 +341,13 @@ def load_data(
     *,
     keys: Iterable[Union[str, int]],
     unique_keys: bool = False,
-    multi_values: bool = False,
-    unique_values: bool =False,
+    multiple_values: bool = False,
+    unique_values: bool = False,
     **kwargs,
-) -> Union[Set[Any], List[Any], Dict[Any, Union[Any, List[Any]]]]:
+) -> Union[List[Any], Dict[Any, Union[Any, List[Any]]]]:
     """Load data.
 
-    If no values are provided, then return a set/list from keys.
+    If no values are provided, then return a list from keys.
     If values are provided, then return a dictionary of keys/values.
 
     Args:
@@ -359,50 +363,37 @@ def load_data(
         unique_keys (bool): Control if keys can be repeated or not.
             Only applies if 'values' is None.
 
-        multi_values (bool): Specify if values consist of single or multiple
+        multiple_values (bool): Specify if values consist of single or multiple
             elements. For multi-value case, values are placed in an iterable
             container. For single-value case, the value is used as-is.
             Only applies if 'values' is not None.
 
         unique_values (bool): Control if values can be repeated or not.
-            Only applies if 'multi_values' is True.
+            Only applies if 'multiple_values' is True.
 
     Kwargs:
-        Options passed directly to 'iter_data()'.
-
-    Examples:
-        >>> data = data_to_set('MRSTY.RRF', keys=['cui'],
-                               headers=HEADERS_MRSTY)
-        >>> data = data_to_set('MRSTY.RRF', keys=[0, 1])
-        >>> data = data_to_dict('MRSTY.RRF', keys=['cui'], values=['sty'],
-                                headers=HEADERS_MRSTY)
-        >>> data = data_to_dict('MRSTY.RRF', keys=[0], values=[1])
-        >>> data = data_to_dict('MRSTY.RRF', keys=['cui'], values=['sty'],
-                                headers=HEADERS_MRSTY,
-                                valids={'sty':ACCEPTED_SEMTYPES})
-        >>> data = data_to_dict('MRSTY.RRF', keys=['cui'],
-                                values=['sty', 'hier'], headers=HEADERS_MRSTY)
-        >>> data = data_to_dict('MRSTY.RRF', keys=[0], values=[1, 2],
-                                nrows=10, valids={1:None, 2:None})
+        Options passed directly to 'iload_data()'.
     """
     if kwargs.get('values') is None:
         if unique_keys:
-            _data = {k for k, _ in iter_data(data, keys=keys, **kwargs)}
+            # NOTE: Convert to a list because JSON does not serializes sets.
+            _data = list(set(iload_data(data, keys=keys, **kwargs)))
         else:
-            _data = [k for k, _ in iter_data(data, keys=keys, **kwargs)]
-    elif multi_values:
+            _data = list(iload_data(data, keys=keys, **kwargs))
+    elif multiple_values:
         if unique_values:
-            _data = collections.defaultdict(set)
-            for k, v in iter_data(data, keys=keys, **kwargs):
-                _data[k].add(v)
+            _data = collections.defaultdict(list)
+            for k, v in iload_data(data, keys=keys, **kwargs):
+                if v not in _data[k]:
+                    _data[k].append(v)
         else:
             _data = collections.defaultdict(list)
-            for k, v in iter_data(data, keys=keys, **kwargs):
+            for k, v in iload_data(data, keys=keys, **kwargs):
                 _data[k].append(v)
     else:
-        # Consider the value of the first appearance of the key.
+        # Consider the value of the first appearance of a key.
         _data = {}
-        for k, v in iter_data(data, keys=keys, **kwargs):
+        for k, v in iload_data(data, keys=keys, **kwargs):
             if k not in _data:
                 _data[k] = v
     return _data

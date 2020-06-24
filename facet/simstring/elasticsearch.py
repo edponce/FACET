@@ -179,10 +179,10 @@ class ElasticsearchSimstring(BaseSimstring):
 
     def _get_strings(self, size: int, feature: str) -> List[str]:
         """Get strings corresponding to feature size and query feature."""
-        meta_hits = self._db.get(size, feature)['hits']
-        hits = meta_hits['hits']
-        strings = [hit['_source']['term'] for hit in hits]
-        return strings
+        return [
+            hit['_source']['term']
+            for hit in self._db.get(size, feature)['hits']['hits']
+        ]
 
     # NOTE: Consider supporting iterable data so that
     # it can be passed directly to underlying database

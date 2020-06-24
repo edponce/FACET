@@ -68,10 +68,10 @@ class RedisDatabase(BaseDatabase):
         # NOTE: Redis pipeline object is used only for 'set' operations
         # and requires invoking 'sync' to commit queued operations.
         self._dbp = None
-        self._is_pipe = pipe
+        self._is_pipe = None
         self.set_pipe(pipe)
 
-    def set_pipe(self, pipe):
+    def set_pipe(self, pipe: bool):
         # NOTE: Invoke sync() when disabling pipe and pipe was enabled
         if not pipe:
             self.sync()

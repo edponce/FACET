@@ -230,11 +230,17 @@ class BaseFacet(ABC):
         # Profile
         prev_time = time.time()
 
-        self._simstring.db.set_pipe(True)
-        for i, term in enumerate(data, start=1):
+        # NOTE: Pipeline mode does works for all databases because
+        # 'simstring.insert' requires reading from database.
+        # Enable pipeline mode
+        # self._simstring.db.set_pipe(True)
+
+        i = 0
+        for term in data:
+            i += 1
             self._simstring.insert(term)
-            if i % bulk_size == 0:
-                self._simstring.db.sync()
+            # if i % bulk_size == 0:
+            #     self._simstring.db.sync()
 
             # Profile
             if VERBOSE and i % status_step == 0:
@@ -243,14 +249,19 @@ class BaseFacet(ABC):
                 print(f'{i}: {elapsed_time} s')
                 prev_time = curr_time
 
+        # Disable pipeline mode
+        # NOTE: Stores data remaining in pipeline.
+        # self._simstring.db.set_pipe(False)
+
         if VERBOSE:
-            print(f'Num simstring terms: {i}')
+            print(f'Records processed: {i}')
+            print(f'Simstring records: {len(self._simstring.db)}')
 
     def _dump_kv(
         self,
-        data: Dict[str, Any],
-        db: 'BaseDatabase',
+        data: Iterable[Tuple[str, Any]],
         *,
+        db: 'BaseDatabase',
         bulk_size: int = 1000,
         status_step: int = 10000,
     ):
@@ -266,8 +277,12 @@ class BaseFacet(ABC):
         # Profile
         prev_time = time.time()
 
+        # Enable pipeline mode
         db.set_pipe(True)
-        for i, (key, val) in enumerate(data.items(), start=1):
+
+        i = 0
+        for key, val in data:
+            i += 1
             db.set(key, val)
             if i % bulk_size == 0:
                 db.sync()
@@ -279,8 +294,67 @@ class BaseFacet(ABC):
                 print(f'{i}: {elapsed_time} s')
                 prev_time = curr_time
 
+        # Disable pipeline mode
+        # NOTE: Stores data remaining in pipeline.
+        self._simstring.db.set_pipe(False)
+        db.set_pipe(False)
+
         if VERBOSE:
-            print(f'Num keys: {i}')
+            print(f'Records processed: {i}')
+            print(f'Key/value records: {len(db)}')
+
+    def _dump_simstring_kv(
+        self,
+        data: Iterable[Tuple[str, Any]],
+        *,
+        db: 'BaseDatabase',
+        bulk_size: int = 1000,
+        status_step: int = 10000,
+    ):
+        """Stores {Term:...} in Simstring database and stores {key:val}
+        mapping, key: [val, ...].
+
+        Args:
+            bulk_size (int): Size of chunks to use for dumping data into
+                databases. Default is 1000.
+
+            status_step (int): Print status message after this number of
+                records is dumped to databases. Default is 10000.
+        """
+        # Profile
+        prev_time = time.time()
+
+        # Enable pipeline mode
+        # NOTE: Pipeline mode does works for all databases because
+        # 'simstring.insert' requires reading from database.
+        # self._simstring.db.set_pipe(True)
+        db.set_pipe(True)
+
+        i = 0
+        for key, val in data:
+            i += 1
+            self._simstring.insert(key)
+            db.set(key, val)
+            if i % bulk_size == 0:
+                # self._simstring.db.sync()
+                db.sync()
+
+            # Profile
+            if VERBOSE and i % status_step == 0:
+                curr_time = time.time()
+                elapsed_time = curr_time - prev_time
+                print(f'{i}: {elapsed_time} s')
+                prev_time = curr_time
+
+        # Disable pipeline mode
+        # NOTE: Stores data remaining in pipeline.
+        # self._simstring.db.set_pipe(False)
+        db.set_pipe(False)
+
+        if VERBOSE:
+            print(f'Records processed: {i}')
+            print(f'Key/value records: {len(db)}')
+            print(f'Simstring records: {len(self._simstring.db)}')
 
     def _get_case_func(self, case: str = None) -> Callable[[str], str]:
         if case in {'L', 'l'}:
@@ -293,8 +367,12 @@ class BaseFacet(ABC):
             raise ValueError(f'invalid string case option, {case}')
         return func
 
-    def install(self, *args, **kwargs):
-        self._install(*args, **kwargs)
+    def install(self, data, *, overwrite: bool = True, **kwargs):
+        # Clear databases
+        if overwrite:
+            if self._simstring is not None and self._simstring.db is not None:
+                self._simstring.db.clear()
+        self._install(data, overwrite=overwrite, **kwargs)
 
     def close(self):
         self._simstring.db.close()
@@ -309,7 +387,7 @@ class BaseFacet(ABC):
         pass
 
     @abstractmethod
-    def _install(self, data):
+    def _install(self, data, *, overwrite: str = True, **kwargs):
         pass
 
     @abstractmethod
