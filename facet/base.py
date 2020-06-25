@@ -129,7 +129,8 @@ class BaseFacet(ABC):
         corpus_kwargs: Dict[str, Any] = {},
         **kwargs,
     ) -> Dict[str, List[List[Dict[str, Any]]]]:
-        """
+        """Match queries from corpora.
+
         Args:
             corpora (Union[str, Iterable[str]]): Corpora items.
 
@@ -207,6 +208,29 @@ class BaseFacet(ABC):
             else formatter_map[format]()
         )
         return formatter(matches, outfile=outfile)
+
+    def install(self, data, *, overwrite: bool = True, **kwargs):
+        """Install data into Simstring database.
+
+        Args:
+            data_file (str): File with data to install.
+
+            overwrite (bool): If set, overwrite previous data in Simstring
+                database.
+
+        Kwargs:
+            Options passed directly to 'load_data()' function and '_dump_*()'
+            method via `_install`.
+        """
+        # Clear databases
+        if overwrite:
+            if self._simstring is not None and self._simstring.db is not None:
+                self._simstring.db.clear()
+        self._install(data, overwrite=overwrite, **kwargs)
+
+    def close(self):
+        self._simstring.db.close()
+        self._close()
 
     def _dump_simstring(
         self,
@@ -363,17 +387,6 @@ class BaseFacet(ABC):
         else:
             raise ValueError(f'invalid string case option, {case}')
         return func
-
-    def install(self, data, *, overwrite: bool = True, **kwargs):
-        # Clear databases
-        if overwrite:
-            if self._simstring is not None and self._simstring.db is not None:
-                self._simstring.db.clear()
-        self._install(data, overwrite=overwrite, **kwargs)
-
-    def close(self):
-        self._simstring.db.close()
-        self._close()
 
     def _close(self):
         pass

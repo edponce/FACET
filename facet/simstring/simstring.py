@@ -93,13 +93,11 @@ class Simstring(BaseSimstring):
 
     @db.setter
     def db(self, value: Union[str, 'BaseDatabase']):
-        obj = None
         if isinstance(value, str):
             obj = database_map[value]()
         elif isinstance(value, BaseDatabase):
             obj = value
-
-        if obj is None:
+        else:
             raise ValueError(f'invalid Simstring database, {value}')
         self._db = obj
 

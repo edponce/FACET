@@ -3,6 +3,7 @@ import click
 from ..utils import load_configuration
 from .. import (
     __version__,
+    Facet,
     UMLSFacet,
     RedisDatabase,
     DictDatabase,
@@ -66,16 +67,16 @@ def cli():
 )
 @click.option(
     '-s', '--similarity',
-    type=str,
+    type=click.Choice(('dice', 'exact', 'cosine', 'jaccard', 'overlap',
+                       'hamming')),
     default='cosine',
     show_default=True,
     help='Similarity measure.',
 )
 @click.option(
     '-f', '--format',
-    type=str,
-    default='json',
-    show_default=True,
+    type=click.Choice(('json', 'yaml', 'xml', 'pickle', 'csv')),
+    default=None,
     help='Format for match results.',
 )
 @click.option(
@@ -87,22 +88,41 @@ def cli():
     '-t', '--tokenizer',
     type=click.Choice(('ws', 'nltk', 'spacy')),
     default=None,
-    show_default=True,
     help='Tokenizer for text procesing.',
 )
-def match(query, alpha, similarity, format, output, tokenizer):
-    db1 = RedisDatabase(db=0)
-    db2 = RedisDatabase(db=1)
-    db3 = DictDatabase('db/umls_midsmall', flag='r')
-    ss = Simstring(db=db3, alpha=alpha, similarity=similarity)
-    f = UMLSFacet(
-        conso_db=db1,
-        cuisty_db=db2,
-        simstring=ss,
-        tokenizer=tokenizer,
-    )
-    matches = f.match(query, format=format, outfile=output)
-    print(matches)
+@click.option(
+    '-d', '--database',
+    type=click.Choice(('dict', 'redis')),
+    default='dict',
+    show_default=True,
+    help='Database to connect to for install/query.',
+)
+@click.option(
+    '-i', '--install',
+    type=str,
+    help='Data file to install (first column).',
+)
+def match(
+    query,
+    alpha,
+    similarity,
+    format,
+    output,
+    tokenizer,
+    database,
+    install,
+):
+    ss = Simstring(db=database, alpha=alpha, similarity=similarity)
+    f = Facet(simstring=ss, tokenizer=tokenizer, formatter=format)
+
+    if install:
+        f.install(install)
+
+    if query:
+        matches = f.match(query, outfile=output)
+        print(matches)
+    else:
+        print('REPL loop')
 
 
 @click.command(context_settings=CONTEXT_SETTINGS)
@@ -127,11 +147,12 @@ def match(query, alpha, similarity, format, output, tokenizer):
     help='Similarity measure.',
 )
 def simstring(query, alpha, similarity):
-    db = DictDatabase('db/umls_midsmall', flag='r')
-    ss = Simstring(db=db, alpha=alpha, similarity=similarity)
-    matches = ss.search(query)
-    for k, v in matches:
-        print(k, v)
+    pass
+    # db = DictDatabase('db/umls_midsmall', flag='r')
+    # ss = Simstring(db=db, alpha=alpha, similarity=similarity)
+    # matches = ss.search(query)
+    # for k, v in matches:
+    #     print(k, v)
 
 
 # Organize groups and commands

@@ -27,7 +27,7 @@ class Facet(BaseFacet):
     def _install(self, data_file: str, *, overwrite: bool = True, **kwargs):
         """
         Args:
-            data_file (str): File with data to load.
+            data_file (str): File with data to install.
 
         Kwargs:
             Options passed directly to 'load_data()' function and '_dump_*()'

@@ -10,8 +10,8 @@ FACET Command Line Interface
     :show-nested:
 
 
-Default FACET
--------------
+FACET API
+---------
 
 .. autoclass:: facet.base.BaseFacet
     :members:
@@ -149,3 +149,13 @@ Formatter
 
 .. autoclass:: facet.SimpleFormatter
     :members:
+
+
+Helpers
+-------
+
+.. autofunction:: facet.utils.load_data
+
+.. autofunction:: facet.utils.iload_data
+
+.. autofunction:: facet.utils.corpus_generator
