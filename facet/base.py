@@ -77,13 +77,11 @@ class BaseFacet(ABC):
         return self._simstring
 
     def _set_simstring(self, value: Union[str, 'BaseSimstring']):
-        obj = None
         if isinstance(value, str):
             obj = simstring_map[value]()
         elif isinstance(value, BaseSimstring):
             obj = value
-
-        if obj is None:
+        else:
             raise ValueError(f'invalid simstring, {value}')
         self._simstring = obj
 

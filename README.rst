@@ -123,24 +123,24 @@ Usage
 
 * Run REPL on command line ::
 
-    $ facet --cli
+    $ facet match --install data/sample.txt
     $ > cancer
 
 * Process file via command line ::
 
-    $ facet --format json --infile corpus.txt --outfile corpus.json
+    $ facet match --database redis --query corpus.txt --format json --output corpus.json
 
 * Process text via STDIN ::
 
-    $ cat corpus.txt | facet --pipe --format json --outfile corpus.json
+    $ cat corpus.txt | facet match --database redis --format json --output corpus.json
 
 * Run as a web service ::
 
-    $ facet --port 4452 --format json
+    $ facet server --port 4452 --format json
 
 * Run programmatically using Python's API (see example scripts) ::
 
-    $ <editor> examples/demo_match.py
+    $ python examples/demo_match.py
 
 
 Databases Initialization

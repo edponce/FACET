@@ -40,7 +40,6 @@ class Facet(BaseFacet):
         data = iload_data(
             data_file,
             converters={'str': [unidecode, str.lower]},
-            unique_keys=True,
             **kwargs,
         )
         curr_time = time.time()
@@ -48,7 +47,7 @@ class Facet(BaseFacet):
 
         print('Writing simstring...')
         start = time.time()
-        # Stores Simstring inverted lists
+        # Stores simstring inverted lists
         self._dump_simstring(data, **kwargs)
         curr_time = time.time()
         print(f'Writing simstring: {curr_time - start} s')
