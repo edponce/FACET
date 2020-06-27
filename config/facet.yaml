@@ -1,0 +1,9 @@
+FACET.match:
+    query: null
+    alpha: 0.7
+    similarity: jaccard
+    format: csv
+    output: null
+    tokenizer: ws
+    database: dict
+    install: data/umls_midsmall.txt

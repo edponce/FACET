@@ -1,5 +1,5 @@
-import sys
 import click
+from functools import partial
 from ..utils import load_configuration
 from .. import (
     __version__,
@@ -25,7 +25,7 @@ CONTEXT_SETTINGS = {
 }
 
 
-def facet_config(ctx, param, value):
+def facet_config(ctx, param, value, key=None):
     """Set up configuration.
 
     Parameters supported:
@@ -38,13 +38,11 @@ def facet_config(ctx, param, value):
     if not value:
         return {}
 
-    config = load_configuration(value, key='FACET')
+    config = load_configuration(value, key=key)
     if config is None:
-        print('ERROR: invalid --config parameter', file=sys.stderr)
-        sys.exit(0)
+        raise ValueError('invalid configuration parameter')
     elif len(config) == 0:
-        print('WARNING: unable to find configuration data for '
-              '--config parameter', file=sys.stderr)
+        raise ValueError('unable to find configuration data')
     return config
 
 
@@ -100,6 +98,7 @@ def cli():
 @click.option(
     '-c', '--config',
     type=str,
+    callback=partial(facet_config, key='FACET.match'),
     help='Configuration file.',
 )
 @click.option(
@@ -118,7 +117,7 @@ def cli():
     '-s', '--similarity',
     type=click.Choice(('dice', 'exact', 'cosine', 'jaccard', 'overlap',
                        'hamming')),
-    default='cosine',
+    default='jaccard',
     show_default=True,
     help='Similarity measure.',
 )
@@ -162,6 +161,16 @@ def match(
     database,
     install,
 ):
+    if config:
+        query = config.get('query', query)
+        alpha = config.get('alpha', alpha)
+        similarity = config.get('similarity', similarity)
+        format = config.get('format', format)
+        output = config.get('output', output)
+        tokenizer = config.get('tokenizer', tokenizer)
+        database = config.get('database', database)
+        install = config.get('install', install)
+
     f = Facet(
         simstring=Simstring(db=database, alpha=alpha, similarity=similarity),
         tokenizer=tokenizer,
@@ -183,6 +192,7 @@ def match(
 @click.option(
     '-c', '--config',
     type=str,
+    callback=partial(facet_config, key='FACET.umls'),
     help='Configuration file.',
 )
 @click.option(
@@ -201,7 +211,7 @@ def match(
     '-s', '--similarity',
     type=click.Choice(('dice', 'exact', 'cosine', 'jaccard', 'overlap',
                        'hamming')),
-    default='cosine',
+    default='jaccard',
     show_default=True,
     help='Similarity measure.',
 )
@@ -261,6 +271,18 @@ def umls(
     conso_db,
     cuisty_db,
 ):
+    if config:
+        query = config.get('query', query)
+        alpha = config.get('alpha', alpha)
+        similarity = config.get('similarity', similarity)
+        format = config.get('format', format)
+        output = config.get('output', output)
+        tokenizer = config.get('tokenizer', tokenizer)
+        database = config.get('database', database)
+        install = config.get('install', install)
+        conso_db = config.get('conso_db', conso_db)
+        cuisty_db = config.get('cuisty_db', cuisty_db)
+
     f = UMLSFacet(
         conso_db=conso_db,
         cuisty_db=cuisty_db,
@@ -282,6 +304,12 @@ def umls(
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.help_option(show_default=False)
 @click.option(
+    '-c', '--config',
+    type=str,
+    callback=partial(facet_config, key='FACET.server'),
+    help='Configuration file.',
+)
+@click.option(
     '-h', '--host',
     type=str,
     default='localhost',
@@ -296,11 +324,6 @@ def umls(
     help='Server port.',
 )
 @click.option(
-    '-c', '--config',
-    type=str,
-    help='Configuration file.',
-)
-@click.option(
     '-a', '--alpha',
     type=float,
     default=0.7,
@@ -311,7 +334,7 @@ def umls(
     '-s', '--similarity',
     type=click.Choice(('dice', 'exact', 'cosine', 'jaccard', 'overlap',
                        'hamming')),
-    default='cosine',
+    default='jaccard',
     show_default=True,
     help='Similarity measure.',
 )
@@ -359,9 +382,9 @@ def umls(
     help='Database for CUI-STY mapping.',
 )
 def server(
+    config,
     host,
     port,
-    config,
     alpha,
     similarity,
     format,
@@ -372,6 +395,19 @@ def server(
     conso_db,
     cuisty_db,
 ):
+    if config:
+        host = config.get('host', host)
+        port = config.get('port', port)
+        alpha = config.get('alpha', alpha)
+        similarity = config.get('similarity', similarity)
+        format = config.get('format', format)
+        output = config.get('output', output)
+        tokenizer = config.get('tokenizer', tokenizer)
+        database = config.get('database', database)
+        install = config.get('install', install)
+        conso_db = config.get('conso_db', conso_db)
+        cuisty_db = config.get('cuisty_db', cuisty_db)
+
     f = UMLSFacet(
         conso_db=conso_db,
         cuisty_db=cuisty_db,
@@ -394,6 +430,12 @@ def server(
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.help_option(show_default=False)
 @click.option(
+    '-c', '--config',
+    type=str,
+    callback=partial(facet_config, key='FACET.client'),
+    help='Configuration file.',
+)
+@click.option(
     '-h', '--host',
     type=str,
     default='localhost',
@@ -406,11 +448,6 @@ def server(
     default=4444,
     show_default=True,
     help='Server port.',
-)
-@click.option(
-    '-c', '--config',
-    type=str,
-    help='Configuration file.',
 )
 @click.option(
     '-q', '--query',
@@ -429,13 +466,20 @@ def server(
     help='Output target for match results.',
 )
 def client(
+    config,
     host,
     port,
-    config,
     query,
     format,
     output,
 ):
+    if config:
+        host = config.get('host', host)
+        port = config.get('port', port)
+        query = config.get('query', query)
+        format = config.get('format', format)
+        output = config.get('output', output)
+
     f = SocketClient(UMLSFacet, host=host, port=port)
     if query:
         print(f.match(query, outfile=output, format=format))
