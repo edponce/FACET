@@ -2,7 +2,7 @@ import time
 import collections
 # NOTE: Add multiprocessing
 # import multiprocessing
-from .helpers import corpus_generator
+from .utils import corpus_generator
 from unidecode import unidecode
 from .simstring import (
     simstring_map,
@@ -42,9 +42,6 @@ if PROFILE:
     import cProfile
 
 
-__all__ = ['BaseFacet']
-
-
 class BaseFacet(ABC):
     """Class supporting FACET installers and matchers.
 
@@ -80,13 +77,11 @@ class BaseFacet(ABC):
         return self._simstring
 
     def _set_simstring(self, value: Union[str, 'BaseSimstring']):
-        obj = None
         if isinstance(value, str):
             obj = simstring_map[value]()
         elif isinstance(value, BaseSimstring):
             obj = value
-
-        if obj is None:
+        else:
             raise ValueError(f'invalid simstring, {value}')
         self._simstring = obj
 
@@ -132,7 +127,8 @@ class BaseFacet(ABC):
         corpus_kwargs: Dict[str, Any] = {},
         **kwargs,
     ) -> Dict[str, List[List[Dict[str, Any]]]]:
-        """
+        """Match queries from corpora.
+
         Args:
             corpora (Union[str, Iterable[str]]): Corpora items.
 
@@ -210,6 +206,29 @@ class BaseFacet(ABC):
             else formatter_map[format]()
         )
         return formatter(matches, outfile=outfile)
+
+    def install(self, data, *, overwrite: bool = True, **kwargs):
+        """Install data into Simstring database.
+
+        Args:
+            data_file (str): File with data to install.
+
+            overwrite (bool): If set, overwrite previous data in Simstring
+                database.
+
+        Kwargs:
+            Options passed directly to 'load_data()' function and '_dump_*()'
+            method via `_install`.
+        """
+        # Clear databases
+        if overwrite:
+            if self._simstring is not None and self._simstring.db is not None:
+                self._simstring.db.clear()
+        self._install(data, overwrite=overwrite, **kwargs)
+
+    def close(self):
+        self._simstring.db.close()
+        self._close()
 
     def _dump_simstring(
         self,
@@ -367,16 +386,8 @@ class BaseFacet(ABC):
             raise ValueError(f'invalid string case option, {case}')
         return func
 
-    def install(self, data, *, overwrite: bool = True, **kwargs):
-        # Clear databases
-        if overwrite:
-            if self._simstring is not None and self._simstring.db is not None:
-                self._simstring.db.clear()
-        self._install(data, overwrite=overwrite, **kwargs)
-
-    def close(self):
-        self._simstring.db.close()
-        self._close()
+    def _close(self):
+        pass
 
     @abstractmethod
     def _match(
@@ -388,8 +399,4 @@ class BaseFacet(ABC):
 
     @abstractmethod
     def _install(self, data, *, overwrite: str = True, **kwargs):
-        pass
-
-    @abstractmethod
-    def _close(self):
         pass

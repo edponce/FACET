@@ -142,7 +142,7 @@ def filter_indices_and_values(
 def iload_data(
     data,
     *,
-    keys: Iterable[Union[str, int]],
+    keys: Iterable[Union[str, int]] = (0,),
     values: Iterable[Union[str, int]] = None,
     headers: Iterable[Union[str, int]] = None,
     valids: Dict[Union[str, int], Iterable[Any]] = None,
@@ -339,7 +339,7 @@ def iload_data(
 def load_data(
     data,
     *,
-    keys: Iterable[Union[str, int]],
+    keys: Iterable[Union[str, int]] = (0,),
     unique_keys: bool = False,
     multiple_values: bool = False,
     unique_values: bool = False,

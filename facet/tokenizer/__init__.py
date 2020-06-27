@@ -9,6 +9,6 @@ tokenizer_map = {
     'nltk': NLTKTokenizer,
     'spacy': SpaCyTokenizer,
     'ws': WhitespaceTokenizer,
-    'simple': SimpleTokenizer,
+    'none': SimpleTokenizer,
     None: SimpleTokenizer,
 }

@@ -13,5 +13,6 @@ formatter_map = {
     'xml': XMLFormatter,
     'pickle': PickleFormatter,
     'csv': CSVFormatter,
+    'none': SimpleFormatter,
     None: SimpleFormatter,
 }
