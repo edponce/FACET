@@ -7,6 +7,11 @@ from .. import (
     UMLSFacet,
     Simstring,
 )
+from ..network import (
+    SocketClient,
+    SocketServer,
+    SocketServerHandler,
+)
 
 
 CONTEXT_SETTINGS = {
@@ -44,16 +49,11 @@ def facet_config(ctx, param, value):
 
 
 def repl_loop(f):
-    """REPL loop.
-
-    NOTE:
-        * 'output' is not used.
-    """
+    """Read-Evaluate-Print-Loop."""
     try:
         while True:
             query_or_option = input('> ')
             if query_or_option == 'exit()':
-                f.close()
                 break
 
             # Allow changing some options from the command prompt.
@@ -87,7 +87,6 @@ def repl_loop(f):
                     print(f.match(query))
     except (KeyboardInterrupt, EOFError):
         print()
-        f.close()
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
@@ -174,9 +173,9 @@ def match(
 
     if query:
         print(f.match(query, outfile=output))
-        f.close()
     else:
         repl_loop(f)
+    f.close()
 
 
 @click.command(context_settings=CONTEXT_SETTINGS)
@@ -190,6 +189,116 @@ def match(
     '-q', '--query',
     type=str,
     help='Query string/directory/file.',
+)
+@click.option(
+    '-a', '--alpha',
+    type=float,
+    default=0.7,
+    show_default=True,
+    help='Similarity threshold.',
+)
+@click.option(
+    '-s', '--similarity',
+    type=click.Choice(('dice', 'exact', 'cosine', 'jaccard', 'overlap',
+                       'hamming')),
+    default='cosine',
+    show_default=True,
+    help='Similarity measure.',
+)
+@click.option(
+    '-f', '--format',
+    type=click.Choice(('json', 'yaml', 'xml', 'pickle', 'csv')),
+    default=None,
+    help='Format for match results.',
+)
+@click.option(
+    '-o', '--output',
+    type=str,
+    help='Output target for match results.',
+)
+@click.option(
+    '-t', '--tokenizer',
+    type=click.Choice(('ws', 'nltk', 'spacy')),
+    default=None,
+    help='Tokenizer for text procesing.',
+)
+@click.option(
+    '-d', '--database',
+    type=click.Choice(('dict', 'redis', 'elasticsearch')),
+    default='dict',
+    show_default=True,
+    help='Database for Simstring install/query.',
+)
+@click.option(
+    '-i', '--install',
+    type=str,
+    help='UMLS directory containing MRCONSO.RRF and MRSTY.RRF.',
+)
+@click.option(
+    '--conso_db',
+    type=click.Choice(('dict', 'redis')),
+    default='dict',
+    show_default=True,
+    help='Database for CONCEPT-CUI mapping.',
+)
+@click.option(
+    '--cuisty_db',
+    type=click.Choice(('dict', 'redis')),
+    default='dict',
+    show_default=True,
+    help='Database for CUI-STY mapping.',
+)
+def umls(
+    config,
+    query,
+    alpha,
+    similarity,
+    format,
+    output,
+    tokenizer,
+    database,
+    install,
+    conso_db,
+    cuisty_db,
+):
+    f = UMLSFacet(
+        conso_db=conso_db,
+        cuisty_db=cuisty_db,
+        simstring=Simstring(db=database, alpha=alpha, similarity=similarity),
+        tokenizer=tokenizer,
+        formatter=format,
+    )
+
+    if install:
+        f.install(install)
+
+    if query:
+        print(f.match(query, outfile=output))
+    else:
+        repl_loop(f)
+    f.close()
+
+
+@click.command(context_settings=CONTEXT_SETTINGS)
+@click.help_option(show_default=False)
+@click.option(
+    '-h', '--host',
+    type=str,
+    default='localhost',
+    show_default=True,
+    help='Server host.',
+)
+@click.option(
+    '-p', '--port',
+    type=int,
+    default=4444,
+    show_default=True,
+    help='Server port.',
+)
+@click.option(
+    '-c', '--config',
+    type=str,
+    help='Configuration file.',
 )
 @click.option(
     '-a', '--alpha',
@@ -249,9 +358,10 @@ def match(
     show_default=True,
     help='Database for CUI-STY mapping.',
 )
-def umls(
+def server(
+    host,
+    port,
     config,
-    query,
     alpha,
     similarity,
     format,
@@ -273,16 +383,72 @@ def umls(
     if install:
         f.install(install)
 
+    with SocketServer(
+        (host, port),
+        SocketServerHandler,
+        served_object=f,
+    ) as server:
+        server.serve_forever()
+
+
+@click.command(context_settings=CONTEXT_SETTINGS)
+@click.help_option(show_default=False)
+@click.option(
+    '-h', '--host',
+    type=str,
+    default='localhost',
+    show_default=True,
+    help='Server host.',
+)
+@click.option(
+    '-p', '--port',
+    type=int,
+    default=4444,
+    show_default=True,
+    help='Server port.',
+)
+@click.option(
+    '-c', '--config',
+    type=str,
+    help='Configuration file.',
+)
+@click.option(
+    '-q', '--query',
+    type=str,
+    help='Query string/directory/file.',
+)
+@click.option(
+    '-f', '--format',
+    type=click.Choice(('json', 'yaml', 'xml', 'pickle', 'csv')),
+    default=None,
+    help='Format for match results.',
+)
+@click.option(
+    '-o', '--output',
+    type=str,
+    help='Output target for match results.',
+)
+def client(
+    host,
+    port,
+    config,
+    query,
+    format,
+    output,
+):
+    f = SocketClient(UMLSFacet, host=host, port=port)
     if query:
-        print(f.match(query, outfile=output))
-        f.close()
+        print(f.match(query, outfile=output, format=format))
     else:
         repl_loop(f)
+    f.close()
 
 
 # Organize groups and commands
 cli.add_command(match)
 cli.add_command(umls)
+cli.add_command(server)
+cli.add_command(client)
 
 
 def main():
