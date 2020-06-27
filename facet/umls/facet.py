@@ -1,7 +1,6 @@
 import os
 import time
-import itertools
-from ..helpers import (
+from ..utils import (
     iload_data,
     load_data,
 )
@@ -97,20 +96,6 @@ class UMLSFacet(BaseFacet):
         umls_dir: str,
         *,
         overwrite: bool = True,
-        **kwargs,
-    ):
-        if overwrite:
-            if self._conso_db is not None:
-                self._conso_db.clear()
-            if self._cuisty_db is not None:
-                self._cuisty_db.clear()
-
-        self._install_join(umls_dir, **kwargs)
-
-    def _install_join(
-        self,
-        umls_dir: str,
-        *,
         cui_valids: Dict[str, Iterable[Any]] = {},
         sty_valids: Dict[str, Iterable[Any]] = {'sty': ACCEPTED_SEMTYPES},
         **kwargs,
@@ -127,6 +112,12 @@ class UMLSFacet(BaseFacet):
         Kwargs:
             Options passed directly to '_dump_*()' methods.
         """
+        if overwrite:
+            if self._conso_db is not None:
+                self._conso_db.clear()
+            if self._cuisty_db is not None:
+                self._cuisty_db.clear()
+
         t1 = time.time()
 
         if self._cuisty_db is not None:
