@@ -54,7 +54,7 @@ class SocketServerHandler(socketserver.StreamRequestHandler):
             self.connection.send(slen)
             self.connection.sendall(data)
 
-        print('Deactivating thread handler for %s:%d'.format(
+        print('Deactivating thread handler for {}:{}'.format(
             *self.connection.getpeername(),
         ))
 

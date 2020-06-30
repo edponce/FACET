@@ -233,10 +233,7 @@ def iload_data(
     key_value_check = iterable_true(valids) or iterable_true(invalids)
 
     # Check if converter functions need to be applied after row filtering.
-    post_converters = None
-    if key_value_check:
-        post_converters = kwargs.get('converters')
-        kwargs['converters'] = None
+    post_converters = kwargs.pop('converters', None)
 
     # Pre-compute indices and columns for post-converter functions.
     # NOTE: This is a performance optimization because it allows operating
@@ -262,7 +259,7 @@ def iload_data(
         names=headers,
 
         # Constant-ish settings
-        delimiter=kwargs.get('delimiter', '|'),
+        delimiter=kwargs.get('delimiter', ','),
         usecols=usecols,
         header=None,
         index_col=False,

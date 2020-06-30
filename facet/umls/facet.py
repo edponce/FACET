@@ -110,7 +110,7 @@ class UMLSFacet(BaseFacet):
             umls_dir (str): Directory of UMLS RRF files.
 
         Kwargs:
-            Options passed directly to '_dump_*()' methods.
+            Options passed directly to '*load_data()' function.
         """
         if overwrite:
             if self._conso_db is not None:
@@ -132,6 +132,8 @@ class UMLSFacet(BaseFacet):
                 valids={**cui_valids, **sty_valids},
                 multiple_values=True,
                 unique_values=True,
+                delimiter='|',
+                **kwargs,
             )
             curr_time = time.time()
             print(f'Loading/parsing semantic types: {curr_time - start} s')
@@ -139,7 +141,7 @@ class UMLSFacet(BaseFacet):
             print('Writing semantic types...')
             start = time.time()
             # Stores {CUI:Semantic Type} mapping, cui: [sty, ...]
-            self._dump_kv(cuisty.items(), db=self._cuisty_db, **kwargs)
+            self._dump_kv(cuisty.items(), db=self._cuisty_db)
             curr_time = time.time()
             print(f'Writing semantic types: {curr_time - start} s')
 
@@ -159,6 +161,8 @@ class UMLSFacet(BaseFacet):
             converters={'str': [unidecode, str.lower]},
             multiple_values=True,
             unique_values=True,
+            delimiter='|',
+            **kwargs,
         )
         curr_time = time.time()
         print(f'Loading/parsing concepts: {curr_time - start} s')
@@ -167,7 +171,7 @@ class UMLSFacet(BaseFacet):
             print('Writing concepts and simstring...')
             start = time.time()
             # Stores {Term:CUI} mapping, term: [CUI, ...]
-            self._dump_simstring_kv(conso.items(), db=self._conso_db, **kwargs)
+            self._dump_simstring_kv(conso.items(), db=self._conso_db)
             curr_time = time.time()
             print(f'Writing concepts and simtring: {curr_time - start} s')
 
@@ -177,7 +181,7 @@ class UMLSFacet(BaseFacet):
             print('Writing simstring...')
             start = time.time()
             # Stores Simstring inverted lists
-            self._dump_simstring(conso, **kwargs)
+            self._dump_simstring(conso)
             curr_time = time.time()
             print(f'Writing simstring: {curr_time - start} s')
 
@@ -194,7 +198,7 @@ class UMLSFacet(BaseFacet):
             ngram (Tuple[int, int, str]): Parsed N-grams with span.
 
         Kwargs:
-            Options passed directly to `Simstring.search`.
+            Options passed directly to `Simstring.search()`.
         """
         begin, end, ngram = ngram_struct
         ngram_matches = []

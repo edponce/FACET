@@ -198,22 +198,60 @@ def parse_string(string, protect_numerics=False):
     try:
         return pyparser.parseString(string, parseAll=True)[0]
     except pyparsing.ParseException:
-        print('WARNING: configuration parser failed to parse', orig_string)
+        # print('WARNING: configuration parser failed to parse', orig_string)
         return orig_string
 
 
 def parse(obj, **kwargs):
     """Parse arbitrary objects."""
-    if isinstance(obj, (str, bytes)):
+    if isinstance(obj, str):
         return parse_string(obj, **kwargs)
+    elif isinstance(obj, dict):
+        # NOTE: Keys are not modified
+        return {k: parse(v, **kwargs) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple, set)):
+        return type(obj)([parse(v, **kwargs) for v in obj])
     else:
-        if isinstance(obj, dict):
-            # NOTE: Keys are not modified
-            return {k: parse(v, **kwargs) for k, v in obj.items()}
-        elif isinstance(obj, (list, tuple, set)):
-            return type(obj)([parse(v, **kwargs) for v in obj])
+        return obj
+
+
+def parse_with_configparser(config):
+    """Parse using configparser.
+
+    Args:
+        config (str, Dict[str, Any]): Configuration data/file to parse.
+    """
+    parser = configparser.ConfigParser(
+        delimiters=('=',),
+        # Support None type produced by JSON/YAML parsers
+        allow_no_value=True,
+        interpolation=configparser.ExtendedInterpolation(),
+    )
+
+    # Leave options (keys) unchanged, do not lowercase
+    parser.optionxform = lambda option: option
+
+    # Parse data
+    if isinstance(config, str):
+        if os.path.isfile(config):
+            with open(config) as fd:
+                parser.read_file(fd, source=config)
         else:
-            return obj
+            parser.read_string(config)
+    elif isinstance(config, dict):
+        parser.read_dict(config)
+    else:
+        raise ValueError('invalid configuration data/file for configparser')
+
+    # Convert ConfigParser to dict (if available, include defaults)
+    config = {
+        section: dict(parser[section])
+        for section in parser.sections()
+    }
+    if len(parser.defaults()) > 0:
+        config[parser.default_section] = dict(parser.defaults())
+
+    return config
 
 
 def load_configuration_from_string(data):
@@ -224,13 +262,18 @@ def load_configuration_from_string(data):
         None: If error/invalid occurs during parsing
     """
     data = data.strip()
-    if (
-        # Case: '{key1:value, key2:value, ...}'
-        data[0] == '{' and data[-1] == '}'
-        # Case: 'key1=value, key2=value,...'
-        or '=' in data
-    ):
-        return parse(data)
+    try:
+        config = json.loads(data)
+    except json.decoder.JSONDecodeError:
+        try:
+            config = yaml.safe_load(data)
+        except yaml.parser.ParserError:
+            config = data
+
+    try:
+        return parse_with_configparser(config)
+    except Exception:
+        return config
 
 
 def load_configuration_from_file(filename, file_type=None):
@@ -246,88 +289,71 @@ def load_configuration_from_file(filename, file_type=None):
     # Get file extension/format
     if not file_type:
         _, ext = os.path.splitext(filename)
-        ext = ext[1:].lower()
+        file_type = ext[1:]
+    file_type = file_type.lower()
+
+    if file_type in ('yaml', 'yml'):
+        with open(filename) as fd:
+            config = yaml.safe_load(fd)
+    elif file_type in ('json',):
+        with open(filename) as fd:
+            config = json.load(fd)
+    elif file_type in ('ini', 'cfg', 'conf'):
+        config = filename
     else:
-        ext = file_type.lower()
+        raise ValueError('invalid configuration file')
 
-    # YAML file
-    if ext in ('yaml', 'yml'):
-        with open(filename) as fd:
-            return parse(yaml.safe_load(fd), protect_numerics=True)
-
-    # JSON file
-    elif ext == 'json':
-        with open(filename) as fd:
-            try:
-                return parse(json.load(fd), protect_numerics=True)
-            except json.decoder.JSONDecodeError:
-                return load_configuration_from_string(fd.read())
-
-    # INI file
-    elif ext in ('ini', 'cfg', 'conf'):
-        parser = configparser.ConfigParser(
-            interpolation=configparser.ExtendedInterpolation(),
-        )
-
-        # Leave options (keys) unchanged, do not lowercase
-        parser.optionxform = lambda option: option
-
-        with open(filename) as fd:
-            parser.read_file(fd, source=filename)
-
-        config = {
-            section: dict(parser[section])
-            for section in parser.sections()
-        }
-        if len(parser.defaults()) > 0:
-            config[parser.default_section] = dict(parser.defaults())
-
-        return parse(config)
+    return parse_with_configparser(config)
 
 
-def load_configuration(data, key=None, file_type=None):
+def load_configuration(data, keys=None, file_type=None, delimiter=':'):
     """Load configuration from file/string.
 
     Args:
-        data (str|dict): Configuration file/data to parse.
-            File can embed key via format: 'file.conf:key'
-            Embedded key has priority over key parameter.
+        data (str, dict): Configuration file/data to parse.
+            File can embed keys via format: 'file.conf:key1:key2:...'
+            Embedded keys supersede parameter keys.
 
-        key (str): Extract only data from configuration corresponding to key
+        keys (str, list[str]): Extract only data from configuration
+            corresponding to key. If multiple keys are provided, they
+            are used (in order) to update the resulting configuration.
 
         file_type (str): File format to consider for file, ignore extension.
 
+        delimiter (str): Delimiter symbol between file name and keys.
+
     Returns:
         dict[str:Any]: Configuration mapping
-        None: If error/invalid occurs during parsing
     """
-    if isinstance(data, (str, bytes)):
-        # Check if key is provided with filename
-        file_key = data.split(':', 1)
-        if len(file_key) > 1 and os.path.isfile(file_key[0]):
-            data, key = file_key
-
-        # YAML/JSON/INI file
-        if os.path.isfile(data):
+    if isinstance(data, str):
+        file_keys = data.split(delimiter)
+        if os.path.isfile(file_keys[0]):
+            data, *tmp_keys = file_keys
+            # Embedded keys supersede parameter keys
+            if len(tmp_keys) > 0:
+                keys = tmp_keys
             config = load_configuration_from_file(data, file_type=file_type)
         else:
             config = load_configuration_from_string(data)
-
     elif isinstance(data, dict):
         config = data
-
     elif data is None:
         return {}
+    else:
+        raise ValueError('invalid configuration data type')
 
-    # If configuration is not a mapping, then invalid/error parsing
-    # NOTE: Configuration should be parsed before this check.
-    if not isinstance(config, dict):
-        return None
+    # Normalize strings and types based on a grammar
+    config = parse(config)
 
-    # Filter specific key. If key is not available, then mapping is empty.
-    # Parse mapping values afterwards.
-    if config and key is not None:
-        config = config.get(key, {})
+    # Filter data based on keys.
+    if keys:
+        if isinstance(keys, str):
+            keys = [keys]
+
+        tmp_config = {}
+        for key in keys:
+            tmp_config.update(config[key])
+        config = tmp_config
 
     return config
 
@@ -358,9 +384,10 @@ def parse_address(address):
     host = parsed.hostname
     # urllib triggers error if port is not available
     try:
-        return host, parsed.port
+        port = parsed.port
     except ValueError:
-        return host, None
+        port = None
+    return host, port
 
 
 def unparse_address(

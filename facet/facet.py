@@ -30,16 +30,17 @@ class Facet(BaseFacet):
             data_file (str): File with data to install.
 
         Kwargs:
-            Options passed directly to 'load_data()' function and '_dump_*()'
-            methods.
+            Options passed directly to '*load_data()' function.
         """
         t1 = time.time()
 
         print('Loading/parsing data...')
         start = time.time()
+        keys = kwargs.pop('keys', (0,))
         data = iload_data(
             data_file,
-            converters={'str': [unidecode, str.lower]},
+            keys=keys,
+            converters={keys[0]: [unidecode, str.lower]},
             **kwargs,
         )
         curr_time = time.time()
@@ -48,7 +49,7 @@ class Facet(BaseFacet):
         print('Writing simstring...')
         start = time.time()
         # Stores simstring inverted lists
-        self._dump_simstring(data, **kwargs)
+        self._dump_simstring(data)
         curr_time = time.time()
         print(f'Writing simstring: {curr_time - start} s')
 
@@ -65,7 +66,7 @@ class Facet(BaseFacet):
             ngram (Tuple[int, int, str]): Parsed N-grams with span.
 
         Kwargs:
-            Options passed directly to `Simstring.search`.
+            Options passed directly to `Simstring.search()`.
         """
         begin, end, ngram = ngram_struct
         return [

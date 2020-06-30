@@ -59,7 +59,7 @@ class Simstring(BaseSimstring):
         db: Union[str, 'BaseDatabase'] = 'dict',
         cache_db: Union[str, 'BaseDatabase'] = None,
         alpha: float = 0.7,
-        similarity: Union[str, 'BaseSimilarity'] = 'cosine',
+        similarity: Union[str, 'BaseSimilarity'] = 'jaccard',
         ngram: Union[str, 'BaseNgram'] = 'character',
     ):
         self._db = None
