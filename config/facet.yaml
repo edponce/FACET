@@ -1,0 +1,19 @@
+DEFAULT:
+    query: null
+    alpha: 0.7
+    similarity: jaccard
+    format: csv
+    output: null
+    tokenizer: ws
+    database: dict
+    host: localhost
+    port: 4444
+
+FACET.match:
+    install: data/umls_midsmall/MRCONSO.RRF
+    extra: delimiter=|, keys=[14]
+
+FACET.umls:
+    install: data/umls_midsmall
+    conso_db: dict
+    cuisty_db: dict

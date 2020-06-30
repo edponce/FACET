@@ -1,6 +1,13 @@
+import os
 import sys
 import click
-from ..utils import load_configuration
+import signal
+import socket
+from functools import partial
+from ..utils import (
+    load_configuration,
+    parse_address,
+)
 from .. import (
     __version__,
     Facet,
@@ -25,30 +32,12 @@ CONTEXT_SETTINGS = {
 }
 
 
-def facet_config(ctx, param, value):
-    """Set up configuration.
-
-    Parameters supported:
-        * YAML/JSON/INI file
-        * dict/key=value string
-
-    Returns:
-        dict[str,Any]: Configuration mapping.
-    """
-    if not value:
-        return {}
-
-    config = load_configuration(value, key='FACET')
-    if config is None:
-        print('ERROR: invalid --config parameter', file=sys.stderr)
-        sys.exit(0)
-    elif len(config) == 0:
-        print('WARNING: unable to find configuration data for '
-              '--config parameter', file=sys.stderr)
-    return config
+def facet_config(ctx, param, value, keys=None):
+    """Set up configuration."""
+    return load_configuration(value, keys=keys)
 
 
-def repl_loop(f):
+def repl_loop(f, enable_cmds=True):
     """Read-Evaluate-Print-Loop."""
     try:
         while True:
@@ -75,7 +64,13 @@ def repl_loop(f):
                     print(f.match(query))
             else:
                 query = query_or_option
-                if query == 'alpha()':
+                if query == 'help()':
+                    print('Commands:')
+                    print('  alpha, similarity, tokenizer, format')
+                    print()
+                    print('Get format: cmd()')
+                    print('Set format: cmd = value')
+                elif query == 'alpha()':
                     print(f.simstring.alpha)
                 elif query == 'similarity()':
                     print(f.simstring.similarity)
@@ -100,6 +95,7 @@ def cli():
 @click.option(
     '-c', '--config',
     type=str,
+    callback=partial(facet_config, keys='FACET.match'),
     help='Configuration file.',
 )
 @click.option(
@@ -108,8 +104,22 @@ def cli():
     help='Query string/directory/file.',
 )
 @click.option(
+    '-h', '--host',
+    type=str,
+    default='localhost',
+    show_default=True,
+    help='Server host.',
+)
+@click.option(
+    '-p', '--port',
+    type=click.IntRange(1024, 65535),
+    default=4444,
+    show_default=True,
+    help='Server port.',
+)
+@click.option(
     '-a', '--alpha',
-    type=float,
+    type=click.IntRange(0, 1),
     default=0.7,
     show_default=True,
     help='Similarity threshold.',
@@ -118,7 +128,7 @@ def cli():
     '-s', '--similarity',
     type=click.Choice(('dice', 'exact', 'cosine', 'jaccard', 'overlap',
                        'hamming')),
-    default='cosine',
+    default='jaccard',
     show_default=True,
     help='Similarity measure.',
 )
@@ -149,11 +159,23 @@ def cli():
 @click.option(
     '-i', '--install',
     type=str,
-    help='Data file to install (single column file).',
+    help='Data file to install (default is first column of CSV file).',
+)
+@click.option(
+    '-m', '--mode',
+    type=click.Choice(('server', 'client')),
+    help='Run as a server.',
+)
+@click.option(
+    '-x', '--extra',
+    type=str,
+    help='Pairs of key=value to pass as **kwargs to install().',
 )
 def match(
     config,
     query,
+    host,
+    port,
     alpha,
     similarity,
     format,
@@ -161,20 +183,62 @@ def match(
     tokenizer,
     database,
     install,
+    mode,
+    extra,
 ):
-    f = Facet(
-        simstring=Simstring(db=database, alpha=alpha, similarity=similarity),
-        tokenizer=tokenizer,
-        formatter=format,
-    )
+    if config:
+        query = config.get('query', query)
+        host = config.get('host', host)
+        port = config.get('port', port)
+        alpha = config.get('alpha', alpha)
+        similarity = config.get('similarity', similarity)
+        format = config.get('format', format)
+        output = config.get('output', output)
+        tokenizer = config.get('tokenizer', tokenizer)
+        database = config.get('database', database)
+        install = config.get('install', install)
+        mode = config.get('mode', mode)
+        extra = config.get('extra', extra)
 
-    if install:
-        f.install(install)
+    # Port embedded with 'host' parameter has priority over 'port'
+    if host:
+        host, _port = parse_address(host)
+        if _port:
+            port = _port
 
-    if query:
-        print(f.match(query, outfile=output))
+    if mode == 'client':
+        f = SocketClient(Facet, host=host, port=port)
+        if query:
+            print(f.match(query, outfile=output, format=format))
+        else:
+            repl_loop(f)
     else:
-        repl_loop(f)
+        f = Facet(
+            simstring=Simstring(
+                db=database,
+                alpha=alpha,
+                similarity=similarity,
+            ),
+            tokenizer=tokenizer,
+            formatter=format,
+        )
+
+        if install:
+            print(load_configuration(extra))
+            f.install(install, **load_configuration(extra))
+
+        if mode is None:
+            if query:
+                print(f.match(query, outfile=output))
+            else:
+                repl_loop(f)
+        elif mode == 'server':
+            with SocketServer(
+                (host, port),
+                SocketServerHandler,
+                served_object=f,
+            ) as server:
+                server.serve_forever()
     f.close()
 
 
@@ -183,6 +247,7 @@ def match(
 @click.option(
     '-c', '--config',
     type=str,
+    callback=partial(facet_config, keys='FACET.umls'),
     help='Configuration file.',
 )
 @click.option(
@@ -191,8 +256,22 @@ def match(
     help='Query string/directory/file.',
 )
 @click.option(
+    '-h', '--host',
+    type=str,
+    default='localhost',
+    show_default=True,
+    help='Server host.',
+)
+@click.option(
+    '-p', '--port',
+    type=click.IntRange(1024, 65535),
+    default=4444,
+    show_default=True,
+    help='Server port.',
+)
+@click.option(
     '-a', '--alpha',
-    type=float,
+    type=click.IntRange(0, 1),
     default=0.7,
     show_default=True,
     help='Similarity threshold.',
@@ -201,7 +280,7 @@ def match(
     '-s', '--similarity',
     type=click.Choice(('dice', 'exact', 'cosine', 'jaccard', 'overlap',
                        'hamming')),
-    default='cosine',
+    default='jaccard',
     show_default=True,
     help='Similarity measure.',
 )
@@ -248,9 +327,21 @@ def match(
     show_default=True,
     help='Database for CUI-STY mapping.',
 )
+@click.option(
+    '-m', '--mode',
+    type=click.Choice(('server', 'client')),
+    help='Run as a server.',
+)
+@click.option(
+    '-x', '--extra',
+    type=str,
+    help='Pairs of key=value to pass as **kwargs to install().',
+)
 def umls(
     config,
     query,
+    host,
+    port,
     alpha,
     similarity,
     format,
@@ -260,26 +351,70 @@ def umls(
     install,
     conso_db,
     cuisty_db,
+    mode,
+    extra
 ):
-    f = UMLSFacet(
-        conso_db=conso_db,
-        cuisty_db=cuisty_db,
-        simstring=Simstring(db=database, alpha=alpha, similarity=similarity),
-        tokenizer=tokenizer,
-        formatter=format,
-    )
+    """Run UMLS FACET."""
+    if config:
+        query = config.get('query', query)
+        host = config.get('host', host)
+        port = config.get('port', port)
+        alpha = config.get('alpha', alpha)
+        similarity = config.get('similarity', similarity)
+        format = config.get('format', format)
+        output = config.get('output', output)
+        tokenizer = config.get('tokenizer', tokenizer)
+        database = config.get('database', database)
+        install = config.get('install', install)
+        conso_db = config.get('conso_db', conso_db)
+        cuisty_db = config.get('cuisty_db', cuisty_db)
+        mode = config.get('mode', mode)
+        extra = config.get('extra', extra)
 
-    if install:
-        f.install(install)
+    # Port embedded with 'host' parameter has priority over 'port'
+    if host:
+        host, _port = parse_address(host)
+        if _port:
+            port = _port
 
-    if query:
-        print(f.match(query, outfile=output))
+    if mode == 'client':
+        f = SocketClient(UMLSFacet, host=host, port=port)
+        if query:
+            print(f.match(query, outfile=output, format=format))
+        else:
+            repl_loop(f)
     else:
-        repl_loop(f)
+        f = UMLSFacet(
+            conso_db=conso_db,
+            cuisty_db=cuisty_db,
+            simstring=Simstring(
+                db=database,
+                alpha=alpha,
+                similarity=similarity,
+            ),
+            tokenizer=tokenizer,
+            formatter=format,
+        )
+
+        if install:
+            f.install(install, **load_configuration(extra))
+
+        if mode is None:
+            if query:
+                print(f.match(query, outfile=output))
+            else:
+                repl_loop(f)
+        elif mode == 'server':
+            with SocketServer(
+                (host, port),
+                SocketServerHandler,
+                served_object=f,
+            ) as server:
+                server.serve_forever()
     f.close()
 
 
-@click.command(context_settings=CONTEXT_SETTINGS)
+@click.command('stop', context_settings=CONTEXT_SETTINGS)
 @click.help_option(show_default=False)
 @click.option(
     '-h', '--host',
@@ -290,165 +425,64 @@ def umls(
 )
 @click.option(
     '-p', '--port',
-    type=int,
+    type=click.IntRange(1024, 65535),
     default=4444,
     show_default=True,
     help='Server port.',
 )
 @click.option(
-    '-c', '--config',
-    type=str,
-    help='Configuration file.',
-)
-@click.option(
-    '-a', '--alpha',
-    type=float,
-    default=0.7,
-    show_default=True,
-    help='Similarity threshold.',
-)
-@click.option(
-    '-s', '--similarity',
-    type=click.Choice(('dice', 'exact', 'cosine', 'jaccard', 'overlap',
-                       'hamming')),
-    default='cosine',
-    show_default=True,
-    help='Similarity measure.',
-)
-@click.option(
-    '-f', '--format',
-    type=click.Choice(('json', 'yaml', 'xml', 'pickle', 'csv')),
-    default=None,
-    help='Format for match results.',
-)
-@click.option(
-    '-o', '--output',
-    type=str,
-    help='Output target for match results.',
-)
-@click.option(
-    '-t', '--tokenizer',
-    type=click.Choice(('ws', 'nltk', 'spacy')),
-    default=None,
-    help='Tokenizer for text procesing.',
-)
-@click.option(
-    '-d', '--database',
-    type=click.Choice(('dict', 'redis', 'elasticsearch')),
-    default='dict',
-    show_default=True,
-    help='Database for Simstring install/query.',
-)
-@click.option(
-    '-i', '--install',
-    type=str,
-    help='Data file to install (single column file).',
-)
-@click.option(
-    '--conso_db',
-    type=click.Choice(('dict', 'redis')),
-    default='dict',
-    show_default=True,
-    help='Database for CONCEPT-CUI mapping.',
-)
-@click.option(
-    '--cuisty_db',
-    type=click.Choice(('dict', 'redis')),
-    default='dict',
-    show_default=True,
-    help='Database for CUI-STY mapping.',
-)
-def server(
-    host,
-    port,
-    config,
-    alpha,
-    similarity,
-    format,
-    output,
-    tokenizer,
-    database,
-    install,
-    conso_db,
-    cuisty_db,
-):
-    f = UMLSFacet(
-        conso_db=conso_db,
-        cuisty_db=cuisty_db,
-        simstring=Simstring(db=database, alpha=alpha, similarity=similarity),
-        tokenizer=tokenizer,
-        formatter=format,
-    )
-
-    if install:
-        f.install(install)
-
-    with SocketServer(
-        (host, port),
-        SocketServerHandler,
-        served_object=f,
-    ) as server:
-        server.serve_forever()
-
-
-@click.command(context_settings=CONTEXT_SETTINGS)
-@click.help_option(show_default=False)
-@click.option(
-    '-h', '--host',
-    type=str,
-    default='localhost',
-    show_default=True,
-    help='Server host.',
-)
-@click.option(
-    '-p', '--port',
+    '--fileno',
     type=int,
-    default=4444,
-    show_default=True,
-    help='Server port.',
+    help='File descriptor/number of server socket (only for local system)',
 )
 @click.option(
-    '-c', '--config',
-    type=str,
-    help='Configuration file.',
+    '--pid',
+    type=int,
+    help='Process ID of server (only for local system)',
 )
-@click.option(
-    '-q', '--query',
-    type=str,
-    help='Query string/directory/file.',
-)
-@click.option(
-    '-f', '--format',
-    type=click.Choice(('json', 'yaml', 'xml', 'pickle', 'csv')),
-    default=None,
-    help='Format for match results.',
-)
-@click.option(
-    '-o', '--output',
-    type=str,
-    help='Output target for match results.',
-)
-def client(
-    host,
-    port,
-    config,
-    query,
-    format,
-    output,
-):
-    f = SocketClient(UMLSFacet, host=host, port=port)
-    if query:
-        print(f.match(query, outfile=output, format=format))
-    else:
-        repl_loop(f)
-    f.close()
+def stop_server(host, port, fileno, pid):
+    """Stop network server."""
+    if pid:
+        os.kill(pid, signal.SIGKILL)
+    elif fileno:
+        if sys.version_info < (3, 7):
+            print('To close server socket with file descriptor/number'
+                  'requires at least Python 3.7')
+        else:
+            try:
+                socket.close(fileno)
+            except OSError as ex:
+                print('failed to close server socket:', ex, file=sys.stderr)
+    elif host:
+        # Port embedded with 'host' parameter has priority over 'port'
+        host, _port = parse_address(host)
+        if _port:
+            port = _port
+
+        client = socket.socket(
+            family=socket.AF_INET,
+            type=socket.SOCK_STREAM | socket.SOCK_CLOEXEC,
+        )
+        try:
+            client.connect((host, port))
+            try:
+                client.sendall(b'shutdown')
+            except OSError as ex:
+                print('failed to send shutdown command to server:', ex,
+                      file=sys.stderr)
+        except OSError as ex:
+            print('failed to connect to server:', ex, file=sys.stderr)
+        finally:
+            try:
+                client.close()
+            except OSError as ex:
+                print('failed to close client socket:', ex, file=sys.stderr)
 
 
 # Organize groups and commands
 cli.add_command(match)
 cli.add_command(umls)
-cli.add_command(server)
-cli.add_command(client)
+cli.add_command(stop_server)
 
 
 def main():

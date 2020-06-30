@@ -217,10 +217,10 @@ class BaseFacet(ABC):
                 database.
 
         Kwargs:
-            Options passed directly to 'load_data()' function and '_dump_*()'
-            method via `_install`.
+            Options passed directly to '*load_data()' function method via
+                `_install()`.
         """
-        # Clear databases
+        # Clear Simstring database
         if overwrite:
             if self._simstring is not None and self._simstring.db is not None:
                 self._simstring.db.clear()
