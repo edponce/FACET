@@ -1,0 +1,56 @@
+Facet:
+    class: Facet
+    simstring:
+        class: simstring
+        db:
+            class: dict
+            db: db/umls_midsmall
+            flag: r
+        cache_db: null
+        alpha: 0.7
+        similarity: cosine
+        ngram: character
+    tokenizer: ws
+    formatter: json
+
+UMLSFacet:
+    class: UMLSFacet
+    conso_db:
+        class: redis
+        host: localhost
+        port: 6379
+        db: 0
+        serializer: json
+    cuisty_db:
+        class: redis
+        host: localhost
+        port: 6379
+        db: 1
+        serializer: json
+        # serializer:
+        #     class: json
+        #     encoding: utf-8
+        #     form: NFKD
+
+    simstring:
+        class: simstring
+        db:
+            class: dict
+            db: db/umls_midsmall
+            flag: r
+        cache_db: null
+        alpha: 0.7
+        similarity: cosine
+        ngram: character
+        # ngram:
+        #     class: character
+        #     n: 3
+        #     boundary: " "
+    tokenizer: ws
+    # tokenizer:
+    #     class: nltk
+    #     language: english
+    # tokenizer:
+    #     class: spacy
+    #     language: en
+    formatter: json
