@@ -123,7 +123,7 @@ class BaseFacet(ABC):
         # NOTE: The following default values are based on the corresponding
         # function/method call using them.
         format: str = '',
-        outfile: str = None,
+        output: str = None,
         corpus_kwargs: Dict[str, Any] = {},
         **kwargs,
     ) -> Dict[str, List[List[Dict[str, Any]]]]:
@@ -144,7 +144,7 @@ class BaseFacet(ABC):
             format (str): Formatting mode for match results. Valid values
                 are: 'json', 'xml', 'pickle', 'csv'.
 
-            outfile (str): Output file for match results.
+            output (str): Output file for match results.
 
             corpus_kwargs (Dict[str, Any]): Options passed directly to
                 `corpus_generator`.
@@ -205,7 +205,7 @@ class BaseFacet(ABC):
             if format == ''
             else formatter_map[format]()
         )
-        return formatter(matches, outfile=outfile)
+        return formatter(matches, output=output)
 
     def install(self, data, *, overwrite: bool = True, **kwargs):
         """Install data into Simstring database.

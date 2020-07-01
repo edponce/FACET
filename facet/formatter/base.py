@@ -20,14 +20,14 @@ class BaseFormatter(ABC):
         self,
         data: Dict[str, List[List[Dict[str, Any]]]],
         *,
-        outfile: str = None,
+        output: str = None,
     ) -> Any:
         formatted_data = self._format(data)
 
-        if outfile is None:
+        if output is None:
             return formatted_data
 
-        with open(outfile, 'w') as fd:
+        with open(output, 'w') as fd:
             # NOTE: Explicit conversion to string, if format is None we
             # want to return the data as is and be able to write to file.
             fd.write(str(formatted_data))

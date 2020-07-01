@@ -209,7 +209,7 @@ def match(
     if mode == 'client':
         f = SocketClient(Facet, host=host, port=port)
         if query:
-            print(f.match(query, outfile=output, format=format))
+            print(f.match(query, output=output, format=format))
         else:
             repl_loop(f)
     else:
@@ -224,12 +224,11 @@ def match(
         )
 
         if install:
-            print(load_configuration(extra))
             f.install(install, **load_configuration(extra))
 
         if mode is None:
             if query:
-                print(f.match(query, outfile=output))
+                print(f.match(query, output=output))
             else:
                 repl_loop(f)
         elif mode == 'server':
@@ -380,7 +379,7 @@ def umls(
     if mode == 'client':
         f = SocketClient(UMLSFacet, host=host, port=port)
         if query:
-            print(f.match(query, outfile=output, format=format))
+            print(f.match(query, output=output, format=format))
         else:
             repl_loop(f)
     else:
@@ -401,7 +400,7 @@ def umls(
 
         if mode is None:
             if query:
-                print(f.match(query, outfile=output))
+                print(f.match(query, output=output))
             else:
                 repl_loop(f)
         elif mode == 'server':
