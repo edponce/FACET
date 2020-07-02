@@ -19,6 +19,7 @@ from ..network import (
     SocketServer,
     SocketServerHandler,
 )
+from .. import FacetFactory
 
 
 CONTEXT_SETTINGS = {
@@ -32,9 +33,9 @@ CONTEXT_SETTINGS = {
 }
 
 
-def facet_config(ctx, param, value, keys=None):
+def facet_config(ctx, param, value, key=None):
     """Set up configuration."""
-    return load_configuration(value, keys=keys)
+    return load_configuration(value, keys=key)
 
 
 def repl_loop(f, enable_cmds=True):
@@ -95,7 +96,7 @@ def cli():
 @click.option(
     '-c', '--config',
     type=str,
-    callback=partial(facet_config, keys='FACET.match'),
+    callback=partial(facet_config, key='match'),
     help='Configuration file.',
 )
 @click.option(
@@ -119,7 +120,7 @@ def cli():
 )
 @click.option(
     '-a', '--alpha',
-    type=click.IntRange(0, 1),
+    type=float,
     default=0.7,
     show_default=True,
     help='Similarity threshold.',
@@ -133,7 +134,7 @@ def cli():
     help='Similarity measure.',
 )
 @click.option(
-    '-f', '--format',
+    '-f', '--formatter',
     type=click.Choice(('json', 'yaml', 'xml', 'pickle', 'csv')),
     default=None,
     help='Format for match results.',
@@ -145,7 +146,7 @@ def cli():
 )
 @click.option(
     '-t', '--tokenizer',
-    type=click.Choice(('ws', 'nltk', 'spacy')),
+    type=click.Choice(('simple', 'ws', 'nltk', 'spacy')),
     default=None,
     help='Tokenizer for text procesing.',
 )
@@ -178,7 +179,7 @@ def match(
     port,
     alpha,
     similarity,
-    format,
+    formatter,
     output,
     tokenizer,
     database,
@@ -186,19 +187,27 @@ def match(
     mode,
     extra,
 ):
-    if config:
-        query = config.get('query', query)
-        host = config.get('host', host)
-        port = config.get('port', port)
-        alpha = config.get('alpha', alpha)
-        similarity = config.get('similarity', similarity)
-        format = config.get('format', format)
-        output = config.get('output', output)
-        tokenizer = config.get('tokenizer', tokenizer)
-        database = config.get('database', database)
-        install = config.get('install', install)
-        mode = config.get('mode', mode)
-        extra = config.get('extra', extra)
+    factory_config = {}
+    factory_config['class'] = config.pop('class', 'facet')
+    factory_config['tokenizer'] = config.pop('tokenizer', tokenizer)
+    factory_config['formatter'] = config.pop('formatter', formatter)
+    factory_config['simstring'] = config.pop('simstring', {
+        'class': 'simstring',
+        'db': config.pop('database', database),
+        'alpha': config.pop('alpha', alpha),
+        'similarity': config.pop('similarity', similarity),
+    })
+
+    query = config.pop('query', query)
+    host = config.pop('host', host)
+    port = config.pop('port', port)
+    output = config.pop('output', output)
+    install = config.pop('install', install)
+    mode = config.pop('mode', mode)
+    extra = config.pop('extra', extra)
+
+    if len(config) > 0:
+        raise ValueError(f'too many configuration parameters, {config}')
 
     # Port embedded with 'host' parameter has priority over 'port'
     if host:
@@ -209,19 +218,16 @@ def match(
     if mode == 'client':
         f = SocketClient(Facet, host=host, port=port)
         if query:
-            print(f.match(query, output=output, format=format))
+            print(f.match(
+                query,
+                output=output,
+                format=factory_config['formatter'],
+            ))
         else:
             repl_loop(f)
     else:
-        f = Facet(
-            simstring=Simstring(
-                db=database,
-                alpha=alpha,
-                similarity=similarity,
-            ),
-            tokenizer=tokenizer,
-            formatter=format,
-        )
+        factory = FacetFactory(factory_config)
+        f = factory.create()
 
         if install:
             f.install(install, **load_configuration(extra))
@@ -246,7 +252,7 @@ def match(
 @click.option(
     '-c', '--config',
     type=str,
-    callback=partial(facet_config, keys='FACET.umls'),
+    callback=partial(facet_config, key='umls'),
     help='Configuration file.',
 )
 @click.option(
@@ -270,7 +276,7 @@ def match(
 )
 @click.option(
     '-a', '--alpha',
-    type=click.IntRange(0, 1),
+    type=float,
     default=0.7,
     show_default=True,
     help='Similarity threshold.',
@@ -284,7 +290,7 @@ def match(
     help='Similarity measure.',
 )
 @click.option(
-    '-f', '--format',
+    '-f', '--formatter',
     type=click.Choice(('json', 'yaml', 'xml', 'pickle', 'csv')),
     default=None,
     help='Format for match results.',
@@ -296,7 +302,7 @@ def match(
 )
 @click.option(
     '-t', '--tokenizer',
-    type=click.Choice(('ws', 'nltk', 'spacy')),
+    type=click.Choice(('simple', 'ws', 'nltk', 'spacy')),
     default=None,
     help='Tokenizer for text procesing.',
 )
@@ -343,7 +349,7 @@ def umls(
     port,
     alpha,
     similarity,
-    format,
+    formatter,
     output,
     tokenizer,
     database,
@@ -354,21 +360,29 @@ def umls(
     extra
 ):
     """Run UMLS FACET."""
-    if config:
-        query = config.get('query', query)
-        host = config.get('host', host)
-        port = config.get('port', port)
-        alpha = config.get('alpha', alpha)
-        similarity = config.get('similarity', similarity)
-        format = config.get('format', format)
-        output = config.get('output', output)
-        tokenizer = config.get('tokenizer', tokenizer)
-        database = config.get('database', database)
-        install = config.get('install', install)
-        conso_db = config.get('conso_db', conso_db)
-        cuisty_db = config.get('cuisty_db', cuisty_db)
-        mode = config.get('mode', mode)
-        extra = config.get('extra', extra)
+    factory_config = {}
+    factory_config['class'] = config.pop('class', 'umlsfacet')
+    factory_config['tokenizer'] = config.pop('tokenizer', tokenizer)
+    factory_config['formatter'] = config.pop('formatter', formatter)
+    factory_config['conso_db'] = config.pop('conso_db', conso_db)
+    factory_config['cuisty_db'] = config.pop('cuisty_db', cuisty_db)
+    factory_config['simstring'] = config.pop('simstring', {
+        'class': 'simstring',
+        'db': config.pop('database', database),
+        'alpha': config.pop('alpha', alpha),
+        'similarity': config.pop('similarity', similarity),
+    })
+
+    query = config.pop('query', query)
+    host = config.pop('host', host)
+    port = config.pop('port', port)
+    output = config.pop('output', output)
+    install = config.pop('install', install)
+    mode = config.pop('mode', mode)
+    extra = config.pop('extra', extra)
+
+    if len(config) > 0:
+        raise ValueError(f'too many configuration parameters, {config}')
 
     # Port embedded with 'host' parameter has priority over 'port'
     if host:
@@ -379,21 +393,16 @@ def umls(
     if mode == 'client':
         f = SocketClient(UMLSFacet, host=host, port=port)
         if query:
-            print(f.match(query, output=output, format=format))
+            print(f.match(
+                query,
+                output=output,
+                format=factory_config['formatter'],
+            ))
         else:
             repl_loop(f)
     else:
-        f = UMLSFacet(
-            conso_db=conso_db,
-            cuisty_db=cuisty_db,
-            simstring=Simstring(
-                db=database,
-                alpha=alpha,
-                similarity=similarity,
-            ),
-            tokenizer=tokenizer,
-            formatter=format,
-        )
+        factory = FacetFactory(factory_config)
+        f = factory.create()
 
         if install:
             f.install(install, **load_configuration(extra))

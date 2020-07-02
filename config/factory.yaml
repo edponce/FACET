@@ -1,20 +1,20 @@
-Facet:
-    class: Facet
+FACET:
+    class: facet
     simstring:
         class: simstring
         db:
-            class: dict 
+            class: dict
             db: db/umls_midsmall
             flag: r
         cache_db: null
         alpha: 0.7
-        similarity: cosine
+        similarity: jaccard
         ngram: character
     tokenizer: ws
     formatter: json
 
 UMLSFacet:
-    class: UMLSFacet
+    class: umlsfacet
     conso_db:
         class: redis
         host: localhost
@@ -40,7 +40,7 @@ UMLSFacet:
             flag: r
         cache_db: null
         alpha: 0.7
-        similarity: cosine
+        similarity: jaccard
         ngram: character
         # ngram:
         #     class: character
