@@ -1,0 +1,106 @@
+FacetDict:
+    class: facet
+    simstring:
+        class: simstring
+        db:
+            class: dict
+            db: db/simstring
+            # flag: r
+        cache_db: null
+        alpha: 0.7
+        similarity: cosine
+        ngram: character
+        # ngram:
+        #     class: character
+        #     n: 3
+        #     boundary: " "
+        # serializer: json
+        # serializer:
+        #     class: json
+        #     encoding: utf-8
+        #     form: NFKD
+    tokenizer: ws
+    # tokenizer:
+    #     class: nltk
+    #     language: english
+    # tokenizer:
+    #     class: spacy
+    #     language: en
+    formatter: json
+    # install:
+    #     data: data/umls_midsmall/MRCONSO.RRF
+    #     overwrite: False
+    #     delimiter: "|"
+    #     cols: 14
+
+
+UMLSRedis:
+    class: umlsfacet
+    conso_db:
+        class: redis
+        host: localhost
+        port: 6379
+        db: 0
+        serializer: json
+    cuisty_db:
+        class: redis
+        host: localhost
+        port: 6379
+        db: 1
+        serializer: json
+    simstring:
+        class: simstring
+        db:
+            class: dict
+            db: db/simstring
+            # flag: r
+        cache_db: null
+        alpha: 0.7
+        similarity: cosine
+        ngram: character
+    tokenizer: ws
+    formatter: json
+    # install: data/umls_midsmall
+
+
+UMLSSQL:
+    class: umlsfacet
+    conso_db:
+        class: sqlite
+        table: test
+        db: db/conso.db
+        serializer: json
+    simstring:
+        class: simstring
+        db:
+            class: dict
+            db: db/simstring
+            # flag: r
+        alpha: 0.7
+        similarity: cosine
+    tokenizer: ws
+    formatter: json
+    # install: data/umls_midsmall
+
+
+UMLSRedisOnly:
+    class: umlsfacet
+    conso_db:
+        class: redis
+        host: localhost
+        port: 6379
+        db: 0
+        serializer: json
+    simstring:
+        class: simstring
+        db:
+            class: redis
+            host: localhost
+            port: 6379
+            db: 2
+            serializer: json
+        alpha: 0.7
+        similarity: cosine
+    tokenizer: ws
+    formatter: json
+    # install: data/umls_midsmall

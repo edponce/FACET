@@ -1,1 +1,0 @@
-from .facet import UMLSFacet

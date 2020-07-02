@@ -115,6 +115,8 @@ class RedisDatabase(BaseDatabase):
             raise ValueError(f'invalid serializer, {value}')
         self._serializer = obj
 
+    # NOTE: We should be able to remove this because BaseDatabase.__iter__
+    # invokes _keys()
     def __iter__(self):
         return map(lambda key: key.decode(), self._db.scan_iter())
 
