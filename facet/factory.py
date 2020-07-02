@@ -1,3 +1,5 @@
+import copy
+from .base import BaseFacet
 from .facet import Facet
 from .umls import UMLSFacet
 from .formatter import formatter_map
@@ -11,6 +13,7 @@ from .utils import load_configuration
 from typing import (
     Any,
     Dict,
+    Union,
 )
 
 
@@ -18,12 +21,12 @@ __all__ = ['FacetFactory']
 
 
 facet_map = {
-    'Facet': Facet,
-    'UMLSFacet': UMLSFacet,
+    None: Facet,  # default
+    'facet': Facet,
+    'umlsfacet': UMLSFacet,
 }
 
-
-SETTING_MAP = {
+OBJTYPE_CLASSMAP_MAP = {
     'tokenizer': tokenizer_map,
     'formatter': formatter_map,
     'database': database_map,
@@ -33,92 +36,93 @@ SETTING_MAP = {
     'serializer': serializer_map,
 }
 
-CLASS_LABEL = 'class'
-OBJ_TYPE_LABEL = 'class'
+# NOTE: For all classes, map parameter names that support objects to
+# their associated object type. If the OBJ_CLASS_LABEL exists as an attribute
+# then it is considered as an object. Only parameters that have a different
+# name from the object type are listed here.
+PARAM_OBJTYPE_MAP = {
+    'db': 'database',         # Simstring database
+    'cache_db': 'database',   # Simstring cache database
+    'cuisty_db': 'database',  # (UMLSFacet) CUI-STY database
+    'conso_db': 'database',   # (UMLSFacet) CONCEPT-CUI database
+}
 
 
 class FacetFactory:
     """Generate a FACET instance from a given configuration."""
 
-    def __init__(self, config: str, *, key: str = None):
-        _config = load_configuration(config, keys=key)
-        if key is None and ':' not in config:
-            if _config:
-                if len(_config) > 1:
-                    raise ValueError('configuration has too many sections, '
-                                     'specify key or use single-section')
+    def __init__(
+        self,
+        config: Union[str, Dict[str, Any]],
+        *,
+        section: str = None,
+        # Configuration keyword used to specify classes
+        class_label: str = 'class',
+    ):
+        if isinstance(config, str) and ':' in config:
+            config, section = config.split(':')
+        self._config = load_configuration(config, keys=section)
+        self._OBJ_CLASS_LABEL = class_label
 
-                _config = _config[list(_config.keys())[0]]
+    def create(self) -> 'BaseFacet':
+        """Create a new FACET instance."""
+        if self._config:
+            # NOTE: Copy configuration because '_parse_config()' modifies it.
+            config = copy.deepcopy(self._config)
 
-        factory_settings = self._facet(_config)
-        if _config[CLASS_LABEL] == 'UMLSFacet':
-            factory_settings.update(self._umlsfacet(_config))
-
-        self._config = _config
-        self._factory_settings = factory_settings
-
-    def create(self):
-        return facet_map[self._config[CLASS_LABEL]](**self._factory_settings)
+        obj_class = (
+            config.pop(self._OBJ_CLASS_LABEL).lower()
+            if self._OBJ_CLASS_LABEL in config
+            else None
+        )
+        return facet_map[obj_class](**self._parse_config(config))
 
     __call__ = create
 
-    def _resolve_setting(self, key, config: Dict[str, Any], *, map_key=None):
-        # This method performs operation similar to:
-        #
-        # if 'cuisty_db' in config:
-        #     cls = config['cuisty_db'].pop('class')
-        #     db = database_map[cls.lower()](**config['cuisty_db'])
-        #     factory_settings['cuisty_db'] = db
+    def create_generic(self) -> Any:
+        """Create a new instance of any FACET-related classes."""
+        # NOTE: Copy configuration because '_parse_config()' modifies it.
+        if self._config:
+            config = copy.deepcopy(self._config)
+        objs = [v for k, v in self._parse_config(config).items()]
+        return objs if len(objs) > 1 else objs[0]
 
-        setting = {}
-        if key in config:
-            _config = config[key]
+    def _parse_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Recusively parse a configuration map."""
+        factory_config = {}
+        for k, v in config.items():
+            # It is an object, with class and parameters
+            if isinstance(v, dict):
+                # If parameter is a dictionary not representing an object.
+                if self._OBJ_CLASS_LABEL in v:
+                    # NOTE: If a parameter name matches a key in
+                    # PARAM_OBJTYPE_MAP but it is not actually an
+                    # object-based parameter.
+                    obj_type = PARAM_OBJTYPE_MAP.get(k, k)
+                    obj_class = v.pop(self._OBJ_CLASS_LABEL).lower()
+                    if (
+                        obj_type in OBJTYPE_CLASSMAP_MAP
+                        and obj_class in OBJTYPE_CLASSMAP_MAP[obj_type]
+                    ):
+                        obj_params = self._parse_config(v)
+                        v = OBJTYPE_CLASSMAP_MAP[obj_type][obj_class](
+                            **obj_params
+                        )
+                else:
+                    v = self._parse_config(v)
 
-            # NOTE: Only resolve parameters that support objects, either via
-            # a map or an instance (or None).
-            if _config is None:
-                tok = None
-            elif isinstance(_config, str):
-                tok = _config.lower()
-            elif isinstance(_config, dict):
-                cls = _config.pop(OBJ_TYPE_LABEL)
-                map_key = key if map_key is None else map_key
-                tok = SETTING_MAP[map_key][cls.lower()](**_config)
-            else:
-                raise ValueError(f'invalid configuration type, {_config}')
-            setting[key] = tok
-        return setting
+            # It is an object, by default
+            elif isinstance(v, str):
+                # NOTE: If a parameter name matches a key in
+                # PARAM_OBJTYPE_MAP but it is not actually an
+                # object-based parameter.
+                obj_type = PARAM_OBJTYPE_MAP.get(k, k)
+                obj_class = v.lower()
+                if (
+                    obj_type in OBJTYPE_CLASSMAP_MAP
+                    and obj_class in OBJTYPE_CLASSMAP_MAP[obj_type]
+                ):
+                    v = OBJTYPE_CLASSMAP_MAP[obj_type][obj_class]()
 
-    def _facet(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        factory_settings = {}
-        if 'simstring' in config:
-            for key in ('db', 'cache_db'):
-                config['simstring'].update(self._resolve_setting(
-                    key,
-                    config['simstring'],
-                    map_key='database',
-                ))
-            for key in ('similarity', 'ngram'):
-                config['simstring'].update(self._resolve_setting(
-                    key,
-                    config['simstring'],
-                ))
-
-        for key in ('simstring', 'tokenizer', 'formatter'):
-            factory_settings.update(self._resolve_setting(key, config))
-        return factory_settings
-
-    def _umlsfacet(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        factory_settings = {}
-        for key in ('conso_db', 'cuisty_db'):
-            if key in config:
-                config[key].update(self._resolve_setting(
-                    'serializer',
-                    config[key],
-                ))
-            factory_settings.update(self._resolve_setting(
-                key,
-                config,
-                map_key='database',
-            ))
-        return factory_settings
+            factory_config[k] = v
+        return factory_config

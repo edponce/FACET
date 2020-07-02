@@ -3,7 +3,7 @@ Facet:
     simstring:
         class: simstring
         db:
-            class: dict
+            class: dict 
             db: db/umls_midsmall
             flag: r
         cache_db: null
