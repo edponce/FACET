@@ -1,6 +1,6 @@
 import os
 import sqlite3
-# from .base import BaseDatabase
+from .base import BaseDatabase
 from ..serializer import (
     serializer_map,
     BaseSerializer,
@@ -20,7 +20,7 @@ from typing import (
 __all__ = ['SQLiteDatabase']
 
 
-class SQLiteDatabase:
+class SQLiteDatabase(BaseDatabase):
     """SQLite database interface.
 
     Args:
@@ -62,12 +62,10 @@ class SQLiteDatabase:
             db_dir = os.path.abspath(db_dir) if db_dir else os.getcwd()
             os.makedirs(db_dir, exist_ok=True)
             db_name = db
-            master_table = 'sqlite_master'
             persistent = True
         else:
             # In-memory database
             db_name = ':memory:'
-            master_table = 'sqlite_temp_master'
             persistent = False
 
         self._name = db_name
@@ -171,12 +169,12 @@ class SQLiteDatabase:
         value = cur.fetchone()
         return self._serializer.loads(value[0]) if value is not None else value
 
-    # def mget(self, keys):
-    #     cur = self._db.executemany(
-    #         f"SELECT value FROM {self._table} "
-    #         "WHERE key=(?)", keys
-    #     )
-    #     return cur.fetchall()
+    def mget(self, keys):
+        cur = self._db.execute(
+            f"SELECT value FROM {self._table} "
+            "WHERE key in ({})".format(', '.join('?' for _ in keys)), keys
+        )
+        return list(map(lambda x: x[0], cur.fetchall()))
 
     def set(self, key, value, **kwargs):
         cur = self._db.execute(
@@ -184,7 +182,9 @@ class SQLiteDatabase:
             "VALUES (?, ?)", (key, self._serializer.dumps(value))
         )
 
-    # def _mset(self, mapping, **kwargs):
+    def mset(self, mapping, **kwargs):
+        pass
+    # def mset(self, mapping, **kwargs):
     #     _mapping = {}
     #     for key, value in mapping.items():
     #         value = self._resolve_set(key, value, **kwargs)
@@ -192,18 +192,7 @@ class SQLiteDatabase:
     #             _mapping[key] = self._serializer.dumps(value)
     #     if len(_mapping) > 0:
     #         self._dbp.mset(_mapping)
-    #
-    # def _hset(self, key, field, value, **kwargs):
-    #     value = self._resolve_hset(key, field, value, **kwargs)
-    #     if value is not None:
-    #         value = self._serializer.dumps(value)
-    #         try:
-    #             self._dbp.hset(key, field, value)
-    #         except redis.exceptions.ResponseError:
-    #             # NOTE: Assume key is not a hash name.
-    #             self._delete([key])
-    #             self._dbp.hset(key, field, value)
-    #
+
     def keys(self):
         cur = self._db.execute(f"SELECT key FROM {self._table}")
         return map(lambda row: row[0], cur)
@@ -228,8 +217,67 @@ class SQLiteDatabase:
         self._db.close()
 
     def clear(self):
-        self._db.execute(f"DROP TABLE IF EXISTS {self._table}")
+        # NOTE: Delete table vs. delete all rows. The former triggers error
+        # during 'Facet._install()'.
+        # self._db.execute(f"DROP TABLE IF EXISTS {self._table}")
+        self._db.execute(f"DELETE FROM {self._table}")
 
     def set_pipe(self, pipe: bool) -> NoReturn:
         """Enable/disable pipeline mode."""
+        pass
+
+    # ABSTRACT METHODS (Delete)
+    _get = get
+    _mget = mget
+
+    def _hget(self, key: str, field: str) -> Union[List[Any], None]:
+        pass
+
+    def _hmget(
+        self,
+        key: str,
+        fields: Iterable[str]
+    ) -> List[Union[List[Any], None]]:
+        pass
+
+    _set = set
+    _mset = mset
+
+    def _hset(
+        self, key: str, field: str, value: Any, *,
+        replace=None, unique=False,
+    ) -> NoReturn:
+        pass
+
+    def _hmset(
+        self, key: str, mapping: Dict[str, Any], *,
+        replace=None, unique=False,
+    ) -> NoReturn:
+        pass
+
+    _keys = keys
+
+    def _hkeys(self, key: str) -> List[str]:
+        pass
+
+    _len = __len__
+
+    def _hlen(self, key: str) -> int:
+        """Return number of fields in hash map.
+        If key is not a hash name, then return 0
+        If key does not exists, then return 0.
+        """
+        pass
+
+    _exists = exists
+
+    def _hexists(self, key: str, field: str) -> bool:
+        """Check existence of a hash name.
+        If key is not a hash name, then return false.
+        """
+        pass
+
+    _delete = delete
+
+    def _hdelete(self, key: str, fields: Iterable[str]) -> NoReturn:
         pass

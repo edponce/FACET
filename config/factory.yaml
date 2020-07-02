@@ -1,4 +1,4 @@
-FACET:
+Facet:
     class: facet
     simstring:
         class: simstring
@@ -53,4 +53,16 @@ UMLSFacet:
     # tokenizer:
     #     class: spacy
     #     language: en
+    formatter: json
+
+SQL:
+    class: umlsfacet
+    conso_db:
+        class: sqlite
+        table: test
+        db: test.db
+        serializer: json
+    cuisty_db: None
+    simstring: simstring
+    tokenizer: ws
     formatter: json
