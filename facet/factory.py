@@ -1,7 +1,5 @@
 import copy
-from .base import BaseFacet
-from .facet import Facet
-from .umls import UMLSFacet
+from .facets import facet_map
 from .formatter import formatter_map
 from .tokenizer import tokenizer_map
 from .database import database_map
@@ -18,13 +16,6 @@ from typing import (
 
 
 __all__ = ['FacetFactory']
-
-
-facet_map = {
-    None: Facet,  # default
-    'facet': Facet,
-    'umlsfacet': UMLSFacet,
-}
 
 
 class FacetFactory:
@@ -63,7 +54,7 @@ class FacetFactory:
     ):
         self._config = load_configuration(config, keys=section)
 
-    def create(self) -> 'BaseFacet':
+    def create(self):
         """Create a new FACET instance."""
         if self._config:
             # NOTE: Copy configuration because '_parse_config()' modifies it.
@@ -92,7 +83,7 @@ class FacetFactory:
         for k, v in config.items():
             # It is an object, with class and parameters
             if isinstance(v, dict):
-                # If parameter is a dictionary not representing an object.
+                # If parameter is a dictionary representing an object.
                 if type(self).OBJ_CLASS_LABEL in v:
                     # NOTE: If a parameter name matches a key in
                     # PARAM_OBJTYPE_MAP but it is not actually an

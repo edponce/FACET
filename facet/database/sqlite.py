@@ -24,6 +24,8 @@ class SQLiteDatabase(BaseDatabase):
     """SQLite database interface.
 
     Args:
+        table (str): Name of database table.
+
         db (str): Path representing database directory and name for persistent
             database. The path is created if it does not exists. The
             database name is used as prefix for database files. If None or

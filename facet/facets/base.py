@@ -2,17 +2,17 @@ import time
 import collections
 # NOTE: Add multiprocessing
 # import multiprocessing
-from .utils import corpus_generator
+from ..utils import corpus_generator
 from unidecode import unidecode
-from .simstring import (
+from ..simstring import (
     simstring_map,
     BaseSimstring,
 )
-from .tokenizer import (
+from ..tokenizer import (
     tokenizer_map,
     BaseTokenizer,
 )
-from .formatter import (
+from ..formatter import (
     formatter_map,
     BaseFormatter,
 )
@@ -68,7 +68,7 @@ class BaseFacet(ABC):
         self._tokenizer = None
         self._formatter = None
 
-        self._set_simstring(simstring)
+        self.simstring = simstring
         self.tokenizer = tokenizer
         self.formatter = formatter
 
@@ -76,7 +76,8 @@ class BaseFacet(ABC):
     def simstring(self):
         return self._simstring
 
-    def _set_simstring(self, value: Union[str, 'BaseSimstring']):
+    @simstring.setter
+    def simstring(self, value: Union[str, 'BaseSimstring']):
         if isinstance(value, str):
             obj = simstring_map[value]()
         elif isinstance(value, BaseSimstring):
@@ -221,9 +222,8 @@ class BaseFacet(ABC):
                 `_install()`.
         """
         # Clear Simstring database
-        if overwrite:
-            if self._simstring is not None and self._simstring.db is not None:
-                self._simstring.db.clear()
+        if overwrite and self._simstring is not None:
+            self._simstring.db.clear()
         self._install(data, overwrite=overwrite, **kwargs)
 
     def close(self):

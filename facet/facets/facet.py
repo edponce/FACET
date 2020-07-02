@@ -1,5 +1,5 @@
 import time
-from .utils import iload_data
+from ..utils import iload_data
 from .base import BaseFacet
 from unidecode import unidecode
 from typing import (
@@ -7,6 +7,8 @@ from typing import (
     List,
     Dict,
     Tuple,
+    Union,
+    Iterable,
 )
 
 
@@ -24,23 +26,35 @@ if PROFILE:
 class Facet(BaseFacet):
     """FACET text matcher."""
 
-    def _install(self, data_file: str, *, overwrite: bool = True, **kwargs):
+    def _install(
+        self,
+        data_file: str,
+        *,
+        overwrite: bool = True,
+        cols: Union[int, Iterable[int]] = 0,
+        **kwargs,
+    ):
         """
         Args:
             data_file (str): File with data to install.
 
+            overwrite (bool): Not used, conforms with 'BaseFacet' API.
+
         Kwargs:
             Options passed directly to '*load_data()' function.
         """
+        # Prepare 'keys' parameter as an iterable for 'load_data()'
+        if isinstance(cols, (str, int)):
+            cols = (cols,)
+
         t1 = time.time()
 
         print('Loading/parsing data...')
         start = time.time()
-        keys = kwargs.pop('keys', (0,))
         data = iload_data(
             data_file,
-            keys=keys,
-            converters={keys[0]: [unidecode, str.lower]},
+            keys=cols,
+            converters={cols[0]: [unidecode, str.lower]},
             **kwargs,
         )
         curr_time = time.time()

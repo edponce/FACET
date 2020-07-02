@@ -11,8 +11,10 @@ __all__ = []
 
 
 from .factory import FacetFactory
-from .facet import Facet
-from .umls import UMLSFacet
+from .facets import (
+    Facet,
+    UMLSFacet,
+)
 from .formatter import (
     JSONFormatter,
     YAMLFormatter,

@@ -1,15 +1,17 @@
 import os
 import time
-from ..utils import (
-    iload_data,
-    load_data,
-)
 from unidecode import unidecode
+from ..utils import load_data
 from ..database import (
     database_map,
     BaseDatabase,
 )
-from ..base import BaseFacet
+from .base import BaseFacet
+from .umls_constants import (
+    HEADERS_MRSTY,
+    HEADERS_MRCONSO,
+    ACCEPTED_SEMTYPES,
+)
 from typing import (
     Any,
     List,
@@ -17,11 +19,6 @@ from typing import (
     Tuple,
     Union,
     Iterable,
-)
-from .constants import (
-    HEADERS_MRSTY,
-    HEADERS_MRCONSO,
-    ACCEPTED_SEMTYPES,
 )
 
 
