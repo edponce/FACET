@@ -10,7 +10,7 @@
             },
             "cache_db": null,
             "alpha": 0.7,
-            "similarity": "cosine",
+            "similarity": "jaccard",
             "ngram": "character"
         },
         "tokenizer": "ws",
@@ -41,7 +41,7 @@
             },
             "cache_db": null,
             "alpha": 0.7,
-            "similarity": "cosine",
+            "similarity": "jaccard",
             "ngram": "character"
         },
         "tokenizer": "ws",
