@@ -3,7 +3,9 @@ include *.rst
 include *.txt
 include setup.cfg
 include tox.ini
+recursive-include meta *.py
 recursive-include doc *.py *.rst Makefile
-recursive-include tests *.py
 recursive-include scripts *.sh *.py *.yaml
 recursive-include config *.cfg *.yaml *.json
+recursive-include examples *.py
+recursive-include tests *.py

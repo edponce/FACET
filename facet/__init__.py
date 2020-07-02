@@ -10,8 +10,11 @@ from meta import *
 __all__ = []
 
 
-from .facet import Facet
-from .umls import UMLSFacet
+from .factory import FacetFactory
+from .facets import (
+    Facet,
+    UMLSFacet,
+)
 from .formatter import (
     JSONFormatter,
     YAMLFormatter,
@@ -29,6 +32,7 @@ from .tokenizer import (
 from .database import (
     DictDatabase,
     RedisDatabase,
+    SQLiteDatabase,
     Elasticsearchx,
     ElasticsearchDatabase,
 )
@@ -42,8 +46,12 @@ from .serializer import (
 from .simstring import (
     Simstring,
     ElasticsearchSimstring,
+)
+from .simstring.ngram import (
     WordNgram,
     CharacterNgram,
+)
+from .simstring.similarity import (
     DiceSimilarity,
     ExactSimilarity,
     CosineSimilarity,

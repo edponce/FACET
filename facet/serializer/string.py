@@ -28,9 +28,9 @@ class StringSJSerializer(BaseSerializer):
         delimiter (str): Character to delimit strings.
     """
 
-    def __init__(self, **kwargs):
-        self._delimiter = kwargs.get('delimiter', '|')
+    def __init__(self, *, delimiter='|', **kwargs):
         super().__init__(**kwargs)
+        self._delimiter = delimiter
 
     def dumps(self, obj: Iterable[str]):
         return self.encode(self._delimiter.join(obj))
