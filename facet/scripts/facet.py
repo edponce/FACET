@@ -46,41 +46,44 @@ def repl_loop(f, enable_cmds=True):
             if query_or_option == 'exit()':
                 break
 
-            # Allow changing some options from the command prompt.
-            # An '=' symbol represents an option-value pair.
-            if '=' in query_or_option:
-                option, value = query_or_option.split('=')
-                option = option.strip()
-                value = value.strip('\'" ')
-                if option == 'alpha':
-                    f.simstring.alpha = float(value)
-                elif option == 'similarity':
-                    f.simstring.similarity = value
-                elif option == 'tokenizer':
-                    f.tokenizer = value
-                elif option == 'format':
-                    f.formatter = value
+            try:
+                # Allow changing some options from the command prompt.
+                # An '=' symbol represents an option-value pair.
+                if '=' in query_or_option:
+                    option, value = query_or_option.split('=')
+                    option = option.strip()
+                    value = value.strip('\'" ')
+                    if option == 'alpha':
+                        f.simstring.alpha = float(value)
+                    elif option == 'similarity':
+                        f.simstring.similarity = value
+                    elif option == 'tokenizer':
+                        f.tokenizer = value
+                    elif option == 'formatter':
+                        f.formatter = value
+                    else:
+                        query = query_or_option
+                        print(f.match(query))
                 else:
                     query = query_or_option
-                    print(f.match(query))
-            else:
-                query = query_or_option
-                if query == 'help()':
-                    print('Commands:')
-                    print('  alpha, similarity, tokenizer, format')
-                    print()
-                    print('Get format: cmd()')
-                    print('Set format: cmd = value')
-                elif query == 'alpha()':
-                    print(f.simstring.alpha)
-                elif query == 'similarity()':
-                    print(f.simstring.similarity)
-                elif query == 'tokenizer()':
-                    print(f.tokenizer)
-                elif query == 'format()':
-                    print(f.formatter)
-                else:
-                    print(f.match(query))
+                    if query == 'help()':
+                        print('Commands:')
+                        print('  alpha, similarity, tokenizer, formatter')
+                        print()
+                        print('Get format: cmd()')
+                        print('Set format: cmd = value')
+                    elif query == 'alpha()':
+                        print(f.simstring.alpha)
+                    elif query == 'similarity()':
+                        print(f.simstring.similarity)
+                    elif query == 'tokenizer()':
+                        print(f.tokenizer)
+                    elif query == 'formatter()':
+                        print(f.formatter)
+                    else:
+                        print(f.match(query))
+            except AttributeError:
+                print('Current mode does not supports commands')
     except (KeyboardInterrupt, EOFError):
         print()
 
@@ -393,11 +396,7 @@ def umls(
     if mode == 'client':
         f = SocketClient(UMLSFacet, host=host, port=port)
         if query:
-            print(f.match(
-                query,
-                output=output,
-                format=factory_config['formatter'],
-            ))
+            print(f.match(query, output=output))
         else:
             repl_loop(f)
     else:
