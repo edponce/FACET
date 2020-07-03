@@ -24,6 +24,7 @@ __all__ = [
     'corpus_generator',
     'valid_items_from_dict',
     'filter_indices_and_values',
+    'get_obj_map_key',
 ]
 
 
@@ -484,3 +485,12 @@ def corpus_generator(
             # sentences a priori (unless stated otherwise).
             with open(corpus) as fd:
                 yield corpus, fd.read()
+
+
+def get_obj_map_key(obj, class_map):
+    """Resolve the key (or label) of an object via a key-class map."""
+    for k, v in class_map.items():
+        if isinstance(obj, v):
+            return k
+    return obj
+

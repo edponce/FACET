@@ -3,6 +3,7 @@ import pickle
 import socket
 import socketserver
 import selectors
+from ..utils import parse_address
 
 
 __all__ = [
@@ -49,7 +50,7 @@ class SocketServerHandler(socketserver.StreamRequestHandler):
             except Exception as ex:
                 response = ex
 
-            data = pickle.dumps(response)
+            data = pickle.dumps(response, protocol=self.server.protocol)
             slen = struct.pack('>L', len(data))
             self.connection.send(slen)
             self.connection.sendall(data)
@@ -60,11 +61,23 @@ class SocketServerHandler(socketserver.StreamRequestHandler):
 
 
 class SocketServer(socketserver.ThreadingTCPServer):
-    """
+    """Socket server with RPC-like support.
+
     For proper resource release, use in 'with' statement.
     This is because the server socket is closed by BaseServer in __exit__.
 
     This class has been modified to support connections without timeouts.
+
+    Args:
+        address (Tuple[str, int]): Host/port pair for socket address.
+
+        handler_class (RequestHandlerClass): Class to handle client requests.
+
+        served_object (obj): Instance with methods for RPC calls from clients.
+
+        protocol (int): Version number of the protocol used to pickle/unpickle
+            objects. Necessary to be set if and only if server and client are
+            running on different Python versions.
     """
     # socketserver.BaseServer
     timeout = None  # wait for requests, used in handle_request()
@@ -81,10 +94,23 @@ class SocketServer(socketserver.ThreadingTCPServer):
     _min_bytes_control_commands = 8  # min bytes for server control commands
     _max_bytes_control_commands = 8  # max bytes for server control commands
 
-    def __init__(self, *args, served_object, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        address,
+        handler_class,
+        *,
+        served_object,
+        protocol=pickle.HIGHEST_PROTOCOL,
+    ):
+        # Resolve socket address
+        host, port = (address[0], None) if len(address) == 1 else address
+        address = parse_address(host, port)
+
+        super().__init__(address, handler_class)
+
         self._handlers_connections = []
         self.served_object = served_object
+        self.protocol = protocol
 
     def serve_forever(self, poll_interval=None):
         """Handle one request at a time until shutdown.

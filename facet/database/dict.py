@@ -22,7 +22,7 @@ class DictDatabase(BaseDatabase):
             empty string, an in-memory dictionary is used. Default is None.
 
         flag (str): (For persistent mode only) Access mode for database.
-            Valid values are: 'r' = read-only, 'w' = read/write',
+            Valid values are: 'r' = read-only, 'w' = read/write,
             'c' = read/write/create if not exists, 'n' = new read/write.
             Default is 'c'.
 

@@ -70,12 +70,14 @@ UMLSSQL:
         table: test
         db: db/conso.db
         serializer: json
+        # flag: r
+        check_same_thread: false
     simstring:
         class: simstring
         db:
             class: dict
             db: db/simstring
-            # flag: r
+            flag: r
         alpha: 0.7
         similarity: cosine
     tokenizer: ws

@@ -1,9 +1,11 @@
 import time
 import collections
-# NOTE: Add multiprocessing
-# import multiprocessing
-from ..utils import corpus_generator
+from abc import (
+    ABC,
+    abstractmethod,
+)
 from unidecode import unidecode
+from ..utils import corpus_generator
 from ..simstring import (
     simstring_map,
     BaseSimstring,
@@ -15,10 +17,6 @@ from ..tokenizer import (
 from ..formatter import (
     formatter_map,
     BaseFormatter,
-)
-from abc import (
-    ABC,
-    abstractmethod,
 )
 from typing import (
     Any,
@@ -42,6 +40,15 @@ if PROFILE:
     import cProfile
 
 
+strcase_map = {
+    'l': str.lower,
+    'L': str.lower,
+    'u': str.upper,
+    'U': str.upper,
+    None: str,
+}
+
+
 class BaseFacet(ABC):
     """Class supporting FACET installers and matchers.
 
@@ -51,7 +58,7 @@ class BaseFacet(ABC):
             are: 'simstring', 'elasticsearch'.
 
         tokenizer (str, BaseTokenizer): Tokenizer instance or tokenizer name.
-            Valid tokenizers are: 'simple', 'ws', 'nltk', 'spacy'.
+            Valid tokenizers are: 'basic', 'ws', 'nltk', 'spacy'.
 
         formatter (str, BaseFormatter): Formatter instance or formatter name.
             Valid formatters are: 'json', 'yaml', 'xml', 'pickle', 'csv'.
@@ -169,7 +176,7 @@ class BaseFacet(ABC):
             prof = cProfile.Profile(subcalls=True, builtins=True)
             prof.enable()
 
-        casefunc = self._get_case_func(case)
+        casefunc = strcase_map[case]
 
         t1 = time.time()
         matches = collections.defaultdict(list)
@@ -374,17 +381,6 @@ class BaseFacet(ABC):
             print(f'Records processed: {i}')
             print(f'Key/value records: {len(db)}')
             print(f'Simstring records: {len(self._simstring.db)}')
-
-    def _get_case_func(self, case: str = None) -> Callable[[str], str]:
-        if case in {'L', 'l'}:
-            func = str.lower
-        elif case in {'U', 'u'}:
-            func = str.upper
-        elif case is None:
-            func = str
-        else:
-            raise ValueError(f'invalid string case option, {case}')
-        return func
 
     def _close(self):
         pass

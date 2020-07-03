@@ -1,12 +1,14 @@
 import os
 import sys
+import copy
 import click
 import signal
 import socket
-from functools import partial
+import functools
 from ..utils import (
     load_configuration,
     parse_address,
+    get_obj_map_key,
 )
 from .. import __version__
 from ..network import (
@@ -16,6 +18,13 @@ from ..network import (
 )
 from ..facets import facet_map
 from ..factory import FacetFactory
+from ..formatter import formatter_map
+from ..tokenizer import tokenizer_map
+from ..simstring.similarity import similarity_map
+from typing import (
+    Any,
+    Dict,
+)
 
 
 CONTEXT_SETTINGS = {
@@ -29,16 +38,34 @@ CONTEXT_SETTINGS = {
 }
 
 
-def facet_config(ctx, param, value, key=None):
-    """Set up configuration."""
-    return load_configuration(value, keys=key)
+DEFAULT_SECTION = 'FACET'
 
 
-def repl_loop(f, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
+def load_config(ctx, param, config: str, key=None):
+    return load_configuration(config, keys=key)
+
+
+def parse_dump_configuration(output: str, format='yaml'):
+    if ':' in output:
+        output, format = output.split(':')
+    elif output in formatter_map:
+        output, format = None, output
+    return output, format
+
+
+def dump_configuration(config: Dict[str, Any], output=None, format='yaml'):
+    parsed_config = load_configuration(config)
+    formatter = formatter_map[format]()
+    formatted_config = formatter(parsed_config, output=output)
+    if formatted_config is not None:
+        print(formatted_config)
+
+
+def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
     """Read-Evaluate-Print-Loop.
 
     Args:
-        f (BaseFacet): FACET instance.
+        obj (BaseFacet): FACET instance.
 
         enable_cmds (bool): If set, get/set commands are supported alongside
             matching queries. Commands allow changing some options from the
@@ -49,45 +76,48 @@ def repl_loop(f, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
         while True:
             query_or_cmd = input(prompt)
             if not enable_cmds:
-                print(f.match(query_or_cmd))
+                print(obj.match(query_or_cmd))
                 continue
 
             if query_or_cmd == 'exit()':
                 break
 
             try:
-                if '=' in query_or_cmd:
-                    option, value = query_or_cmd.split('=')
-                    option = option.strip()
-                    value = value.strip('\'" ')
-                    if option == 'alpha':
-                        f.simstring.alpha = float(value)
-                    elif option == 'similarity':
-                        f.simstring.similarity = value
-                    elif option == 'tokenizer':
-                        f.tokenizer = value
-                    elif option == 'formatter':
-                        f.formatter = value
-                    else:
-                        print(f.match(query_or_cmd))
-                else:
+                if '()' in query_or_cmd:
                     query = query_or_cmd
                     if query == 'help()':
                         print('Commands:')
                         print('  alpha, similarity, tokenizer, formatter')
                         print()
-                        print('Get format: cmd()')
-                        print('Set format: cmd = value')
+                        print('Get syntax: cmd()')
+                        print('Set syntax: cmd = value')
                     elif query == 'alpha()':
-                        print(f.simstring.alpha)
+                        print(obj.simstring.alpha)
                     elif query == 'similarity()':
-                        print(f.simstring.similarity)
+                        print(get_obj_map_key(obj.simstring.similarity,
+                                              similarity_map))
                     elif query == 'tokenizer()':
-                        print(f.tokenizer)
+                        print(get_obj_map_key(obj.tokenizer, tokenizer_map))
                     elif query == 'formatter()':
-                        print(f.formatter)
+                        print(get_obj_map_key(obj.formatter, formatter_map))
                     else:
-                        print(f.match(query))
+                        print(obj.match(query))
+                elif '=' in query_or_cmd:
+                    option, value = query_or_cmd.split('=')
+                    option = option.strip()
+                    value = value.strip('\'" ')
+                    if option == 'alpha':
+                        obj.simstring.alpha = float(value)
+                    elif option == 'similarity':
+                        obj.simstring.similarity = value
+                    elif option == 'tokenizer':
+                        obj.tokenizer = value
+                    elif option == 'formatter':
+                        obj.formatter = value
+                    else:
+                        print(obj.match(query_or_cmd))
+                else:
+                    print(obj.match(query_or_cmd))
             except AttributeError as ex:
                 print('Current mode does not supports commands')
     except (KeyboardInterrupt, EOFError):
@@ -105,27 +135,13 @@ def cli():
 @click.option(
     '-c', '--config',
     type=str,
-    callback=partial(facet_config, key='match'),
+    callback=functools.partial(load_config, key=DEFAULT_SECTION),
     help='Configuration file.',
 )
 @click.option(
     '-q', '--query',
     type=str,
     help='Query string/directory/file.',
-)
-@click.option(
-    '-h', '--host',
-    type=str,
-    default='localhost',
-    show_default=True,
-    help='Server host.',
-)
-@click.option(
-    '-p', '--port',
-    type=click.IntRange(1024, 65535),
-    default=4444,
-    show_default=True,
-    help='Server port.',
 )
 @click.option(
     '-a', '--alpha',
@@ -145,7 +161,8 @@ def cli():
 @click.option(
     '-f', '--formatter',
     type=click.Choice(('json', 'yaml', 'xml', 'pickle', 'csv')),
-    default=None,
+    default='json',
+    show_default=True,
     help='Format for match results.',
 )
 @click.option(
@@ -155,8 +172,147 @@ def cli():
 )
 @click.option(
     '-t', '--tokenizer',
-    type=click.Choice(('simple', 'ws', 'nltk', 'spacy')),
-    default=None,
+    type=click.Choice(('basic', 'ws', 'nltk', 'spacy')),
+    default='ws',
+    show_default=True,
+    help='Tokenizer for text procesing.',
+)
+@click.option(
+    '-d', '--database',
+    # type=click.Choice(('dict', 'redis', 'elasticsearch')),
+    type=str,
+    default='dict',
+    show_default=True,
+    help='Database for Simstring install/query.',
+)
+@click.option(
+    '-i', '--install',
+    type=str,
+    help='Data file to install (default is first column of CSV file). '
+         'Supports pairs of key=value to pass to install().',
+)
+@click.option(
+    '-g', '--dump_config',
+    type=str,
+    help='Print configuration and exit. '
+         'Option form: "file", "file:format", "format"'
+         'Formats supported: json, yaml, xml',
+)
+def match(
+    config,
+    query,
+    alpha,
+    similarity,
+    formatter,
+    output,
+    tokenizer,
+    database,
+    install,
+    dump_config,
+):
+    # Resolve settings for dumping configuration
+    full_config = copy.deepcopy(config)
+    dump_config = config.pop('dump_config', dump_config)
+    if dump_config:
+        dump_output, dump_format = parse_dump_configuration(dump_config)
+
+    # Support CLI shortcut options from configuration files
+    query = config.pop('query', query)
+    output = config.pop('output', output)
+    install = config.pop('install', install)
+    if isinstance(install, str):
+        install = {'data': install}
+
+    # Prepare factory options from configuration
+    factory_config = copy.deepcopy(config)
+    factory_config['class'] = config.get('class', 'facet')
+    factory_config['tokenizer'] = config.get('tokenizer', tokenizer)
+    factory_config['formatter'] = config.get('formatter', formatter)
+    factory_config['simstring'] = config.get('simstring', {
+        'class': 'simstring',
+        'db': config.get('database', database),
+        'alpha': config.get('alpha', alpha),
+        'similarity': config.get('similarity', similarity),
+    })
+
+    if dump_config:
+        full_config.update(factory_config)
+        dump_configuration(
+            {DEFAULT_SECTION: full_config},
+            dump_output,
+            dump_format,
+        )
+        return
+
+    f = FacetFactory(factory_config).create()
+
+    if install:
+        f.install(**install)
+
+    if query:
+        matches = f.match(query, output=output)
+        if matches is not None:
+            print(matches)
+    else:
+        repl_loop(f)
+
+    f.close()
+
+
+@click.command(context_settings=CONTEXT_SETTINGS)
+@click.help_option(show_default=False)
+@click.option(
+    '-c', '--config',
+    type=str,
+    callback=load_config,
+    help='Configuration file.',
+)
+@click.option(
+    '-h', '--host',
+    type=str,
+    default='localhost',
+    show_default=True,
+    help='Server host.',
+)
+@click.option(
+    '-p', '--port',
+    type=click.IntRange(1024, 65535),
+    default=4444,
+    show_default=True,
+    help='Server port.',
+)
+@click.option(
+    '-q', '--query',
+    type=str,
+    help='Query string/directory/file.',
+)
+@click.option(
+    '-a', '--alpha',
+    type=float,
+    default=0.7,
+    show_default=True,
+    help='Similarity threshold.',
+)
+@click.option(
+    '-s', '--similarity',
+    type=click.Choice(('dice', 'exact', 'cosine', 'jaccard', 'overlap',
+                       'hamming')),
+    default='jaccard',
+    show_default=True,
+    help='Similarity measure.',
+)
+@click.option(
+    '-f', '--formatter',
+    type=click.Choice(('json', 'yaml', 'xml', 'pickle', 'csv')),
+    default='json',
+    show_default=True,
+    help='Format for match results.',
+)
+@click.option(
+    '-t', '--tokenizer',
+    type=click.Choice(('basic', 'ws', 'nltk', 'spacy')),
+    default='ws',
+    show_default=True,
     help='Tokenizer for text procesing.',
 )
 @click.option(
@@ -173,87 +329,158 @@ def cli():
          'Supports pairs of key=value to pass to install().',
 )
 @click.option(
-    '-m', '--mode',
-    type=click.Choice(('server', 'client')),
-    help='Run as a server.',
+    '-g', '--dump_config',
+    type=str,
+    help='Print configuration and exit. '
+         'Option form: "file", "file:format", "format"'
+         'Formats supported: json, yaml, xml',
 )
-def match(
+def server(
     config,
-    query,
     host,
     port,
+    query,
     alpha,
     similarity,
     formatter,
-    output,
     tokenizer,
     database,
     install,
-    mode,
+    dump_config,
 ):
-    factory_config = {}
-    factory_config['class'] = config.pop('class', 'facet')
-    factory_config['tokenizer'] = config.pop('tokenizer', tokenizer)
-    factory_config['formatter'] = config.pop('formatter', formatter)
-    factory_config['simstring'] = config.pop('simstring', {
+    # Resolve settings for dumping configuration
+    full_config = copy.deepcopy(config)
+    dump_config = config.pop('dump_config', dump_config)
+    if dump_config:
+        dump_output, dump_format = parse_dump_configuration(dump_config)
+
+    # Support CLI shortcut options from configuration files
+    host = config.pop('host', host)
+    port = config.pop('port', port)
+    query = config.pop('query', query)
+    install = config.pop('install', install)
+    if isinstance(install, str):
+        install = {'data': install}
+
+    # Prepare factory options from configuration
+    factory_config = copy.deepcopy(config)
+    factory_config['class'] = config.get('class', 'facet')
+    factory_config['tokenizer'] = config.get('tokenizer', tokenizer)
+    factory_config['formatter'] = config.get('formatter', formatter)
+    factory_config['simstring'] = config.get('simstring', {
         'class': 'simstring',
-        'db': config.pop('database', database),
-        'alpha': config.pop('alpha', alpha),
-        'similarity': config.pop('similarity', similarity),
+        'db': config.get('database', database),
+        'alpha': config.get('alpha', alpha),
+        'similarity': config.get('similarity', similarity),
     })
 
+    if dump_config:
+        full_config.update(factory_config)
+        dump_configuration(
+            {DEFAULT_SECTION: full_config},
+            dump_output,
+            dump_format,
+        )
+        return
+
+    f = FacetFactory(factory_config).create()
+
+    if install:
+        f.install(**install)
+
+    with SocketServer(
+        (host, port),
+        SocketServerHandler,
+        served_object=f,
+    ) as server:
+        server.serve_forever()
+
+    f.close()
+
+
+@click.command(context_settings=CONTEXT_SETTINGS)
+@click.help_option(show_default=False)
+@click.option(
+    '-c', '--config',
+    type=str,
+    callback=load_config,
+    help='Configuration file.',
+)
+@click.option(
+    '-h', '--host',
+    type=str,
+    default='localhost',
+    show_default=True,
+    help='Server host.',
+)
+@click.option(
+    '-p', '--port',
+    type=click.IntRange(1024, 65535),
+    default=4444,
+    show_default=True,
+    help='Server port.',
+)
+@click.option(
+    '-q', '--query',
+    type=str,
+    help='Query string/directory/file.',
+)
+@click.option(
+    '-f', '--formatter',
+    type=click.Choice(('json', 'yaml', 'xml', 'pickle', 'csv')),
+    default='json',
+    show_default=True,
+    help='Format for match results.',
+)
+@click.option(
+    '-o', '--output',
+    type=str,
+    help='Output target for match results.',
+)
+@click.option(
+    '-g', '--dump_config',
+    type=str,
+    help='Print configuration and exit. '
+         'Option form: "file", "file:format", "format"'
+         'Formats supported: json, yaml, xml',
+)
+def client(config, host, port, query, formatter, output, dump_config):
+    # Resolve settings for dumping configuration
+    full_config = copy.deepcopy(config)
+    dump_config = config.pop('dump_config', dump_config)
+    if dump_config:
+        dump_output, dump_format = parse_dump_configuration(dump_config)
+
+    # Support CLI shortcut options from configuration files
     query = config.pop('query', query)
     host = config.pop('host', host)
     port = config.pop('port', port)
     output = config.pop('output', output)
-    install = config.pop('install', install)
-    if isinstance(install, str):
-        install = {'data': install}
-    mode = config.pop('mode', mode)
 
-    if len(config) > 0:
-        factory_config.update(config)
+    # Prepare factory options from configuration
+    factory_config = copy.deepcopy(config)
+    factory_config['class'] = config.get('class', 'facet')
+    factory_config['formatter'] = config.get('formatter', formatter)
 
-    if host:
-        host, _port = parse_address(host)
-        if _port:
-            port = _port
-
-    if mode == 'client':
-        f = SocketClient(
-            facet_map[factory_config['class']],
-            host=host,
-            port=port,
+    if dump_config:
+        full_config.update(factory_config)
+        dump_configuration(
+            {DEFAULT_SECTION: full_config},
+            dump_output,
+            dump_format,
         )
+        return
+
+    with SocketClient(
+        (host, port),
+        target_class=facet_map[factory_config['class']],
+    ) as f:
         if query:
-            print(f.match(
-                query,
-                output=output,
-                format=factory_config['formatter'],
-            ))
+            matches = f.match(query)
+            if matches is not None:
+                print(matches)
         else:
             repl_loop(f)
-    else:
-        factory = FacetFactory(factory_config)
-        f = factory.create()
-
-        if install:
-            f.install(**install)
-
-        if mode is None:
-            if query:
-                print(f.match(query, output=output))
-            else:
-                repl_loop(f)
-        elif mode == 'server':
-            with SocketServer(
-                (host, port),
-                SocketServerHandler,
-                served_object=f,
-            ) as server:
-                server.serve_forever()
-
-        f.close()
 
 
 @click.command('shutdown-server', context_settings=CONTEXT_SETTINGS)
@@ -323,6 +550,8 @@ def shutdown_server(host, port, fileno, pid):
 
 # Organize groups and commands
 cli.add_command(match)
+cli.add_command(server)
+cli.add_command(client)
 cli.add_command(shutdown_server)
 
 
