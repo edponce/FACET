@@ -198,7 +198,6 @@ def parse_string(string, protect_numerics=False):
     try:
         return pyparser.parseString(string, parseAll=True)[0]
     except pyparsing.ParseException:
-        # print('WARNING: configuration parser failed to parse', orig_string)
         return orig_string
 
 
@@ -358,7 +357,7 @@ def load_configuration(data, keys=None, file_type=None, delimiter=':'):
     return config
 
 
-def parse_address(address):
+def parse_address(address, port=None):
     """Parses (in a best-effort manner) variants of hostnames and URLs,
     to extract host and port.
 
@@ -382,11 +381,17 @@ def parse_address(address):
         parsed = urllib.parse.urlsplit('http://' + address)
 
     host = parsed.hostname
+
     # urllib triggers error if port is not available
     try:
-        port = parsed.port
+        _port = parsed.port
     except ValueError:
-        port = None
+        _port = None
+
+    # urllib does not trigger error always and returns None
+    if _port is not None:
+        port = _port
+
     return host, port
 
 
@@ -398,6 +403,8 @@ def unparse_address(
     password=None,
     path=None,
 ):
+    """Build a fully-qualified URL from its individual parts."""
+    host, port = parse_address(host, port)
     protocol = protocol + '://' if protocol else ''
     port = ':' + str(port) if port else ''  # port 0 is not allowed
     credentials = (

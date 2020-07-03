@@ -21,12 +21,12 @@ from .formatter import (
     XMLFormatter,
     PickleFormatter,
     CSVFormatter,
-    SimpleFormatter,
+    BasicFormatter,
 )
 from .tokenizer import (
     NLTKTokenizer,
     SpaCyTokenizer,
-    SimpleTokenizer,
+    BasicTokenizer,
     WhitespaceTokenizer,
 )
 from .database import (

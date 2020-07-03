@@ -4,7 +4,7 @@ from .yaml import YAMLFormatter
 from .xml import XMLFormatter
 from .pickle import PickleFormatter
 from .csv import CSVFormatter
-from .simple import SimpleFormatter
+from .basic import BasicFormatter
 
 
 formatter_map = {
@@ -13,6 +13,6 @@ formatter_map = {
     'xml': XMLFormatter,
     'pickle': PickleFormatter,
     'csv': CSVFormatter,
-    'none': SimpleFormatter,
-    None: SimpleFormatter,
+    'basic': BasicFormatter,
+    None: BasicFormatter,
 }

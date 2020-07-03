@@ -31,6 +31,10 @@ class SQLiteDatabase(BaseDatabase):
             database name is used as prefix for database files. If None or
             empty string, an in-memory database is used. Default is None.
 
+        flag (str): (For persistent mode only) Access mode for database.
+            Valid values are: 'r' = read-only, 'w' = read/write,
+            'c' = read/write/create if not exists.
+
         pipe (bool): If set, queue 'set-related' commands to database.
             Run 'sync' command to submit commands in pipe.
             Default is False.
@@ -43,6 +47,7 @@ class SQLiteDatabase(BaseDatabase):
         timeout
         detect_types
         isolation_level
+        check_same_thread
         cached_statements
     """
 
@@ -52,6 +57,7 @@ class SQLiteDatabase(BaseDatabase):
         table: str,
         db: str = None,
         table_type: str = 'kv',
+        flag: str = 'c',
         pipe=False,
         serializer: Union[str, 'BaseSerializer'] = 'json',
         **kwargs,
@@ -64,10 +70,25 @@ class SQLiteDatabase(BaseDatabase):
             db_dir = os.path.abspath(db_dir) if db_dir else os.getcwd()
             os.makedirs(db_dir, exist_ok=True)
             db_name = db
+
+            options = '?'
+            if flag == 'r':
+                options += 'mode=ro'
+                options += '&nolock=1'
+            elif flag == 'w':
+                options += 'mode=rw'
+            elif flag == 'c':
+                options += 'mode=rwc'
+            else:
+                options = ''
+
+            db_uri = 'file:' + db + options
             persistent = True
+
         else:
             # In-memory database
             db_name = ':memory:'
+            db_uri = db_name
             persistent = False
 
         self._name = db_name
@@ -79,7 +100,7 @@ class SQLiteDatabase(BaseDatabase):
 
         # Connect to database
         # Types supported: bytes, str, int, float, None
-        self._db = sqlite3.connect(self._name, **kwargs)
+        self._db = sqlite3.connect(db_uri, uri=True, **kwargs)
 
         # Create table
         if self._type == 'kv':

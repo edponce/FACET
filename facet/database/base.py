@@ -60,7 +60,7 @@ class BaseDatabase(ABC):
     def __enter__(self) -> 'BaseDatabase':
         return self
 
-    def __exit__(self, *exc_info) -> NoReturn:
+    def __exit__(self, type, value, traceback):
         self.save()
         self.close()
 
