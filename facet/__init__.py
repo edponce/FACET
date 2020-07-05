@@ -43,15 +43,15 @@ from .serializer import (
     StringSerializer,
     StringSJSerializer,
 )
-from .simstring import (
+from .matcher import (
     Simstring,
     ElasticsearchSimstring,
 )
-from .simstring.ngram import (
+from .matcher.ngram import (
     WordNgram,
     CharacterNgram,
 )
-from .simstring.similarity import (
+from .matcher.similarity import (
     DiceSimilarity,
     ExactSimilarity,
     CosineSimilarity,

@@ -165,22 +165,22 @@ class UMLSFacet(BaseFacet):
         print(f'Loading/parsing concepts: {curr_time - start} s')
 
         if self._conso_db is not None:
-            print('Writing concepts and simstring...')
+            print('Writing concepts and matcher data...')
             start = time.time()
             # Stores {Term:CUI} mapping, term: [CUI, ...]
-            self._dump_simstring_kv(conso.items(), db=self._conso_db)
+            self._dump_matcher_kv(conso.items(), db=self._conso_db)
             curr_time = time.time()
-            print(f'Writing concepts and simtring: {curr_time - start} s')
+            print(f'Writing concepts and matcher data: {curr_time - start} s')
 
         else:
             # NOTE: List when 'load_data(values=None)' does not have an
             # argument for 'values'.
-            print('Writing simstring...')
+            print('Writing matcher data...')
             start = time.time()
-            # Stores Simstring inverted lists
-            self._dump_simstring(conso)
+            # Stores Matcher-specific data
+            self._dump_matcher(conso)
             curr_time = time.time()
-            print(f'Writing simstring: {curr_time - start} s')
+            print(f'Writing matcher data: {curr_time - start} s')
 
         t2 = time.time()
         print(f'Total runtime: {t2 - t1} s')
@@ -195,11 +195,11 @@ class UMLSFacet(BaseFacet):
             ngram (Tuple[int, int, str]): Parsed N-grams with span.
 
         Kwargs:
-            Options passed directly to `Simstring.search()`.
+            Options passed directly to `Matcher.search()`.
         """
         begin, end, ngram = ngram_struct
         ngram_matches = []
-        for candidate, similarity in self._simstring.search(
+        for candidate, similarity in self._matcher.search(
             ngram,
             **kwargs,
         ):

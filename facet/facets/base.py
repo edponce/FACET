@@ -6,9 +6,9 @@ from abc import (
 )
 from unidecode import unidecode
 from ..utils import corpus_generator
-from ..simstring import (
-    simstring_map,
-    BaseSimstring,
+from ..matcher import (
+    matcher_map,
+    BaseMatcher,
 )
 from ..tokenizer import (
     tokenizer_map,
@@ -53,8 +53,8 @@ class BaseFacet(ABC):
     """Class supporting FACET installers and matchers.
 
     Args:
-        simstring (str, BaseSimstring): Handle to Simstring instance or
-            simstring name for inverted list of text. Valid simstring values
+        matcher (str, BaseMatcher): Handle to Simstring instance or
+            matcher name for inverted list of text. Valid matcher values
             are: 'simstring', 'elasticsearch'.
 
         tokenizer (str, BaseTokenizer): Tokenizer instance or tokenizer name.
@@ -67,31 +67,31 @@ class BaseFacet(ABC):
     def __init__(
         self,
         *,
-        simstring: Union[str, 'BaseSimstring'] = 'simstring',
+        matcher: Union[str, 'BaseMatcher'] = 'simstring',
         tokenizer: Union[str, 'BaseTokenizer'] = 'ws',
         formatter: Union[str, 'BaseFormatter'] = None,
     ):
-        self._simstring = None
+        self._matcher = None
         self._tokenizer = None
         self._formatter = None
 
-        self.simstring = simstring
+        self.matcher = matcher
         self.tokenizer = tokenizer
         self.formatter = formatter
 
     @property
-    def simstring(self):
-        return self._simstring
+    def matcher(self):
+        return self._matcher
 
-    @simstring.setter
-    def simstring(self, value: Union[str, 'BaseSimstring']):
+    @matcher.setter
+    def matcher(self, value: Union[str, 'BaseMatcher']):
         if isinstance(value, str):
-            obj = simstring_map[value]()
-        elif isinstance(value, BaseSimstring):
+            obj = matcher_map[value]()
+        elif isinstance(value, BaseMatcher):
             obj = value
         else:
-            raise ValueError(f'invalid simstring, {value}')
-        self._simstring = obj
+            raise ValueError(f'invalid matcher, {value}')
+        self._matcher = obj
 
     @property
     def tokenizer(self):
@@ -158,7 +158,7 @@ class BaseFacet(ABC):
                 `corpus_generator`.
 
         Kwargs:
-            Options passed directly to `Simstring.search` via `_match`.
+            Options passed directly to `Matcher.search` via `_match`.
 
         Examples:
 
@@ -216,35 +216,34 @@ class BaseFacet(ABC):
         return formatter(matches, output=output)
 
     def install(self, data, *, overwrite: bool = True, **kwargs):
-        """Install data into Simstring database.
+        """Install data.
 
         Args:
             data_file (str): File with data to install.
 
-            overwrite (bool): If set, overwrite previous data in Simstring
-                database.
+            overwrite (bool): If set, overwrite previous data in databases.
 
         Kwargs:
             Options passed directly to '*load_data()' function method via
                 `_install()`.
         """
-        # Clear Simstring database
-        if overwrite and self._simstring is not None:
-            self._simstring.db.clear()
+        # Clear matcher database
+        if overwrite and self._matcher is not None:
+            self._matcher.db.clear()
         self._install(data, overwrite=overwrite, **kwargs)
 
     def close(self):
-        self._simstring.db.close()
+        self._matcher.db.close()
         self._close()
 
-    def _dump_simstring(
+    def _dump_matcher(
         self,
         data: Iterable[str],
         *,
         bulk_size: int = 1000,
         status_step: int = 10000,
     ):
-        """Stores {Term:...} in Simstring database.
+        """Stores {Term:...} in Matcher database.
 
         Args:
             bulk_size (int): Size of chunks to use for dumping data into
@@ -257,16 +256,16 @@ class BaseFacet(ABC):
         prev_time = time.time()
 
         # NOTE: Pipeline mode does works for all databases because
-        # 'simstring.insert' requires reading from database.
+        # 'matcher.insert' requires reading from database.
         # Enable pipeline mode
-        # self._simstring.db.set_pipe(True)
+        # self._matcher.db.set_pipe(True)
 
         i = 0
         for term in data:
             i += 1
-            self._simstring.insert(term)
+            self._matcher.insert(term)
             # if i % bulk_size == 0:
-            #     self._simstring.db.sync()
+            #     self._matcher.db.sync()
 
             # Profile
             if VERBOSE and i % status_step == 0:
@@ -277,11 +276,11 @@ class BaseFacet(ABC):
 
         # Disable pipeline mode
         # NOTE: Stores data remaining in pipeline.
-        # self._simstring.db.set_pipe(False)
+        # self._matcher.db.set_pipe(False)
 
         if VERBOSE:
             print(f'Records processed: {i}')
-            print(f'Simstring records: {len(self._simstring.db)}')
+            print(f'Matcher records: {len(self._matcher.db)}')
 
     def _dump_kv(
         self,
@@ -322,14 +321,14 @@ class BaseFacet(ABC):
 
         # Disable pipeline mode
         # NOTE: Stores data remaining in pipeline.
-        self._simstring.db.set_pipe(False)
+        self._matcher.db.set_pipe(False)
         db.set_pipe(False)
 
         if VERBOSE:
             print(f'Records processed: {i}')
             print(f'Key/value records: {len(db)}')
 
-    def _dump_simstring_kv(
+    def _dump_matcher(
         self,
         data: Iterable[Tuple[str, Any]],
         *,
@@ -337,7 +336,7 @@ class BaseFacet(ABC):
         bulk_size: int = 1000,
         status_step: int = 10000,
     ):
-        """Stores {Term:...} in Simstring database and stores {key:val}
+        """Stores {Term:...} in Matcher database and stores {key:val}
         mapping, key: [val, ...].
 
         Args:
@@ -352,17 +351,17 @@ class BaseFacet(ABC):
 
         # Enable pipeline mode
         # NOTE: Pipeline mode does works for all databases because
-        # 'simstring.insert' requires reading from database.
-        # self._simstring.db.set_pipe(True)
+        # 'matcher.insert' requires reading from database.
+        # self._matcher.db.set_pipe(True)
         db.set_pipe(True)
 
         i = 0
         for key, val in data:
             i += 1
-            self._simstring.insert(key)
+            self._matcher.insert(key)
             db.set(key, val)
             if i % bulk_size == 0:
-                # self._simstring.db.sync()
+                # self._matcher.db.sync()
                 db.sync()
 
             # Profile
@@ -374,13 +373,13 @@ class BaseFacet(ABC):
 
         # Disable pipeline mode
         # NOTE: Stores data remaining in pipeline.
-        # self._simstring.db.set_pipe(False)
+        # self._matcher.db.set_pipe(False)
         db.set_pipe(False)
 
         if VERBOSE:
             print(f'Records processed: {i}')
             print(f'Key/value records: {len(db)}')
-            print(f'Simstring records: {len(self._simstring.db)}')
+            print(f'Matcher records: {len(self._matcher.db)}')
 
     def _close(self):
         pass

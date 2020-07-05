@@ -1,6 +1,6 @@
 FacetDict:
     class: facet
-    simstring:
+    matcher:
         class: simstring
         db:
             class: dict
@@ -48,7 +48,7 @@ UMLSRedis:
         port: 6379
         db: 1
         serializer: json
-    simstring:
+    matcher:
         class: simstring
         db:
             class: dict
@@ -72,7 +72,7 @@ UMLSSQL:
         serializer: json
         # flag: r
         check_same_thread: false
-    simstring:
+    matcher:
         class: simstring
         db:
             class: dict
@@ -93,7 +93,7 @@ UMLSRedisOnly:
         port: 6379
         db: 0
         serializer: json
-    simstring:
+    matcher:
         class: simstring
         db:
             class: redis

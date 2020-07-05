@@ -1,7 +1,7 @@
 {
     "Facet": {
         "class": "Facet",
-        "simstring": {
+        "matcher": {
             "class": "simstring",
             "db": {
                 "class": "dict",
@@ -32,7 +32,7 @@
             "db": 1,
             "serializer": "json"
         },
-        "simstring": {
+        "matcher": {
             "class": "simstring",
             "db": {
                 "class": "dict",
