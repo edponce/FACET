@@ -1,207 +1,227 @@
 import os
 import sys
-import pickle
 import shelve
-from .base import BaseDatabase
+import pickle
+from .base import BaseKVDatabase
 
 
-__all__ = ['DictDatabase']
+__all__ = [
+    'FileDict_KVDatabase',
+    'MemoryDict_KVDatabase',
+    'DictKVDatabase',
+    'DictDatabase',
+]
 
 
-class DictDatabase(BaseDatabase):
-    """Python dictionary database interface
-    Supports both persistent and in-memory dictionaries.
+def parse_filename(filename):
+    fdir, fname = os.path.split(filename)
+    fdir = os.path.abspath(fdir) if fdir else os.getcwd()
+    return fdir, fname
+
+
+class FileDict_KVDatabase(BaseKVDatabase):
+    """Persistent dictionary database.
 
     Args:
+        filename (str): Path representing database directory and name for
+            persistent dictionary. The underlying database is managed as
+            a file-backed dictionary. A '.dat' extension is automatically
+            added by 'shelve' to the name. Depending on 'access_mode', the
+            path may be created. The database name is used as prefix for
+            database files.
 
-        db (str): Path representing database directory and name for persistent
-            dictionary. The underlying database is managed by a file-backed
-            dictionary. A '.dat' extension is automatically added by 'shelve'
-            to the filename. The path is created if it does not exists. The
-            database name is used as prefix for database files. If None or
-            empty string, an in-memory dictionary is used. Default is None.
-
-        flag (str): (For persistent mode only) Access mode for database.
+        access_mode (str): Access mode for database.
             Valid values are: 'r' = read-only, 'w' = read/write,
             'c' = read/write/create if not exists, 'n' = new read/write.
-            Default is 'c'.
 
-        protocol (int): (For persistent mode only) Pickle serialization
-            protocol to use. Default is 'pickle.HIGHEST_PROTOCOL'.
+        protocol (int): Pickle serialization protocol to use.
 
-        pipe (bool): (For persistent mode only) If set, queue 'set-related'
-            commands to database. Run 'sync' command to submit commands
-            in pipe. Default is True.
+    Notes:
+        * Shelf automatically syncs when closing database.
     """
 
     def __init__(
         self,
-        db: str = None,
+        filename,
         *,
-        # NOTE: 'c' and 'w' are only used during installation of data.
-        # The common case is read-only.
-        flag: str = 'c',
-        protocol: int = pickle.HIGHEST_PROTOCOL,
-        # NOTE: Setting pipe to False, did not synced/saved data correctly.
-        # Need to investigate why.
-        pipe: bool = True,
+        access_mode='c',
+        protocol=pickle.HIGHEST_PROTOCOL,
     ):
-        if db:
-            # Persistent dictionary
-            db_dir, db_name = os.path.split(db)
-            if not db_name:
-                raise ValueError('missing database filename, no basename')
-            db_dir = os.path.abspath(db_dir) if db_dir else os.getcwd()
+        self._db = None
+        self._name = None
+        self._file = None
+        self._access_mode = None
+        self._protocol = protocol
+        self._is_connected = False
+
+        db_dir, db_base = parse_filename(filename)
+        if access_mode in ('c', 'n'):
             os.makedirs(db_dir, exist_ok=True)
-            persistent = True
-            # NOTE: If shelve is opened in read mode, and sync() will trigger
-            # an error. Currently, sync() is controlled by 'pipe' value.
-            if flag == 'r':
-                pipe = False
-            # NOTE: Enable writeback because it allows natural operations
-            # on mutable entries, but consumes more memory and makes
-            # sync/close operations take longer. Writeback queues operations
-            # to database cache. Use sync command to empty the cache and
-            # synchronize with disk. Sync is automatically called when
-            # the database is closed.
-            self._db = shelve.open(
-                os.path.join(db_dir, db_name),
-                writeback=pipe,
-                flag=flag,
-                protocol=protocol,
-            )
-        else:
-            # In-memory dictionary
-            db_dir = None
-            db_name = None
-            persistent = False
-            pipe = False
-            self._db = {}
+        self._name = filename
+        self._file = os.path.join(db_dir, db_base) + '.dat'
 
-        self._dir = db_dir
-        self._name = db_name
-        self._persistent = persistent
-        self._is_pipe = None
-        self.set_pipe(pipe)
+        self.connect(access_mode=access_mode)
 
-    def set_pipe(self, pipe):
-        # NOTE: Given that this database type does not have a pipeline/stream
-        # mode that can be changed at runtime, we can close the file and
-        # reopen with writeback enabled (or viceversa).
-        if not pipe:
-            self.sync()
-
-        # NOTE: Pipeline only applies to persistent mode.
-        if self._persistent:
-            self._is_pipe = pipe
-
-    @property
-    def config(self):
-        return {
-            'name': self._name,
-            'dir': self._dir,
-            'used_memory': (os.path.getsize(os.path.join(
-                self._dir,
-                self._name + '.dat',
-            ))
-                            if self._persistent
-                            else sys.getsizeof(self._db)),
-            'num_keys': len(self),
-        }
-
-    def _is_hash_name(self, key: str) -> bool:
-        """Detect if a key is a hash name.
-        Hash maps use a dictionary for representing fields/values.
-        """
-        return self._exists(key) and isinstance(self._db[key], dict)
-
-    def _get(self, key):
-        return self._db.get(key)
-
-    def _mget(self, keys):
-        return [self._get(key) for key in keys]
-
-    def _hget(self, key, field):
-        return (
-            self._db[key].get(field)
-            if self._is_hash_name(key)
-            else None
-        )
-
-    def _hmget(self, key, fields):
-        return (
-            [self._db[key].get(field) for field in fields]
-            if self._is_hash_name(key)
-            else len(fields) * [None]
-        )
-
-    def _set(self, key, value, **kwargs):
-        value = self._resolve_set(key, value, **kwargs)
-        if value is not None:
-            self._db[key] = value
-
-    def _mset(self, mapping, **kwargs):
-        for key, value in mapping.items():
-            self._set(key, value, **kwargs)
-
-    def _hset(self, key, field, value, **kwargs):
-        value = self._resolve_hset(key, field, value, **kwargs)
-        if value is not None:
-            if key in self._db:
-                self._db[key][field] = value
-            else:
-                self._db[key] = {field: value}
-
-    def _hmset(self, key, mapping, **kwargs):
-        for field, value in mapping.items():
-            self._hset(key, field, value, **kwargs)
-
-    def _keys(self):
-        return list(self._db.keys())
-
-    def _hkeys(self, key):
-        return list(self._db[key].keys()) if self._is_hash_name(key) else []
-
-    def _len(self):
+    def __len__(self):
         return len(self._db)
 
-    def _hlen(self, key):
-        return len(self._db[key]) if self._is_hash_name(key) else 0
+    def __contains__(self, key):
+        return str(key) in self._db
 
-    def _exists(self, key):
-        return key in self._db
+    def _check_write_access(self):
+        if self._access_mode == 'r':
+            raise ValueError('invalid operation on read-only shelf')
 
-    def _hexists(self, key, field):
-        return self._is_hash_name(key) and field in self._db[key]
+    def get_config(self):
+        return {
+            'name': self._name,
+            'file': self._file,
+            'access mode': self._access_mode,
+            'memory usage': os.path.getsize(self._file),
+            'item count': len(self._db) if self._is_connected else -1,
+            'serialization protocol': self._protocol,
+        }
 
-    def _delete(self, keys):
-        for i, key in enumerate(filter(self._exists, keys), start=1):
-            del self._db[key]
+    def get(self, key):
+        return self._db[str(key)]
 
-    def _hdelete(self, key, fields):
-        if self._is_hash_name(key):
-            for i, field in enumerate(filter(lambda f: f in self._db[key],
-                                             fields),
-                                      start=1):
-                del self._db[key][field]
-            # NOTE: Delete key if it has no fields remaining
-            if len(self._db[key]) == 0:
-                del self._db[key]
+    def set(self, key, value):
+        self._check_write_access()
+        self._db[str(key)] = value
 
-    def sync(self):
-        if self._is_pipe:
+    def keys(self):
+        return iter(self._db.keys())
+
+    def delete(self, key):
+        self._check_write_access()
+        del self._db[str(key)]
+
+    def connect(self, *, access_mode='w'):
+        if self._is_connected:
+            if self._access_mode == access_mode:
+                return
+            self._db.close()
+
+        # NOTE: Writeback allows natural operations on mutable entries,
+        # but consumes more memory and makes sync/close operations take
+        # longer. Writeback queues operations to a database cache. But
+        # because Python language does not allow detecting when a mutation
+        # occurs, read operations are also cached. Use sync command to
+        # empty the cache and synchronize with disk.
+        self._db = shelve.open(
+            self._name,
+            # writeback=not self._access_mode == 'r',
+            writeback=False,
+            flag=access_mode,
+            protocol=self._protocol,
+        )
+
+        self._access_mode = access_mode
+        self._is_connected = True
+
+    def disconnect(self):
+        if self._is_connected:
+            self._db.close()
+            self._is_connected = False
+
+    def commit(self):
+        if self._access_mode != 'r':
             self._db.sync()
 
-    save = sync
+    def clear(self):
+        self._check_write_access()
+        self._db.clear()
 
-    def close(self):
-        if self._persistent:
-            self._db.close()
-        else:
-            self._db = None
+
+class MemoryDict_KVDatabase(BaseKVDatabase):
+    """In-memory dictionary database.
+
+    Args:
+        access_mode (str): Access mode for database.
+            Valid values are: 'r' = read-only, 'w' = read/write,
+            'c' = read/write/create if not exists, 'n' = new read/write.
+    """
+
+    def __init__(self, *, access_mode='c'):
+        self._db = None
+        self._access_mode = None
+        self._is_connected = False
+        self.connect(access_mode=access_mode)
+
+    def __len__(self):
+        self._check_connection_access()
+        return len(self._db)
+
+    def __contains__(self, key):
+        self._check_connection_access()
+        return key in self._db
+
+    def _check_connection_access(self):
+        if not self._is_connected:
+            raise ValueError('invalid operation on closed database')
+
+    def _check_write_access(self):
+        if self._access_mode == 'r':
+            raise ValueError('invalid operation on read-only database')
+
+    def get_config(self):
+        return {
+            'access mode': self._access_mode,
+            'memory usage': sys.getsizeof(self._db),
+            'item count': len(self._db) if self._is_connected else -1,
+        }
+
+    def get(self, key):
+        self._check_connection_access()
+        return self._db[key]
+
+    def set(self, key, value):
+        self._check_connection_access()
+        self._check_write_access()
+        self._db[key] = value
+
+    def keys(self):
+        self._check_connection_access()
+        return self._db.keys()
+
+    def delete(self, key):
+        self._check_connection_access()
+        self._check_write_access()
+        del self._db[key]
+
+    def connect(self, *, access_mode='w'):
+        if (
+            (access_mode == 'c' and self._db is None)
+            or access_mode == 'n'
+        ):
+            self._db = {}
+        self._access_mode = access_mode
+        self._is_connected = True
+
+    def disconnect(self):
+        self._is_connected = False
 
     def clear(self):
-        if self._persistent:
-            self._db.clear()
+        self._check_connection_access()
+        self._check_write_access()
+        self._db = {}
+
+
+def DictDatabase(*args, db_type='kv', **kwargs):
+    """Factory function for dictionary-based database.
+
+    Args:
+        db_type (str): Type of database. Valid values are: 'kv', 'il'.
+    """
+    if db_type == 'kv':
+        # NOTE: Using the number of arguments for identifying database is
+        # not ideal (not extensible).
+        if len(args) == 0:
+            cls = MemoryDict_KVDatabase
         else:
-            self._db = {}
+            cls = FileDict_KVDatabase
+    elif db_type == 'il':
+        pass
+    else:
+        raise ValueError(f'invalid database type, {db_type}')
+    return cls(*args, **kwargs)
