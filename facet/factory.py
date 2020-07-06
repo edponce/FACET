@@ -19,7 +19,7 @@ __all__ = ['FacetFactory']
 
 
 class FacetFactory:
-    """Generate a FACET instance from a given configuration."""
+    """Creates a FACET instance from a given configuration."""
 
     OBJTYPE_CLASSMAP_MAP = {
         'tokenizer': tokenizer_map,

@@ -4,6 +4,7 @@ from .redis import RedisDatabase
 from .sqlite import SQLiteDatabase
 from .elasticsearchx import Elasticsearchx, ElasticsearchDatabase
 
+# from .dict2 import DictDatabase
 
 database_map = {
     'dict': DictDatabase,

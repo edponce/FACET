@@ -2,7 +2,7 @@ import os
 import re
 import yaml
 import json
-import urllib
+import urllib.parse
 import pyparsing
 import configparser
 
@@ -370,25 +370,21 @@ def parse_address(address, port=None):
     Returns:
         (host, port): Hostname and port.
     """
-    parsed = urllib.parse.urlsplit(address)
-    # NOTE: urllib does not parse address if it does not contain a protocol.
+    # NOTE: urllib needs a scheme to identify 'netloc'.
     # The 'path' attribute gets the value of address and 'netloc' is empty.
+    parsed = urllib.parse.urlsplit(address)
     if not parsed.netloc:
-        # Sanitize start of address (remove protocol delimiters)
-        match = re.search(r'^[:|/]*(.*)', address)
-        if match:
-            address = match.group(0)
         parsed = urllib.parse.urlsplit('http://' + address)
 
     host = parsed.hostname
 
-    # urllib triggers error if port is not available
+    # urllib may trigger error if 'port' value is not available.
+    # urllib does not trigger error always and returns None.
     try:
         _port = parsed.port
     except ValueError:
         _port = None
 
-    # urllib does not trigger error always and returns None
     if _port is not None:
         port = _port
 
@@ -398,17 +394,30 @@ def parse_address(address, port=None):
 def unparse_address(
     host,
     port=None,
-    protocol='http',
+    scheme='http',
     user=None,
     password=None,
-    path=None,
 ):
-    """Build a fully-qualified URL from its individual parts."""
-    host, port = parse_address(host, port)
-    protocol = protocol + '://' if protocol else ''
-    port = ':' + str(port) if port else ''  # port 0 is not allowed
+    """Build a qualified URL from individual parts."""
     credentials = (
         user + (':' + password if password else '') + '@' if user else ''
     )
-    path = (path if path[0] == '/' else '/' + path) if path else ''
-    return protocol + credentials + host + port + path
+    host, port = parse_address(host, port)
+    port = ':' + str(port) if port else ''  # port 0 is not allowed
+    netloc = credentials + host + port
+    return urllib.parse.urlunsplit((scheme, netloc, '', '', ''))
+
+
+def parse_address_query(query: str):
+    return dict(filter(lambda x: len(x) == 2,
+                map(lambda x: x.split('='), query.split('&'))))
+
+
+def unparse_address_query(query: dict):
+    return '&'.join(map(lambda x: '='.join(x), query.items()))
+
+
+def parse_filename(filename):
+    fdir, fname = os.path.split(filename)
+    fdir = os.path.abspath(fdir) if fdir else os.getcwd()
+    return fdir, fname
