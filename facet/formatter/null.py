@@ -1,10 +1,10 @@
 from .base import BaseFormatter
 
 
-__all__ = ['BasicFormatter']
+__all__ = ['NullFormatter']
 
 
-class BasicFormatter(BaseFormatter):
+class NullFormatter(BaseFormatter):
 
     def _format(self, data):
         return data

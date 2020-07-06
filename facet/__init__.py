@@ -16,12 +16,12 @@ from .facets import (
     UMLSFacet,
 )
 from .formatter import (
-    JSONFormatter,
-    YAMLFormatter,
     XMLFormatter,
-    PickleFormatter,
     CSVFormatter,
-    BasicFormatter,
+    NullFormatter,
+    YAMLFormatter,
+    JSONFormatter,
+    PickleFormatter,
 )
 from .tokenizer import (
     NLTKTokenizer,
@@ -37,6 +37,7 @@ from .database import (
     ElasticsearchDatabase,
 )
 from .serializer import (
+    NullSerializer,
     JSONSerializer,
     YAMLSerializer,
     PickleSerializer,
