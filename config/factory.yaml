@@ -38,29 +38,38 @@ UMLSRedis:
     class: umlsfacet
     conso_db:
         class: redis
+        db_type: kv
         host: localhost
         port: 6379
-        db: 0
+        dbid: 0
+        # use_pipeline: true
         serializer: json
     cuisty_db:
         class: redis
+        db_type: kv
         host: localhost
         port: 6379
-        db: 1
+        dbid: 1
+        # use_pipeline: true
         serializer: json
     matcher:
         class: simstring
         db:
-            class: dict
-            db: db/simstring
-            # flag: r
+            # class: dict
+            # filename: db/simstring
+            # access_mode: r
+            class: redis
+            db_type: il
+            host: localhost
+            port: 6379
+            db: 2
         cache_db: null
         alpha: 0.7
         similarity: cosine
         ngram: character
     tokenizer: ws
     formatter: json
-    # install: data/umls_midsmall
+    install: data/umls_midsmall
 
 
 UMLSSQL:

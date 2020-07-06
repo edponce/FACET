@@ -221,7 +221,7 @@ def DictDatabase(*args, db_type='kv', **kwargs):
         else:
             cls = FileDict_KVDatabase
     elif db_type == 'il':
-        pass
+        cls = NotImplemented
     else:
         raise ValueError(f'invalid database type, {db_type}')
     return cls(*args, **kwargs)

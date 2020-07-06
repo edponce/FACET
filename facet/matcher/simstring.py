@@ -2,7 +2,7 @@ from collections import defaultdict
 from .base import BaseMatcher
 from ..database import (
     database_map,
-    BaseDatabase,
+    BaseDatabase2,
 )
 from .similarity import (
     similarity_map,
@@ -56,8 +56,8 @@ class Simstring(BaseMatcher):
     def __init__(
         self,
         *,
-        db: Union[str, 'BaseDatabase'] = 'dict',
-        cache_db: Union[str, 'BaseDatabase'] = None,
+        db: Union[str, 'BaseDatabase2'] = 'dict',
+        cache_db: Union[str, 'BaseDatabase2'] = None,
         alpha: float = 0.7,
         similarity: Union[str, 'BaseSimilarity'] = 'jaccard',
         ngram: Union[str, 'BaseNgram'] = 'character',
@@ -92,10 +92,10 @@ class Simstring(BaseMatcher):
         return self._db
 
     @db.setter
-    def db(self, value: Union[str, 'BaseDatabase']):
+    def db(self, value: Union[str, 'BaseDatabase2']):
         if isinstance(value, str):
             obj = database_map[value]()
-        elif isinstance(value, BaseDatabase):
+        elif isinstance(value, BaseDatabase2):
             obj = value
         else:
             raise ValueError(f'invalid Simstring database, {value}')
@@ -106,10 +106,10 @@ class Simstring(BaseMatcher):
         return self._cache_db
 
     @cache_db.setter
-    def cache_db(self, value: Union[str, 'BaseDatabase']):
+    def cache_db(self, value: Union[str, 'BaseDatabase2']):
         if isinstance(value, str):
             obj = database_map[value]()
-        elif isinstance(value, BaseDatabase):
+        elif isinstance(value, BaseDatabase2):
             obj = value
         else:
             obj = None

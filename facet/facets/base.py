@@ -255,17 +255,12 @@ class BaseFacet(ABC):
         # Profile
         prev_time = time.time()
 
-        # NOTE: Pipeline mode does works for all databases because
-        # 'matcher.insert' requires reading from database.
-        # Enable pipeline mode
-        # self._matcher.db.set_pipe(True)
-
         i = 0
         for term in data:
             i += 1
             self._matcher.insert(term)
-            # if i % bulk_size == 0:
-            #     self._matcher.db.sync()
+            if i % bulk_size == 0:
+                self._matcher.db.commit()
 
             # Profile
             if VERBOSE and i % status_step == 0:
@@ -274,9 +269,7 @@ class BaseFacet(ABC):
                 print(f'{i}: {elapsed_time} s')
                 prev_time = curr_time
 
-        # Disable pipeline mode
-        # NOTE: Stores data remaining in pipeline.
-        # self._matcher.db.set_pipe(False)
+        self._matcher.db.commit()
 
         if VERBOSE:
             print(f'Records processed: {i}')
@@ -302,15 +295,12 @@ class BaseFacet(ABC):
         # Profile
         prev_time = time.time()
 
-        # Enable pipeline mode
-        db.set_pipe(True)
-
         i = 0
         for key, val in data:
             i += 1
             db.set(key, val)
             if i % bulk_size == 0:
-                db.sync()
+                db.commit()
 
             # Profile
             if VERBOSE and i % status_step == 0:
@@ -319,16 +309,13 @@ class BaseFacet(ABC):
                 print(f'{i}: {elapsed_time} s')
                 prev_time = curr_time
 
-        # Disable pipeline mode
-        # NOTE: Stores data remaining in pipeline.
-        self._matcher.db.set_pipe(False)
-        db.set_pipe(False)
+        db.commit()
 
         if VERBOSE:
             print(f'Records processed: {i}')
             print(f'Key/value records: {len(db)}')
 
-    def _dump_matcher(
+    def _dump_matcher_kv(
         self,
         data: Iterable[Tuple[str, Any]],
         *,
@@ -349,20 +336,14 @@ class BaseFacet(ABC):
         # Profile
         prev_time = time.time()
 
-        # Enable pipeline mode
-        # NOTE: Pipeline mode does works for all databases because
-        # 'matcher.insert' requires reading from database.
-        # self._matcher.db.set_pipe(True)
-        db.set_pipe(True)
-
         i = 0
         for key, val in data:
             i += 1
             self._matcher.insert(key)
             db.set(key, val)
             if i % bulk_size == 0:
-                # self._matcher.db.sync()
-                db.sync()
+                self._matcher.db.commit()
+                db.commit()
 
             # Profile
             if VERBOSE and i % status_step == 0:
@@ -371,10 +352,8 @@ class BaseFacet(ABC):
                 print(f'{i}: {elapsed_time} s')
                 prev_time = curr_time
 
-        # Disable pipeline mode
-        # NOTE: Stores data remaining in pipeline.
-        # self._matcher.db.set_pipe(False)
-        db.set_pipe(False)
+        self._matcher.db.commit()
+        db.commit()
 
         if VERBOSE:
             print(f'Records processed: {i}')
