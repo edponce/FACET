@@ -10,12 +10,12 @@ from .ngram import (
     WordNgram,
     CharacterNgram,
 )
-from .base import BaseSimstring
+from .base import BaseMatcher
 from .simstring import Simstring
 from .elasticsearch import ElasticsearchSimstring
 
 
-simstring_map = {
+matcher_map = {
     'simstring': Simstring,
     'elasticsearch': ElasticsearchSimstring,
 }

@@ -60,12 +60,12 @@ class Facet(BaseFacet):
         curr_time = time.time()
         print(f'Loading/parsing data: {curr_time - start} s')
 
-        print('Writing simstring...')
+        print('Writing matcher data...')
         start = time.time()
-        # Stores simstring inverted lists
-        self._dump_simstring(data)
+        # Stores Matcher-specific data
+        self._dump_matcher(data)
         curr_time = time.time()
-        print(f'Writing simstring: {curr_time - start} s')
+        print(f'Writing matcher data: {curr_time - start} s')
 
         t2 = time.time()
         print(f'Total runtime: {t2 - t1} s')
@@ -80,7 +80,7 @@ class Facet(BaseFacet):
             ngram (Tuple[int, int, str]): Parsed N-grams with span.
 
         Kwargs:
-            Options passed directly to `Simstring.search()`.
+            Options passed directly to `Matcher.search()`.
         """
         begin, end, ngram = ngram_struct
         return [
@@ -91,7 +91,7 @@ class Facet(BaseFacet):
                 'concept': candidate,
                 'similarity': similarity,
             }
-            for candidate, similarity in self._simstring.search(
+            for candidate, similarity in self._matcher.search(
                 ngram,
                 **kwargs,
             )

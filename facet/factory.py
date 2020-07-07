@@ -4,9 +4,9 @@ from .formatter import formatter_map
 from .tokenizer import tokenizer_map
 from .database import database_map
 from .serializer import serializer_map
-from .simstring import simstring_map
-from .simstring.similarity import similarity_map
-from .simstring.ngram import ngram_map
+from .matcher import matcher_map
+from .matcher.similarity import similarity_map
+from .matcher.ngram import ngram_map
 from .utils import load_configuration
 from typing import (
     Any,
@@ -19,13 +19,13 @@ __all__ = ['FacetFactory']
 
 
 class FacetFactory:
-    """Generate a FACET instance from a given configuration."""
+    """Creates a FACET instance from a given configuration."""
 
     OBJTYPE_CLASSMAP_MAP = {
         'tokenizer': tokenizer_map,
         'formatter': formatter_map,
         'database': database_map,
-        'simstring': simstring_map,
+        'matcher': matcher_map,
         'similarity': similarity_map,
         'ngram': ngram_map,
         'serializer': serializer_map,
@@ -36,8 +36,8 @@ class FacetFactory:
     # then it is considered as an object. Only parameters that have a different
     # name from the object type are listed here.
     PARAM_OBJTYPE_MAP = {
-        'db': 'database',         # Simstring database
-        'cache_db': 'database',   # Simstring cache database
+        'db': 'database',         # Matcher database
+        'cache_db': 'database',   # Matcher cache database
         'cuisty_db': 'database',  # (UMLSFacet) CUI-STY database
         'conso_db': 'database',   # (UMLSFacet) CONCEPT-CUI database
     }

@@ -16,12 +16,12 @@ from .facets import (
     UMLSFacet,
 )
 from .formatter import (
-    JSONFormatter,
-    YAMLFormatter,
     XMLFormatter,
-    PickleFormatter,
     CSVFormatter,
-    BasicFormatter,
+    NullFormatter,
+    YAMLFormatter,
+    JSONFormatter,
+    PickleFormatter,
 )
 from .tokenizer import (
     NLTKTokenizer,
@@ -37,21 +37,22 @@ from .database import (
     ElasticsearchDatabase,
 )
 from .serializer import (
+    NullSerializer,
     JSONSerializer,
     YAMLSerializer,
     PickleSerializer,
     StringSerializer,
     StringSJSerializer,
 )
-from .simstring import (
+from .matcher import (
     Simstring,
     ElasticsearchSimstring,
 )
-from .simstring.ngram import (
+from .matcher.ngram import (
     WordNgram,
     CharacterNgram,
 )
-from .simstring.similarity import (
+from .matcher.similarity import (
     DiceSimilarity,
     ExactSimilarity,
     CosineSimilarity,

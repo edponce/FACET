@@ -20,7 +20,7 @@ from ..facets import facet_map
 from ..factory import FacetFactory
 from ..formatter import formatter_map
 from ..tokenizer import tokenizer_map
-from ..simstring.similarity import similarity_map
+from ..matcher.similarity import similarity_map
 from typing import (
     Any,
     Dict,
@@ -46,6 +46,14 @@ def load_config(ctx, param, config: str, key=None):
 
 
 def parse_dump_configuration(output: str, format='yaml'):
+    """Parse argument of dump configuration option.
+
+    A dump configuration option consists of a file and/or format using
+    the following syntax:
+        * Dump to file using default format - "file"
+        * Dump to file with specified format - "file:format"
+        * Print to STDOUT with specified format - "format"
+    """
     if ':' in output:
         output, format = output.split(':')
     elif output in formatter_map:
@@ -54,7 +62,10 @@ def parse_dump_configuration(output: str, format='yaml'):
 
 
 def dump_configuration(config: Dict[str, Any], output=None, format='yaml'):
+    """Dump configuration data to a file or STDOUT."""
+    # Run configuration through loader so that it gets parsed
     parsed_config = load_configuration(config)
+
     formatter = formatter_map[format]()
     formatted_config = formatter(parsed_config, output=output)
     if formatted_config is not None:
@@ -92,9 +103,9 @@ def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
                         print('Get syntax: cmd()')
                         print('Set syntax: cmd = value')
                     elif query == 'alpha()':
-                        print(obj.simstring.alpha)
+                        print(obj.matcher.alpha)
                     elif query == 'similarity()':
-                        print(get_obj_map_key(obj.simstring.similarity,
+                        print(get_obj_map_key(obj.matcher.similarity,
                                               similarity_map))
                     elif query == 'tokenizer()':
                         print(get_obj_map_key(obj.tokenizer, tokenizer_map))
@@ -107,9 +118,9 @@ def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
                     option = option.strip()
                     value = value.strip('\'" ')
                     if option == 'alpha':
-                        obj.simstring.alpha = float(value)
+                        obj.matcher.alpha = float(value)
                     elif option == 'similarity':
-                        obj.simstring.similarity = value
+                        obj.matcher.similarity = value
                     elif option == 'tokenizer':
                         obj.tokenizer = value
                     elif option == 'formatter':
@@ -183,7 +194,7 @@ def cli():
     type=str,
     default='dict',
     show_default=True,
-    help='Database for Simstring install/query.',
+    help='Database for Matcher install/query.',
 )
 @click.option(
     '-i', '--install',
@@ -228,7 +239,7 @@ def match(
     factory_config['class'] = config.get('class', 'facet')
     factory_config['tokenizer'] = config.get('tokenizer', tokenizer)
     factory_config['formatter'] = config.get('formatter', formatter)
-    factory_config['simstring'] = config.get('simstring', {
+    factory_config['matcher'] = config.get('matcher', {
         'class': 'simstring',
         'db': config.get('database', database),
         'alpha': config.get('alpha', alpha),
@@ -320,7 +331,7 @@ def match(
     type=click.Choice(('dict', 'redis', 'elasticsearch')),
     default='dict',
     show_default=True,
-    help='Database for Simstring install/query.',
+    help='Database for Matcher install/query.',
 )
 @click.option(
     '-i', '--install',
@@ -367,7 +378,7 @@ def server(
     factory_config['class'] = config.get('class', 'facet')
     factory_config['tokenizer'] = config.get('tokenizer', tokenizer)
     factory_config['formatter'] = config.get('formatter', formatter)
-    factory_config['simstring'] = config.get('simstring', {
+    factory_config['matcher'] = config.get('matcher', {
         'class': 'simstring',
         'db': config.get('database', database),
         'alpha': config.get('alpha', alpha),

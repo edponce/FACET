@@ -7,11 +7,11 @@ from typing import (
 )
 
 
-__all__ = ['BaseSimstring']
+__all__ = ['BaseMatcher']
 
 
-class BaseSimstring(ABC):
-    """Interface for Simstring implementations."""
+class BaseMatcher(ABC):
+    """Interface for implementations of matching algorithms."""
 
     @abstractmethod
     def insert(self, string: str) -> NoReturn:
@@ -21,10 +21,6 @@ class BaseSimstring(ABC):
     def search(
         self,
         query_string: str,
-        *,
-        alpha: float = None,
-        similarity = None,
-        rank: bool = True,
-        update_cache: bool = True,
+        **kwargs,
     ) -> Union[List[Tuple[str, float]], List[str]]:
         pass

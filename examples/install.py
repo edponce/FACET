@@ -9,6 +9,6 @@ ss = facet.Simstring(db=db3)
 f = facet.UMLSFacet(
     conso_db=db1,
     cuisty_db=db2,
-    simstring=ss,
+    matcher=ss,
 )
 f.install('data/umls_midsmall')
