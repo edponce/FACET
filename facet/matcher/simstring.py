@@ -1,9 +1,8 @@
 from collections import defaultdict
-from .base import BaseSimstring
+from .base import BaseMatcher
 from ..database import (
     database_map,
     BaseDatabase,
-    ElasticsearchDatabase,
 )
 from .similarity import (
     similarity_map,
@@ -22,10 +21,10 @@ from typing import (
 )
 
 
-__all__ = ['ElasticsearchSimstring']
+__all__ = ['Simstring']
 
 
-class ElasticsearchSimstring(BaseSimstring):
+class Simstring(BaseMatcher):
     """Implementation of Simstring algorithm.
 
     Okazaki, Naoaki, and Jun'ichi Tsujii. "Simple and efficient algorithm for
@@ -34,8 +33,9 @@ class ElasticsearchSimstring(BaseSimstring):
     Linguistics, 2010.
 
     Args:
-        db (str, ElasticsearchDatabase): Elasticsearch database instance or
-            index for storage.
+        db (str, BaseDatabase): Handle to database instance or database name
+            for strings storage. Valid databases are: 'dict', 'redis',
+            'elasticsearch'.
 
         cache_db (str, BaseDatabase): Handle to database instance or database
             name for strings cache. Valid databases are: 'dict', 'redis',
@@ -51,47 +51,19 @@ class ElasticsearchSimstring(BaseSimstring):
             or n-gram name. Valid n-gram extractors are: 'word', 'character'.
     """
 
-    SETTINGS = {
-        'settings': {
-            'number_of_shards': 1,
-            'number_of_replicas': 0,
-            'max_result_window': 10000,
-            # disable for bulk processing, enable for real-time
-            # 'refresh_interval': -1,
-        },
-    }
-
-    MAPPINGS = {
-        'mappings': {
-            'properties': {
-                'term': {
-                   'type': 'text',
-                   'index': False,
-                },
-                'ng': {
-                   'type': 'text',
-                   'norms': False,
-                   'similarity': 'boolean',
-                },
-                'sz': {
-                   'type': 'integer',
-                   'similarity': 'boolean',
-                },
-            },
-        },
-    }
-
-    _GLOBAL_MAX_FEATURES = 64
+    _GLOBAL_MAX_FEATURES = 128
 
     def __init__(
         self,
         *,
-        db: Union[str, 'ElasticsearchDatabase'] = 'facet',
+        db: Union[str, 'BaseDatabase'] = 'dict',
         cache_db: Union[str, 'BaseDatabase'] = None,
         alpha: float = 0.7,
         similarity: Union[str, 'BaseSimilarity'] = 'jaccard',
         ngram: Union[str, 'BaseNgram'] = 'character',
     ):
+        # Key/value store for {feature: terms}
+        # NOTE: Actually stored as {str(len(features)) + feature: [terms]}
         self._db = None
         self._cache_db = None
         self._alpha = None
@@ -104,6 +76,17 @@ class ElasticsearchSimstring(BaseSimstring):
         self.similarity = similarity
         self.ngram = ngram
 
+        # NOTE: Can track max number of n-gram features when inserting strings
+        # into database, but this value will not be available for other
+        # processes nor during a later search. Solution is to store the value
+        # into the database. But what if the database is not a key-value store,
+        # such as ElasticSearch.
+        # gmf = self._db.get('__GLOBAL_MAX_FEATURES__')
+        # self._global_max_features = (
+        #     gmf
+        #     if gmf is not None
+        #     else type(self)._GLOBAL_MAX_FEATURES
+        # )
         self._global_max_features = type(self)._GLOBAL_MAX_FEATURES
 
     @property
@@ -111,19 +94,13 @@ class ElasticsearchSimstring(BaseSimstring):
         return self._db
 
     @db.setter
-    def db(self, value: Union[str, 'ElasticsearchDatabase']):
-        obj = None
+    def db(self, value: Union[str, 'BaseDatabase']):
         if isinstance(value, str):
-            obj = ElasticsearchDatabase(
-                index=value,
-                body={**type(self).SETTINGS, **type(self).MAPPINGS},
-            )
-            obj.fields = ['sz', 'ng']
-        elif isinstance(value, ElasticsearchDatabase):
+            obj = database_map[value]()
+        elif isinstance(value, BaseDatabase):
             obj = value
-
-        if obj is None:
-            raise ValueError(f'invalid Elasticsearch database, {value}')
+        else:
+            raise ValueError(f'invalid Simstring database, {value}')
         self._db = obj
 
     @property
@@ -151,7 +128,7 @@ class ElasticsearchSimstring(BaseSimstring):
 
     @property
     def similarity(self):
-        return self._similarity.name
+        return self._similarity
 
     @similarity.setter
     def similarity(self, value: Union[str, 'BaseSimilarity']):
@@ -179,22 +156,27 @@ class ElasticsearchSimstring(BaseSimstring):
 
     def _get_strings(self, size: int, feature: str) -> List[str]:
         """Get strings corresponding to feature size and query feature."""
-        return [
-            hit['_source']['term']
-            for hit in self._db.get(size, feature)['hits']['hits']
-        ]
+        strings = self._db.get(str(size) + feature)
+        return strings if strings is not None else []
 
-    # NOTE: Consider supporting iterable data so that
-    # it can be passed directly to underlying database
-    # when pipe is enabled.
     def insert(self, string: str) -> NoReturn:
         """Insert string into database."""
         features = self._ngram.get_features(string)
-        self._db.set({
-            'term': string,
-            'sz': len(features),
-            'ng': features,
-        })
+        flen = str(len(features))
+        for feature in features:
+            strings = self._get_strings(len(features), feature)
+            if string not in strings:
+                strings.append(string)
+                self._db.set(flen + feature, strings)
+
+        # Track and store longest sequence of features
+        # NOTE: Too many database accesses. Probably it is best to estimate or
+        # fix a value or assume inserts occur during the same installation
+        # phase and keep track using class variables, then require a "closing"
+        # operation to store value into database.
+        # if len(features) > self._global_max_features:
+        #     self._global_max_features = len(features)
+        #     self._db.set('__GLOBAL_MAX_FEATURES__', self._global_max_features)
 
     def search(
         self,

@@ -8,4 +8,7 @@ from .configuration import (
     load_configuration,
     parse_address,
     unparse_address,
+    parse_address_query,
+    unparse_address_query,
+    parse_filename,
 )

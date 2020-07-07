@@ -65,7 +65,7 @@ Database
 N-gram Features Extractor
 -------------------------
 
-.. autoclass:: facet.simstring.ngram.BaseNgram
+.. autoclass:: facet.matcher.ngram.BaseNgram
     :members:
 
 .. autoclass:: facet.CharacterNgram
@@ -78,7 +78,7 @@ N-gram Features Extractor
 Similarity Measures
 -------------------
 
-.. autoclass:: facet.simstring.similarity.BaseSimilarity
+.. autoclass:: facet.matcher.similarity.BaseSimilarity
     :members:
 
 .. autoclass:: facet.ExactSimilarity

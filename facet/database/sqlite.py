@@ -1,6 +1,13 @@
 import os
+import copy
 import sqlite3
-from .base import BaseDatabase
+import urllib.parse
+from .base import BaseKVDatabase
+from ..utils import (
+    parse_filename,
+    parse_address_query,
+    unparse_address_query,
+)
 from ..serializer import (
     serializer_map,
     BaseSerializer,
@@ -17,31 +24,42 @@ from typing import (
 )
 
 
-__all__ = ['SQLiteDatabase']
+__all__ = [
+    'SQLiteKVDatabase',
+    'SQLiteDatabase',
+]
 
 
-class SQLiteDatabase(BaseDatabase):
+class SQLiteKVDatabase(BaseKVDatabase):
     """SQLite database interface.
 
     Args:
+        filename (str): Path representing database directory and name for
+            persistent database. The path is created if it does not exists.
+            The database name is used as prefix for database files. If None
+            or empty string, a memory database is used.
+            For unnamed in-memory database, set filename as ':memory:'.
+            For named in-memory database, use URI format and set 'mode=memory'
+            in query part. Example: 'file:memdb?mode=memory&cache=shared'
+
         table (str): Name of database table.
 
-        db (str): Path representing database directory and name for persistent
-            database. The path is created if it does not exists. The
-            database name is used as prefix for database files. If None or
-            empty string, an in-memory database is used. Default is None.
-
-        flag (str): (For persistent mode only) Access mode for database.
+        access_mode (str): Access mode for database.
             Valid values are: 'r' = read-only, 'w' = read/write,
-            'c' = read/write/create if not exists.
+            'c' = read/write/create if not exists, 'n' = new read/write.
 
-        pipe (bool): If set, queue 'set-related' commands to database.
-            Run 'sync' command to submit commands in pipe.
-            Default is False.
+        key_type (type): Python-based type for keys in database.
+            Valid values are: 'str', 'int', 'bool', 'float', 'bytes'.
+            Internally, sqlite3 converts keys to the selected type.
+
+        value_type (type): Python-based type for values in database.
+            Valid values are: 'str', 'int', 'bool', 'float', 'bytes', None.
+            If None, then any type is allowed and the serializer is used for
+            converting values to binary form. Use 'bytes' when you are already
+            providing binary data.
 
         serializer (str, BaseSerializer): Serializer instance or serializer
-            name. Valid serializers are: 'json', 'yaml', 'pickle', 'string',
-            'stringsj'. Default is 'json'.
+            name.
 
     Kwargs (see 'sqlite3.connect()'):
         timeout
@@ -49,77 +67,91 @@ class SQLiteDatabase(BaseDatabase):
         isolation_level
         check_same_thread
         cached_statements
+
+    Notes:
+        * After closing an in-memory database, re-connection creates
+          a new database, so error is triggered because previous table
+          does not exists.
     """
+
+    PYTYPE_SQLTYPE_MAP = {
+        str: 'VARCHAR',
+        int: 'INTEGER',
+        bool: 'BOOLEAN',
+        float: 'REAL',
+        bytes: 'BLOB',
+        None: 'BLOB',
+    }
 
     def __init__(
         self,
+        filename: str = ':memory:',
         *,
-        table: str,
-        db: str = None,
-        table_type: str = 'kv',
-        flag: str = 'c',
-        pipe=False,
+        table: str = 'facet',
+        access_mode: str = 'c',
+        key_type=str,
+        value_type=None,
         serializer: Union[str, 'BaseSerializer'] = 'json',
         **kwargs,
     ):
-        if db:
-            # Persistent database
-            db_dir, db_name = os.path.split(db)
-            if not db_name:
-                raise ValueError('missing database filename, no basename')
-            db_dir = os.path.abspath(db_dir) if db_dir else os.getcwd()
-            os.makedirs(db_dir, exist_ok=True)
-            db_name = db
-
-            options = '?'
-            if flag == 'r':
-                options += 'mode=ro'
-                options += '&nolock=1'
-            elif flag == 'w':
-                options += 'mode=rw'
-            elif flag == 'c':
-                options += 'mode=rwc'
-            else:
-                options = ''
-
-            db_uri = 'file:' + db + options
-            persistent = True
-
-        else:
-            # In-memory database
-            db_name = ':memory:'
-            db_uri = db_name
-            persistent = False
-
-        self._name = db_name
+        self._db = None
+        self._name = None
         self._table = table
-        self._type = table_type
-        self._persistent = persistent
+        self._access_mode = None
+        self._uri = None
+        self._query = None
         self._serializer = None
-        self.serializer = serializer
+        # Disable serializer if value type is supported by sqlite3
+        self.serializer = (
+            None if value_type in (str, int, bool, float, bytes)
+            else serializer
+        )
+        self._is_connected = False
+        self._conn_params = copy.deepcopy(kwargs)
 
-        # Connect to database
-        # Types supported: bytes, str, int, float, None
-        self._db = sqlite3.connect(db_uri, uri=True, **kwargs)
+        # Parse file name as if in URI format
+        parsed = urllib.parse.urlsplit(filename)
+        self._name = parsed.path
 
-        # Create table
-        if self._type == 'kv':
-            self._db.execute(
-                f"CREATE TABLE IF NOT EXISTS {self._table} ("
-                "  key VARCHAR PRIMARY KEY,"
-                "  value BLOB NOT NULL"
-                ");"
-            )
-        elif self._type == 'simstring':
-            pass
+        # Prioritize query mode in URI over argument value
+        query = parse_address_query(parsed.query)
+        self._query = query
+        query_mode = query.get('mode')
+        if query_mode:
+            if query_mode == 'ro':
+                access_mode = 'r'
+            elif query_mode == 'rw':
+                access_mode = 'w'
+            elif query_mode == 'rwc':
+                access_mode = 'c'
+            else:
+                # NOTE: If invalid access mode, keep it so that
+                # sqlite3 triggers error. But this also allows setting
+                # query_mode to 'r', 'w', etc. and processed as correct
+                # when in fact they are not valid sqlite modes.
+                access_mode = query_mode
 
-    @property
-    def config(self):
-        return {
-            'name': self._name,
-            'table': self._table,
-            'type': self._type,
-        }
+        # Create path/file for persistent database
+        if parsed.path != ':memory:' and query_mode != 'memory':
+            db_dir, db_base = parse_filename(parsed.path)
+            if access_mode == 'c':
+                os.makedirs(db_dir, exist_ok=True)
+            elif access_mode == 'n':
+                if os.path.isfile(parsed.path):
+                    os.remove(parsed.path)
+                else:
+                    os.makedirs(db_dir, exist_ok=True)
+
+        # Convert file name to URI format
+        self._uri = filename if parsed.scheme else 'file:' + parsed.path
+
+        # Connect and create table
+        self.connect(access_mode=access_mode)
+        self._db.execute(
+            f"CREATE TABLE IF NOT EXISTS {self._table} ("
+            f"key {type(self).PYTYPE_SQLTYPE_MAP[key_type]} PRIMARY KEY, "
+            f"value {type(self).PYTYPE_SQLTYPE_MAP[value_type]});"
+        )
 
     @property
     def serializer(self):
@@ -127,7 +159,7 @@ class SQLiteDatabase(BaseDatabase):
 
     @serializer.setter
     def serializer(self, value: Union[str, 'BaseSerializer']):
-        if isinstance(value, str):
+        if value is None or isinstance(value, str):
             obj = serializer_map[value]()
         elif isinstance(value, BaseSerializer):
             obj = value
@@ -135,172 +167,136 @@ class SQLiteDatabase(BaseDatabase):
             raise ValueError(f'invalid serializer, {value}')
         self._serializer = obj
 
-    def __getitem__(
-        self,
-        key: Union[str, Iterable[str]],
-    ) -> Union[List[Any], None, List[Union[List[Any], None]]]:
-        return self.get(key)
-
-    def __setitem__(self, key: str, value: Any) -> NoReturn:
-        self.set(key, value)
-
-    def __delitem__(self, key: str) -> NoReturn:
-        self.delete(key)
-
     def __contains__(self, key: str) -> bool:
-        return self.exists(key)
-
-    def __iter__(self):
-        return self.keys()
+        cur = self._db.execute(
+            "SELECT EXISTS("
+            f"SELECT value FROM {self._table} "
+            "WHERE key=(?));", (key,)
+        )
+        return bool(cur.fetchone()[0])
 
     def __len__(self):
-        cur = self._db.execute(f"SELECT COUNT(key) FROM {self._table}")
+        cur = self._db.execute(f"SELECT COUNT(key) FROM {self._table};")
         return cur.fetchone()[0]
 
-    def items(self) -> Iterator[Tuple[str, Any]]:
-        yield self._db.execute(f"SELECT key, value FROM {self._table}")
+    def get_table_memsize(self):
+        try:
+            cur = self._db.execute(
+                "SELECT SUM(\"pgsize\") FROM \"dbstat\" "
+                "WHERE name=(?);", (self._table,)
+            )
+            return cur.fetchone()[0]
+        except sqlite3.ERROR:
+            pass
 
-    # def _resolve_set(
-    #     self,
-    #     key,
-    #     value,
-    #     *,
-    #     replace=None,
-    #     unique=False,
-    # ) -> Union[List[Any], None]:
-    #     """Resolve final key/value to be used based on key/value's
-    #     existence and value's uniqueness."""
-    #     if replace is not None:
-    #         if not replace and self.exists(key):
-    #             prev_value = self.get(key)
-    #             if isinstance(prev_value, dict):
-    #                 prev_value = []
-    #             elif unique and value in prev_value:
-    #                 return None
-    #             prev_value.append(value)
-    #             value = prev_value
-    #         else:
-    #             value = [value]
-    #     return value
+    def execute(self, cmd, *args):
+        if len(args) == 0:
+            cur = self._db.execute(cmd)
+        else:
+            cur = self._db.execute(cmd, args)
+        return cur.fetchall()
+
+    def get_schema(self):
+        cur = self._db.execute(
+            f"SELECT sql FROM sqlite_master "
+            f"WHERE type='table' AND tbl_name=(?);", (self._table,)
+        )
+        return cur.fetchone()[0]
+
+    def get_config(self):
+        return {
+            'name': self._name,
+            'uri': self._uri,
+            'table': self._table,
+            'access mode': self._access_mode,
+            'memory usage': (
+                self.get_table_memsize() if self._is_connected else -1
+            ),
+            'item count': len(self) if self._is_connected else -1,
+            'schema': self.get_schema() if self._is_connected else '',
+            'serializer': self._serializer,
+        }
 
     def get(self, key):
         cur = self._db.execute(
             f"SELECT value FROM {self._table} "
-            f"WHERE key='{key}'"
+            "WHERE key=(?);", (key,)
         )
-
         value = cur.fetchone()
-        return self._serializer.loads(value[0]) if value is not None else value
-
-    def mget(self, keys):
-        cur = self._db.execute(
-            f"SELECT value FROM {self._table} "
-            "WHERE key in ({})".format(', '.join('?' for _ in keys)), keys
-        )
-        return list(map(lambda x: x[0], cur.fetchall()))
+        return value if value is None else self._serializer.loads(value[0])
 
     def set(self, key, value, **kwargs):
+        _value = self._serializer.dumps(value)
         cur = self._db.execute(
-            f"INSERT INTO {self._table}(key, value) "
-            "VALUES (?, ?)", (key, self._serializer.dumps(value))
+            f"INSERT INTO {self._table}(key, value) VALUES (?, ?) "
+            f"ON CONFLICT(key) DO UPDATE SET value=(?);",
+            (key, _value, _value)
         )
 
-    def mset(self, mapping, **kwargs):
-        pass
-    # def mset(self, mapping, **kwargs):
-    #     _mapping = {}
-    #     for key, value in mapping.items():
-    #         value = self._resolve_set(key, value, **kwargs)
-    #         if value is not None:
-    #             _mapping[key] = self._serializer.dumps(value)
-    #     if len(_mapping) > 0:
-    #         self._dbp.mset(_mapping)
-
     def keys(self):
-        cur = self._db.execute(f"SELECT key FROM {self._table}")
+        cur = self._db.execute(f"SELECT key FROM {self._table};")
         return map(lambda row: row[0], cur)
 
-    def exists(self, key):
-        return self.get(key) is not None
+    def items(self, *, chunk=100) -> Iterator[Tuple[str, Any]]:
+        cur = self._db.execute(f"SELECT key, value FROM {self._table};")
+        data = cur.fetchmany(chunk)
+        while data:
+            for k, v in data:
+                yield k, v
+            data = cur.fetchmany(chunk)
 
     def delete(self, key):
         self._db.execute(
             f"DELETE FROM {self._table} "
-            f"WHERE key='{key}'"
+            "WHERE EXISTS ("
+            f"SELECT * FROM {self._table} "
+            "WHERE key=(?));", (key,)
         )
 
-    def sync(self):
-        if self._db.in_transaction:
+    def connect(self, *, access_mode='w'):
+        if self._is_connected:
+            if self._access_mode == access_mode:
+                return
+            self._db.close()
+
+        # Add/change access mode options to URI
+        query_mode = self._query.get('mode')
+        if query_mode != 'memory':
+            if access_mode == 'r':
+                self._query['mode'] = 'ro'
+                self._query['nolock'] = '1'
+            elif access_mode == 'w':
+                self._query['mode'] = 'rw'
+            elif access_mode in ('c', 'n'):
+                self._query['mode'] = 'rwc'
+
+        # Update query in URI
+        db_uri = self._uri.split('?')[0]
+        query = unparse_address_query(self._query)
+        self._uri = db_uri + '?' + query if query else db_uri
+
+        self._db = sqlite3.connect(self._uri, uri=True, **self._conn_params)
+        self._access_mode = access_mode
+        self._is_connected = True
+
+    def commit(self):
+        # NOTE: Check for connection status to allow invoking
+        # on a closed database.
+        if self._is_connected and self._db.in_transaction:
             self._db.commit()
 
-    save = sync
-
-    def close(self):
-        self.sync()
-        self._db.close()
+    def disconnect(self):
+        if self._is_connected:
+            self._db.close()
+            self._is_connected = False
 
     def clear(self):
-        # NOTE: Delete table vs. delete all rows. The former triggers error
-        # during 'Facet._install()'.
-        # self._db.execute(f"DROP TABLE IF EXISTS {self._table}")
-        self._db.execute(f"DELETE FROM {self._table}")
+        self._db.execute(f"DELETE FROM {self._table};")
 
-    def set_pipe(self, pipe: bool) -> NoReturn:
-        """Enable/disable pipeline mode."""
-        pass
 
-    # ABSTRACT METHODS (Delete)
-    _get = get
-    _mget = mget
-
-    def _hget(self, key: str, field: str) -> Union[List[Any], None]:
-        pass
-
-    def _hmget(
-        self,
-        key: str,
-        fields: Iterable[str]
-    ) -> List[Union[List[Any], None]]:
-        pass
-
-    _set = set
-    _mset = mset
-
-    def _hset(
-        self, key: str, field: str, value: Any, *,
-        replace=None, unique=False,
-    ) -> NoReturn:
-        pass
-
-    def _hmset(
-        self, key: str, mapping: Dict[str, Any], *,
-        replace=None, unique=False,
-    ) -> NoReturn:
-        pass
-
-    _keys = keys
-
-    def _hkeys(self, key: str) -> List[str]:
-        pass
-
-    _len = __len__
-
-    def _hlen(self, key: str) -> int:
-        """Return number of fields in hash map.
-        If key is not a hash name, then return 0
-        If key does not exists, then return 0.
-        """
-        pass
-
-    _exists = exists
-
-    def _hexists(self, key: str, field: str) -> bool:
-        """Check existence of a hash name.
-        If key is not a hash name, then return false.
-        """
-        pass
-
-    _delete = delete
-
-    def _hdelete(self, key: str, fields: Iterable[str]) -> NoReturn:
-        pass
+def SQLiteDatabase(*args, db_type='kv', **kwargs):
+    if db_type == 'kv':
+        cls = SQLiteKVDatabase
+    else:
+        raise ValueError(f'invalid database type, {db_type}')
+    return cls(*args, **kwargs)

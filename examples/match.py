@@ -22,7 +22,7 @@ ss = facet.Simstring(
 f = facet.UMLSFacet(
     conso_db=db1,
     cuisty_db=db2,
-    simstring=ss,
+    matcher=ss,
     tokenizer='ws',
     formatter='json',
 )

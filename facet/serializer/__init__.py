@@ -6,6 +6,7 @@ from .string import (
     StringSerializer,
     StringSJSerializer,
 )
+from .null import NullSerializer
 
 
 serializer_map = {
@@ -14,4 +15,6 @@ serializer_map = {
     'pickle': PickleSerializer,
     'string': StringSerializer,
     'stringsj': StringSJSerializer,
+    'null': NullSerializer,
+    None: NullSerializer,
 }
