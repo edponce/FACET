@@ -18,6 +18,10 @@ from ..formatter import (
     formatter_map,
     BaseFormatter,
 )
+from ..database import (
+    database_map,
+    BaseDatabase,
+)
 from typing import (
     Any,
     List,
@@ -49,6 +53,10 @@ strcase_map = {
 }
 
 
+def create_proxy_db():
+    return database_map['dict']()
+
+
 class BaseFacet(ABC):
     """Class supporting FACET installers and matchers.
 
@@ -62,6 +70,9 @@ class BaseFacet(ABC):
 
         formatter (str, BaseFormatter): Formatter instance or formatter name.
             Valid formatters are: 'json', 'yaml', 'xml', 'pickle', 'csv'.
+
+        use_proxy_install (bool): If set, an in-memory database will be used
+            for installation, then data will be dumped into selected databases.
     """
 
     def __init__(
@@ -70,10 +81,12 @@ class BaseFacet(ABC):
         matcher: Union[str, 'BaseMatcher'] = 'simstring',
         tokenizer: Union[str, 'BaseTokenizer'] = 'ws',
         formatter: Union[str, 'BaseFormatter'] = None,
+        use_proxy_install: bool = True,
     ):
         self._matcher = None
         self._tokenizer = None
         self._formatter = None
+        self._use_proxy_install = use_proxy_install
 
         self.matcher = matcher
         self.tokenizer = tokenizer
@@ -186,7 +199,6 @@ class BaseFacet(ABC):
 
             for sentence in self._tokenizer.sentencize(corpus):
                 for ngram_struct in self._tokenizer.tokenize(sentence):
-                    print(ngram_struct)
                     ngram_matches = self._match(ngram_struct, **kwargs)
                     if len(ngram_matches) == 0:
                         continue
@@ -246,6 +258,12 @@ class BaseFacet(ABC):
             status_step (int): Print status message after this number of
                 records is dumped to databases.
         """
+        # Set up proxy database
+        if self._use_proxy_install:
+            orig_db = self._matcher.db
+            proxy_db = create_proxy_db()
+            self._matcher.db = proxy_db
+
         prev_time = time.time()
 
         i = 0
@@ -267,6 +285,12 @@ class BaseFacet(ABC):
             print(f'Records processed: {i}')
             print(f'Matcher records: {len(self._matcher.db)}')
 
+        # Copy proxy database
+        if self._use_proxy_install:
+            proxy_db.copy(orig_db)
+            self._matcher.db = orig_db
+            proxy_db.clear()
+
     def _dump_kv(
         self,
         data: Iterable[Tuple[str, Any]],
@@ -284,6 +308,12 @@ class BaseFacet(ABC):
             status_step (int): Print status message after this number of
                 records is dumped to databases.
         """
+        # Set up proxy database
+        if self._use_proxy_install:
+            orig_db = db
+            proxy_db = create_proxy_db()
+            db = proxy_db
+
         prev_time = time.time()
 
         i = 0
@@ -305,6 +335,12 @@ class BaseFacet(ABC):
             print(f'Records processed: {i}')
             print(f'Key/value records: {len(db)}')
 
+        # Copy proxy database
+        if self._use_proxy_install:
+            proxy_db.copy(orig_db)
+            db = orig_db
+            proxy_db.clear()
+
     def _dump_matcher_kv(
         self,
         data: Iterable[Tuple[str, Any]],
@@ -323,6 +359,16 @@ class BaseFacet(ABC):
             status_step (int): Print status message after this number of
                 records is dumped to databases.
         """
+        # Set up proxy database
+        if self._use_proxy_install:
+            orig_db1 = self._matcher.db
+            proxy_db1 = create_proxy_db()
+            self._matcher.db = proxy_db1
+
+            orig_db2 = db
+            proxy_db2 = create_proxy_db()
+            db = proxy_db2
+
         prev_time = time.time()
 
         i = 0
@@ -347,6 +393,16 @@ class BaseFacet(ABC):
             print(f'Records processed: {i}')
             print(f'Key/value records: {len(db)}')
             print(f'Matcher records: {len(self._matcher.db)}')
+
+        # Copy proxy database
+        if self._use_proxy_install:
+            proxy_db1.copy(orig_db1)
+            self._matcher.db = orig_db1
+            proxy_db1.clear()
+
+            proxy_db2.copy(orig_db2)
+            db = orig_db2
+            proxy_db2.clear()
 
     def _close(self):
         pass

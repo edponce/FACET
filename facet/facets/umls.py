@@ -126,7 +126,7 @@ class UMLSFacet(BaseFacet):
 
     def _install(
         self,
-        umls_dir: str,
+        data: str,
         *,
         cui_valids: Dict[str, Iterable[Any]] = {},
         sty_valids: Dict[str, Iterable[Any]] = {'sty': ACCEPTED_SEMTYPES},
@@ -139,17 +139,26 @@ class UMLSFacet(BaseFacet):
         are joined based on CUIs and ACCEPTED_SEMTYPES.
 
         Args:
-            umls_dir (str): Directory of UMLS RRF files.
+            data (str): Directory of UMLS RRF files.
 
         Kwargs:
             Options passed directly to '*load_data()' function.
         """
         t1 = time.time()
 
+        # NOTE: This allows user configuration to use either None or {}
+        # for disabling these filters.
+        if cui_valids is None:
+            cui_valids = {}
+        if sty_valids is None:
+            sty_valids = {}
+
+        # NOTE: Even if 'conso_db' is None, we can filter based on semantic
+        # types selected.
         if self._cuisty_db is not None:
             print('Loading/parsing semantic types...')
             start = time.time()
-            mrsty_file = os.path.join(umls_dir, 'MRSTY.RRF')
+            mrsty_file = os.path.join(data, 'MRSTY.RRF')
             cuisty = load_data(
                 mrsty_file,
                 keys=['cui'],
@@ -177,7 +186,7 @@ class UMLSFacet(BaseFacet):
 
         print('Loading/parsing concepts...')
         start = time.time()
-        mrconso_file = os.path.join(umls_dir, 'MRCONSO.RRF')
+        mrconso_file = os.path.join(data, 'MRCONSO.RRF')
         conso = load_data(
             mrconso_file,
             keys=['str'],

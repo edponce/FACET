@@ -107,6 +107,15 @@ class BaseKVDatabase(BaseDatabase):
             self.set(key, value)
             return value
 
+    def copy(self, db: 'BaseKVDatabase', *, bulk_size: int = 10000):
+        # NOTE: Does not checks if databases are the same object because
+        # this interface does not have access to its backend database handle.
+        for i, (k, v) in enumerate(self.items(), start=1):
+            db.set(k, v)
+            if i % bulk_size == 0:
+                db.commit()
+        db.commit()
+
     @abstractmethod
     def __len__(self):
         pass
