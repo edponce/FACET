@@ -1,3 +1,10 @@
+SimpleMemory:
+    install:
+        data: data/umls_midsmall/MRCONSO.RRF
+        delimiter: "|"
+        cols: 14
+
+
 FacetMemory:
     class: facet
     use_proxy_install: false
@@ -40,7 +47,6 @@ FacetRedis:
         class: simstring
         db:
             class: redis
-            # db_type: nkv
             host: localhost
             port: 6379
             id: 3
@@ -49,9 +55,6 @@ FacetRedis:
         alpha: 0.7
         similarity: cosine
         ngram: character
-        # ngram:
-        #     class: word
-        #     n: 2
     tokenizer: ws
     formatter: json
     install:
