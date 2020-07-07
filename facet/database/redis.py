@@ -1,22 +1,21 @@
 import copy
 import redis
 from .base import BaseKVDatabase
-from .base2 import BaseDatabase2
 from ..serializer import (
     serializer_map,
     BaseSerializer,
 )
+from ..utils import parse_address
 from typing import Union
 
 
 __all__ = [
-    'Redis_KVDatabase',
-    'Redis_ILDatabase',
+    'RedisKVDatabase',
     'RedisDatabase',
 ]
 
 
-class Redis_KVDatabase(BaseKVDatabase):
+class RedisKVDatabase(BaseKVDatabase):
     """Redis database interface.
 
     Args:
@@ -24,7 +23,11 @@ class Redis_KVDatabase(BaseKVDatabase):
 
         port (int): See Redis documentation.
 
-        dbid (int): Database ID, see Redis documentation.
+        id (int): Database ID, see Redis documentation.
+
+        access_mode (str): Access mode for database.
+            Valid values are: 'r' = read-only, 'w' = read/write,
+            'c' = read/write/create if not exists, 'n' = new read/write.
 
         use_pipeline (bool): If set, queue 'set-related' commands to database.
             Run 'commit' command to submit commands in pipe.
@@ -41,6 +44,9 @@ class Redis_KVDatabase(BaseKVDatabase):
           of 'str' type and arbitrary values.
 
         * Redis Python API returns keys as 'bytes', so we use str.decode.
+
+        * Redis object is disconnected automatically when object goes out
+          of scope.
     """
 
     def __init__(
@@ -48,25 +54,25 @@ class Redis_KVDatabase(BaseKVDatabase):
         host='localhost',
         *,
         port=6379,
-        dbid=0,
+        id=0,
+        access_mode='c',
         use_pipeline: bool = False,
         serializer: Union[str, 'BaseSerializer'] = 'json',
         **kwargs,
     ):
         self._db = None
         self._dbp = None
-        # NOTE: Need to parse host for port and database ID
-        self._host = host
-        self._port = port
+        self._host, self._port = parse_address(host, port)
         self._uri = host
-        self._db_id = dbid
+        self._db_id = id
+        self._access_mode = None
         self._use_pipeline = use_pipeline
         self._serializer = None
         self.serializer = serializer
         self._is_connected = False
         self._conn_params = copy.deepcopy(kwargs)
 
-        self.connect()
+        self.connect(access_mode=access_mode)
 
     @property
     def serializer(self):
@@ -83,10 +89,20 @@ class Redis_KVDatabase(BaseKVDatabase):
         self._serializer = obj
 
     def __contains__(self, key):
+        self._check_connection_access()
         return bool(self._db.exists(key))
 
     def __len__(self):
+        self._check_connection_access()
         return self._db.dbsize()
+
+    def _check_connection_access(self):
+        if not self._is_connected:
+            raise ValueError('invalid operation on closed database')
+
+    def _check_write_access(self):
+        if self._access_mode == 'r':
+            raise ValueError('invalid operation on read-only database')
 
     def get_config(self):
         return {
@@ -94,6 +110,7 @@ class Redis_KVDatabase(BaseKVDatabase):
             'port': self._port,
             'db id': self._db_id,
             'uri': self._uri,
+            'access mode': self._access_mode,
             'item count': len(self) if self._is_connected else -1,
             'use pipeline': self._use_pipeline,
             'serializer': self._serializer,
@@ -105,20 +122,28 @@ class Redis_KVDatabase(BaseKVDatabase):
         return info if self._is_connected else {}
 
     def get(self, key):
+        self._check_connection_access()
         value = self._db.get(key)
         return value if value is None else self._serializer.loads(value)
 
     def set(self, key, value):
+        self._check_connection_access()
+        self._check_write_access()
         self._dbp.set(key, self._serializer.dumps(value))
 
     def keys(self):
+        self._check_connection_access()
         return list(map(lambda k: k.decode(), self._db.keys()))
 
     def delete(self, key):
+        self._check_connection_access()
+        self._check_write_access()
         self._db.delete(key)
 
-    def connect(self, *, access_mode=None):
+    def connect(self, *, access_mode='w'):
         if self._is_connected:
+            if self._access_mode == access_mode:
+                return
             self._db = None
             self._dbp = None
 
@@ -128,279 +153,31 @@ class Redis_KVDatabase(BaseKVDatabase):
             db=self._db_id,
             **self._conn_params,
         )
+
         self._dbp = self._db.pipeline() if self._use_pipeline else self._db
+        self._access_mode = access_mode
         self._is_connected = True
 
     def commit(self):
         if self._is_connected and self._use_pipeline:
+            self._check_write_access()
             self._dbp.execute()
 
     def disconnect(self):
-        # NOTE: Redis object is disconnected automatically when object
-        # goes out of scope.
         if self._is_connected:
             self._db = None
             self._dbp = None
             self._is_connected = False
 
     def clear(self):
-        self._db.flushdb()
-
-
-class Redis_ILDatabase(BaseDatabase2):
-    """Redis database interface.
-
-    Args:
-        host (str): See Redis documentation. Default is 'localhost'.
-
-        port (int): See Redis documentation. Default is 6379.
-
-        db (int): Database ID, see Redis documentation. Default is 0.
-
-        pipe (bool): If set, queue 'set-related' commands to database.
-            Run 'sync' command to submit commands in pipe.
-            Default is False.
-
-        serializer (str, BaseSerializer): Serializer instance or serializer
-            name. Valid serializers are: 'json', 'yaml', 'pickle', 'string',
-            'stringsj'. Default is 'json'.
-
-    Kwargs:
-        Options forwarded to 'Redis' class.
-
-    Notes:
-        * Redis treats keys/fields of 'str, bytes, and int'
-          types interchangeably, but this interface accepts keys/fields
-          of 'str' type and arbitrary values.
-
-        * Redis Python API returns keys as 'bytes', so we use str.decode.
-    """
-
-    def __init__(
-        self,
-        host='localhost',
-        *,
-        port=6379,
-        db=0,
-        pipe=False,
-        serializer: Union[str, 'BaseSerializer'] = 'json',
-        **kwargs
-    ):
-        self._host = host
-        self._port = port
-        self._db_id = db
-
-        self._serializer = None
-        self.serializer = serializer
-
-        # Connect to database
-        self._db = redis.Redis(
-            host=self._host,
-            port=self._port,
-            db=self._db_id,
-            **kwargs,
-        )
-
-        # NOTE: Redis pipeline object is used only for 'set' operations
-        # and requires invoking 'sync' to commit queued operations.
-        self._dbp = None
-        self._is_pipe = None
-        self.set_pipe(pipe)
-
-    def set_pipe(self, pipe: bool):
-        # NOTE: Invoke sync() when disabling pipe and pipe was enabled
-        if not pipe:
-            self.commit()
-        self._is_pipe = pipe
-        self._dbp = self._db.pipeline() if self._is_pipe else self._db
-
-    @property
-    def host(self):
-        return self._host
-
-    @property
-    def port(self):
-        return self._port
-
-    @property
-    def db_id(self):
-        return self._db_id
-
-    @property
-    def config(self):
-        info = copy.deepcopy(self._db.info())
-        info.update(self._db.config_get())
-        return info
-
-    # @config.setter
-    # def config(self, mapping):
-    #     for key, value in mapping.items():
-    #         self._db.config_set(key, value)
-
-    @property
-    def serializer(self):
-        return self._serializer
-
-    @serializer.setter
-    def serializer(self, value: Union[str, 'BaseSerializer']):
-        if isinstance(value, str):
-            obj = serializer_map[value]()
-        elif isinstance(value, BaseSerializer):
-            obj = value
-        else:
-            raise ValueError(f'invalid serializer, {value}')
-        self._serializer = obj
-
-    # NOTE: We should be able to remove this because BaseDatabase.__iter__
-    # invokes _keys()
-    def __iter__(self):
-        return map(lambda key: key.decode(), self._db.scan_iter())
-
-    def _get(self, key):
-        try:
-            value = self._db.get(key)
-        except redis.exceptions.ResponseError:
-            # NOTE: Assume key is a hash name, so return a field/value mapping.
-            # Setting a hash map using this syntax is not supported
-            # because it is ambiguous if a dictionary is the value or
-            # the field/value mapping.
-            return {
-                field: self._hget(key, field) for field in self._hkeys(key)
-            }
-        if value is not None:
-            value = self._serializer.loads(value)
-        return value
-
-    def _mget(self, keys):
-        values = self._db.mget(keys)
-        for i, value in enumerate(values):
-            if value is not None:
-                values[i] = self._serializer.loads(value)
-            else:
-                # NOTE: '_mget' returns None if key is a hash name, so
-                # check if key is a hash name.
-                values[i] = self._get(keys[i])
-        return values
-
-    def _hget(self, key, field):
-        try:
-            value = self._db.hget(key, field)
-        except redis.exceptions.ResponseError:
-            return None
-        if value is not None:
-            value = self._serializer.loads(value)
-        return value
-
-    def _hmget(self, key, fields):
-        try:
-            values = self._db.hmget(key, fields)
-        except redis.exceptions.ResponseError:
-            # NOTE: If key already exists and is not a hash name,
-            # error is triggered. Return None for each field to have
-            # the same behavior as when key does not exists.
-            return len(fields) * [None]
-        for i, value in enumerate(values):
-            if value is not None:
-                values[i] = self._serializer.loads(value)
-        return values
-
-    def _set(self, key, value, **kwargs):
-        value = self._resolve_set(key, value, **kwargs)
-        if value is not None:
-            self._dbp.set(key, self._serializer.dumps(value))
-
-    def _mset(self, mapping, **kwargs):
-        _mapping = {}
-        for key, value in mapping.items():
-            value = self._resolve_set(key, value, **kwargs)
-            if value is not None:
-                _mapping[key] = self._serializer.dumps(value)
-        if len(_mapping) > 0:
-            self._dbp.mset(_mapping)
-
-    def _hset(self, key, field, value, **kwargs):
-        value = self._resolve_hset(key, field, value, **kwargs)
-        if value is not None:
-            value = self._serializer.dumps(value)
-            try:
-                self._dbp.hset(key, field, value)
-            except redis.exceptions.ResponseError:
-                # NOTE: Assume key is not a hash name.
-                self._delete([key])
-                self._dbp.hset(key, field, value)
-
-    def _hmset(self, key, mapping, **kwargs):
-        _mapping = {}
-        for field, value in mapping.items():
-            value = self._resolve_hset(key, field, value, **kwargs)
-            if value is not None:
-                _mapping[field] = self._serializer.dumps(value)
-        if len(_mapping) > 0:
-            self._dbp.hmset(key, _mapping)
-
-    def _keys(self):
-        return list(map(lambda key: key.decode(), self._db.keys()))
-
-    def _hkeys(self, key):
-        try:
-            fields = self._db.hkeys(key)
-        except redis.exceptions.ResponseError:
-            # NOTE: Assume key is not a hash name.
-            return []
-        return list(map(lambda field: field.decode(), fields))
-
-    def _len(self):
-        return self._db.dbsize()
-
-    def _hlen(self, key):
-        try:
-            return self._db.hlen(key)
-        except redis.exceptions.ResponseError:
-            # NOTE: Assume key is not a hash name.
-            return 0
-
-    def _exists(self, key):
-        return bool(self._db.exists(key))
-
-    def _hexists(self, key, field):
-        try:
-            return bool(self._db.hexists(key, field))
-        except redis.exceptions.ResponseError:
-            # NOTE: Assume key is not a hash name.
-            return False
-
-    def _delete(self, keys):
-        for key in keys:
-            self._db.delete(key)
-
-    def _hdelete(self, key, fields):
-        for field in filter(lambda f: self._hexists(key, f), fields):
-            self._db.hdel(key, field)
-        # NOTE: Delete key if it has no fields remaining
-        if self._hlen(key) == 0:
-            self._db.delete(key)
-
-    def commit(self):
-        if self._is_pipe:
-            self._dbp.execute()
-        """Save Redis server data to disk (blocking operation)."""
-        self._db.save()
-
-    def close(self):
-        # NOTE: Redis object is disconnected automatically when object
-        # goes out of scope.
-        self._db = None
-        self._dbp = None
-
-    def clear(self):
+        self._check_connection_access()
+        self._check_write_access()
         self._db.flushdb()
 
 
 def RedisDatabase(*args, db_type='kv', **kwargs):
     if db_type == 'kv':
-        cls = Redis_KVDatabase
-    elif db_type == 'il':
-        cls = Redis_ILDatabase
+        cls = RedisKVDatabase
     else:
         raise ValueError(f'invalid database type, {db_type}')
     return cls(*args, **kwargs)

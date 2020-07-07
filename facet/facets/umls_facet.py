@@ -216,7 +216,7 @@ class UMLSFacet(BaseFacet):
                 continue
 
             cui = self._conso_db.get(candidate)
-            if cui is None:
+            if len(cui) == 0:
                 continue
 
             ngram_match['CUI'] = cui
@@ -225,8 +225,8 @@ class UMLSFacet(BaseFacet):
                 ngram_matches.append(ngram_match)
                 continue
 
-            semtypes = self._cuisty_db.get(cui)
-            if semtypes is None:
+            semtypes = list(filter(None, map(self._cuisty_db.get, cui)))
+            if len(semtypes) == 0:
                 continue
 
             ngram_match['semantic types'] = semtypes

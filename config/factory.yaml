@@ -4,8 +4,9 @@ FacetDict:
         class: simstring
         db:
             class: dict
-            db: db/simstring
-            # flag: r
+            filename: db/test
+            # NOTE: Access mode did not affect installation?
+            access_mode: r
         cache_db: null
         alpha: 0.7
         similarity: cosine
@@ -27,42 +28,101 @@ FacetDict:
     #     class: spacy
     #     language: en
     formatter: json
-    # install:
-    #     data: data/umls_midsmall/MRCONSO.RRF
-    #     overwrite: False
-    #     delimiter: "|"
-    #     cols: 14
+    install:
+        data: data/umls_midsmall/MRCONSO.RRF
+        overwrite: false
+        delimiter: "|"
+        cols: 14
+
+
+FacetRedis:
+    class: facet
+    matcher:
+        class: simstring
+        db:
+            class: redis
+            host: localhost
+            port: 6379
+            id: 3
+        cache_db: null
+        alpha: 0.7
+        similarity: cosine
+        ngram: character
+    tokenizer: ws
+    formatter: json
+    install:
+        data: data/umls_midsmall/MRCONSO.RRF
+        overwrite: false
+        delimiter: "|"
+        cols: 14
+
+
+FacetSQL:
+    class: facet
+    matcher:
+        class: simstring
+        db:
+            class: sqlite
+            filename: ":memory:"
+            table: simstring
+            access_mode: c
+            serializer: json
+            check_same_thread: false
+        cache_db: null
+        alpha: 0.7
+        similarity: cosine
+        ngram: character
+    tokenizer: ws
+    formatter: json
+    install:
+        data: data/umls_midsmall/MRCONSO.RRF
+        overwrite: false
+        delimiter: "|"
+        cols: 14
+
+UMLSDict:
+    class: umlsfacet
+    conso_db:
+        class: dict
+        filename: null
+    cuisty_db:
+        class: dict
+        filename: null
+    matcher:
+        class: simstring
+        db:
+            class: dict
+            filename: null
+        cache_db: null
+        alpha: 0.7
+        similarity: cosine
+        ngram: character
+    tokenizer: ws
+    formatter: json
+    install: data/umls_midsmall
 
 
 UMLSRedis:
     class: umlsfacet
     conso_db:
         class: redis
-        db_type: kv
         host: localhost
         port: 6379
-        dbid: 0
-        # use_pipeline: true
+        id: 0
         serializer: json
     cuisty_db:
         class: redis
-        db_type: kv
         host: localhost
         port: 6379
-        dbid: 1
-        # use_pipeline: true
+        id: 1
         serializer: json
     matcher:
         class: simstring
         db:
-            # class: dict
-            # filename: db/simstring
-            # access_mode: r
             class: redis
-            db_type: il
             host: localhost
             port: 6379
-            db: 2
+            id: 2
         cache_db: null
         alpha: 0.7
         similarity: cosine
@@ -76,42 +136,31 @@ UMLSSQL:
     class: umlsfacet
     conso_db:
         class: sqlite
-        table: test
-        db: db/conso.db
+        filename: ":memory:"
+        table: conso
+        access_mode: c
         serializer: json
-        # flag: r
         check_same_thread: false
+    # conso_db:
+    #     class: sqlite
+    #     filename: :memory:
+    #     table: cuisty
+    #     access_mode: c
+    #     serializer: json
+    #     check_same_thread: false
     matcher:
         class: simstring
         db:
-            class: dict
-            db: db/simstring
-            flag: r
-        alpha: 0.7
-        similarity: cosine
-    tokenizer: ws
-    formatter: json
-    # install: data/umls_midsmall
-
-
-UMLSRedisOnly:
-    class: umlsfacet
-    conso_db:
-        class: redis
-        host: localhost
-        port: 6379
-        db: 0
-        serializer: json
-    matcher:
-        class: simstring
-        db:
-            class: redis
-            host: localhost
-            port: 6379
-            db: 2
+            class: sqlite
+            filename: ":memory:"
+            table: simstring
+            access_mode: c
             serializer: json
+            check_same_thread: false
+        cache_db: null
         alpha: 0.7
         similarity: cosine
+        ngram: character
     tokenizer: ws
     formatter: json
-    # install: data/umls_midsmall
+    install: data/umls_midsmall

@@ -2,7 +2,7 @@ from collections import defaultdict
 from .base import BaseMatcher
 from ..database import (
     database_map,
-    BaseDatabase2,
+    BaseDatabase,
 )
 from .similarity import (
     similarity_map,
@@ -56,12 +56,14 @@ class Simstring(BaseMatcher):
     def __init__(
         self,
         *,
-        db: Union[str, 'BaseDatabase2'] = 'dict',
-        cache_db: Union[str, 'BaseDatabase2'] = None,
+        db: Union[str, 'BaseDatabase'] = 'dict',
+        cache_db: Union[str, 'BaseDatabase'] = None,
         alpha: float = 0.7,
         similarity: Union[str, 'BaseSimilarity'] = 'jaccard',
         ngram: Union[str, 'BaseNgram'] = 'character',
     ):
+        # Key/value store for {feature: terms}
+        # NOTE: Actually stored as {str(len(features)) + feature: [terms]}
         self._db = None
         self._cache_db = None
         self._alpha = None
@@ -92,10 +94,10 @@ class Simstring(BaseMatcher):
         return self._db
 
     @db.setter
-    def db(self, value: Union[str, 'BaseDatabase2']):
+    def db(self, value: Union[str, 'BaseDatabase']):
         if isinstance(value, str):
             obj = database_map[value]()
-        elif isinstance(value, BaseDatabase2):
+        elif isinstance(value, BaseDatabase):
             obj = value
         else:
             raise ValueError(f'invalid Simstring database, {value}')
@@ -106,10 +108,10 @@ class Simstring(BaseMatcher):
         return self._cache_db
 
     @cache_db.setter
-    def cache_db(self, value: Union[str, 'BaseDatabase2']):
+    def cache_db(self, value: Union[str, 'BaseDatabase']):
         if isinstance(value, str):
             obj = database_map[value]()
-        elif isinstance(value, BaseDatabase2):
+        elif isinstance(value, BaseDatabase):
             obj = value
         else:
             obj = None
@@ -154,18 +156,18 @@ class Simstring(BaseMatcher):
 
     def _get_strings(self, size: int, feature: str) -> List[str]:
         """Get strings corresponding to feature size and query feature."""
-        strings = self._db.get(str(size), feature)
+        strings = self._db.get(str(size) + feature)
         return strings if strings is not None else []
 
     def insert(self, string: str) -> NoReturn:
         """Insert string into database."""
         features = self._ngram.get_features(string)
-        self._db.set(
-            str(len(features)),
-            {feature: string for feature in features},
-            replace=False,
-            unique=True,
-        )
+        flen = str(len(features))
+        for feature in features:
+            strings = self._get_strings(len(features), feature)
+            if string not in strings:
+                strings.append(string)
+                self._db.set(flen + feature, strings)
 
         # Track and store longest sequence of features
         # NOTE: Too many database accesses. Probably it is best to estimate or

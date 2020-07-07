@@ -25,12 +25,12 @@ from typing import (
 
 
 __all__ = [
-    'SQLite_KVDatabase',
+    'SQLiteKVDatabase',
     'SQLiteDatabase',
 ]
 
 
-class SQLite_KVDatabase(BaseKVDatabase):
+class SQLiteKVDatabase(BaseKVDatabase):
     """SQLite database interface.
 
     Args:
@@ -126,7 +126,9 @@ class SQLite_KVDatabase(BaseKVDatabase):
                 access_mode = 'c'
             else:
                 # NOTE: If invalid access mode, keep it so that
-                # sqlite3 triggers error.
+                # sqlite3 triggers error. But this also allows setting
+                # query_mode to 'r', 'w', etc. and processed as correct
+                # when in fact they are not valid sqlite modes.
                 access_mode = query_mode
 
         # Create path/file for persistent database
@@ -169,7 +171,7 @@ class SQLite_KVDatabase(BaseKVDatabase):
         cur = self._db.execute(
             "SELECT EXISTS("
             f"SELECT value FROM {self._table} "
-            f"WHERE key='{key}');"
+            "WHERE key=(?));", (key,)
         )
         return bool(cur.fetchone()[0])
 
@@ -178,27 +180,26 @@ class SQLite_KVDatabase(BaseKVDatabase):
         return cur.fetchone()[0]
 
     def get_table_memsize(self):
-        # NOTE: Check for connection status to allow invoking
-        # on a closed database.
-        if self._is_connected:
-            try:
-                cur = self._db.execute(
-                    "SELECT SUM(\"pgsize\") FROM \"dbstat\" "
-                    f"WHERE name='{self._table}';"
-                )
-                return cur.fetchone()[0]
-            except sqlite3.ERROR:
-                pass
-        return -1
+        try:
+            cur = self._db.execute(
+                "SELECT SUM(\"pgsize\") FROM \"dbstat\" "
+                "WHERE name=(?);", (self._table,)
+            )
+            return cur.fetchone()[0]
+        except sqlite3.ERROR:
+            pass
 
-    def execute(self, cmd):
-        cur = self._db.execute(cmd)
+    def execute(self, cmd, *args):
+        if len(args) == 0:
+            cur = self._db.execute(cmd)
+        else:
+            cur = self._db.execute(cmd, args)
         return cur.fetchall()
 
     def get_schema(self):
         cur = self._db.execute(
             f"SELECT sql FROM sqlite_master "
-            f"WHERE type='table' AND tbl_name='{self._table}';"
+            f"WHERE type='table' AND tbl_name=(?);", (self._table,)
         )
         return cur.fetchone()[0]
 
@@ -219,12 +220,10 @@ class SQLite_KVDatabase(BaseKVDatabase):
     def get(self, key):
         cur = self._db.execute(
             f"SELECT value FROM {self._table} "
-            f"WHERE key='{key}';"
+            "WHERE key=(?);", (key,)
         )
         value = cur.fetchone()
-        if value is None:
-            raise KeyError(f'{key}')
-        return self._serializer.loads(value[0])
+        return value if value is None else self._serializer.loads(value[0])
 
     def set(self, key, value, **kwargs):
         _value = self._serializer.dumps(value)
@@ -238,17 +237,21 @@ class SQLite_KVDatabase(BaseKVDatabase):
         cur = self._db.execute(f"SELECT key FROM {self._table};")
         return map(lambda row: row[0], cur)
 
-    def items(self) -> Iterator[Tuple[str, Any]]:
+    def items(self, *, chunk=100) -> Iterator[Tuple[str, Any]]:
         cur = self._db.execute(f"SELECT key, value FROM {self._table};")
-        data = cur.fetchmany(100)
+        data = cur.fetchmany(chunk)
         while data:
             for k, v in data:
                 yield k, v
-            data = cur.fetchmany(100)
+            data = cur.fetchmany(chunk)
 
     def delete(self, key):
-        if key in self:
-            self._db.execute(f"DELETE FROM {self._table} WHERE key='{key}';")
+        self._db.execute(
+            f"DELETE FROM {self._table} "
+            "WHERE EXISTS ("
+            f"SELECT * FROM {self._table} "
+            "WHERE key=(?));", (key,)
+        )
 
     def connect(self, *, access_mode='w'):
         if self._is_connected:
@@ -291,5 +294,9 @@ class SQLite_KVDatabase(BaseKVDatabase):
         self._db.execute(f"DELETE FROM {self._table};")
 
 
-def SQLiteDatabase(*args, **kwargs):
-    return SQLite_KVDatabase(*args, **kwargs)
+def SQLiteDatabase(*args, db_type='kv', **kwargs):
+    if db_type == 'kv':
+        cls = SQLiteKVDatabase
+    else:
+        raise ValueError(f'invalid database type, {db_type}')
+    return cls(*args, **kwargs)

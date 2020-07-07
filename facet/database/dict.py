@@ -3,23 +3,17 @@ import sys
 import shelve
 import pickle
 from .base import BaseKVDatabase
+from ..utils import parse_filename
 
 
 __all__ = [
-    'FileDict_KVDatabase',
-    'MemoryDict_KVDatabase',
-    'DictKVDatabase',
+    'FileDictKVDatabase',
+    'MemoryDictKVDatabase',
     'DictDatabase',
 ]
 
 
-def parse_filename(filename):
-    fdir, fname = os.path.split(filename)
-    fdir = os.path.abspath(fdir) if fdir else os.getcwd()
-    return fdir, fname
-
-
-class FileDict_KVDatabase(BaseKVDatabase):
+class FileDictKVDatabase(BaseKVDatabase):
     """Persistent dictionary database.
 
     Args:
@@ -34,6 +28,9 @@ class FileDict_KVDatabase(BaseKVDatabase):
             Valid values are: 'r' = read-only, 'w' = read/write,
             'c' = read/write/create if not exists, 'n' = new read/write.
 
+        use_pipeline (bool): If set, queue 'set-related' commands to database.
+            Run 'commit' command to submit commands in pipe.
+
         protocol (int): Pickle serialization protocol to use.
 
     Notes:
@@ -45,12 +42,14 @@ class FileDict_KVDatabase(BaseKVDatabase):
         filename,
         *,
         access_mode='c',
+        use_pipeline: bool = False,
         protocol=pickle.HIGHEST_PROTOCOL,
     ):
         self._db = None
         self._name = None
         self._file = None
         self._access_mode = None
+        self._use_pipeline = use_pipeline
         self._protocol = protocol
         self._is_connected = False
 
@@ -83,7 +82,7 @@ class FileDict_KVDatabase(BaseKVDatabase):
         }
 
     def get(self, key):
-        return self._db[str(key)]
+        return self._db.get(str(key))
 
     def set(self, key, value):
         self._check_write_access()
@@ -110,8 +109,8 @@ class FileDict_KVDatabase(BaseKVDatabase):
         # empty the cache and synchronize with disk.
         self._db = shelve.open(
             self._name,
-            # writeback=not self._access_mode == 'r',
-            writeback=False,
+            # writeback=self._access_mode != 'r',
+            writeback=self._use_pipeline,
             flag=access_mode,
             protocol=self._protocol,
         )
@@ -119,21 +118,22 @@ class FileDict_KVDatabase(BaseKVDatabase):
         self._access_mode = access_mode
         self._is_connected = True
 
+    def commit(self):
+        if self._use_pipeline:
+            self._check_write_access()
+            self._db.sync()
+
     def disconnect(self):
         if self._is_connected:
             self._db.close()
             self._is_connected = False
-
-    def commit(self):
-        if self._access_mode != 'r':
-            self._db.sync()
 
     def clear(self):
         self._check_write_access()
         self._db.clear()
 
 
-class MemoryDict_KVDatabase(BaseKVDatabase):
+class MemoryDictKVDatabase(BaseKVDatabase):
     """In-memory dictionary database.
 
     Args:
@@ -173,7 +173,7 @@ class MemoryDict_KVDatabase(BaseKVDatabase):
 
     def get(self, key):
         self._check_connection_access()
-        return self._db[key]
+        return self._db.get(key)
 
     def set(self, key, value):
         self._check_connection_access()
@@ -207,21 +207,18 @@ class MemoryDict_KVDatabase(BaseKVDatabase):
         self._db = {}
 
 
-def DictDatabase(*args, db_type='kv', **kwargs):
+def DictDatabase(*args, filename=None, db_type='kv', **kwargs):
     """Factory function for dictionary-based database.
 
     Args:
-        db_type (str): Type of database. Valid values are: 'kv', 'il'.
+        db_type (str): Type of database. Valid values are: 'kv'.
     """
     if db_type == 'kv':
-        # NOTE: Using the number of arguments for identifying database is
-        # not ideal (not extensible).
-        if len(args) == 0:
-            cls = MemoryDict_KVDatabase
+        if filename:
+            cls = FileDictKVDatabase
+            kwargs['filename'] = filename
         else:
-            cls = FileDict_KVDatabase
-    elif db_type == 'il':
-        cls = NotImplemented
+            cls = MemoryDictKVDatabase
     else:
         raise ValueError(f'invalid database type, {db_type}')
     return cls(*args, **kwargs)
