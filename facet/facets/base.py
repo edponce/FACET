@@ -144,10 +144,8 @@ class BaseFacet(ABC):
 
             case (str, None): Controls string casing during insert/search.
                 Valid values are 'lL' (lower), 'uU' (upper), or None.
-                Default is None.
 
             normalize_unicode (bool): Enable Unicode normalization.
-                Default is False.
 
             format (str): Formatting mode for match results. Valid values
                 are: 'json', 'xml', 'pickle', 'csv'.
@@ -188,6 +186,7 @@ class BaseFacet(ABC):
 
             for sentence in self._tokenizer.sentencize(corpus):
                 for ngram_struct in self._tokenizer.tokenize(sentence):
+                    print(ngram_struct)
                     ngram_matches = self._match(ngram_struct, **kwargs)
                     if len(ngram_matches) == 0:
                         continue
@@ -215,22 +214,17 @@ class BaseFacet(ABC):
         )
         return formatter(matches, output=output)
 
-    def install(self, data, *, overwrite: bool = True, **kwargs):
+    def install(self, data, **kwargs):
         """Install data.
 
         Args:
-            data_file (str): File with data to install.
-
-            overwrite (bool): If set, overwrite previous data in databases.
+            data (str): File with data to install.
 
         Kwargs:
             Options passed directly to '*load_data()' function method via
                 `_install()`.
         """
-        # Clear matcher database
-        if overwrite and self._matcher is not None:
-            self._matcher.db.clear()
-        self._install(data, overwrite=overwrite, **kwargs)
+        self._install(data, **kwargs)
 
     def close(self):
         self._matcher.db.close()
@@ -240,19 +234,18 @@ class BaseFacet(ABC):
         self,
         data: Iterable[str],
         *,
-        bulk_size: int = 1000,
+        bulk_size: int = 10000,
         status_step: int = 10000,
     ):
         """Stores {Term:...} in Matcher database.
 
         Args:
             bulk_size (int): Size of chunks to use for dumping data into
-                databases. Default is 1000.
+                databases.
 
             status_step (int): Print status message after this number of
-                records is dumped to databases. Default is 10000.
+                records is dumped to databases.
         """
-        # Profile
         prev_time = time.time()
 
         i = 0
@@ -262,7 +255,6 @@ class BaseFacet(ABC):
             if i % bulk_size == 0:
                 self._matcher.db.commit()
 
-            # Profile
             if VERBOSE and i % status_step == 0:
                 curr_time = time.time()
                 elapsed_time = curr_time - prev_time
@@ -280,19 +272,18 @@ class BaseFacet(ABC):
         data: Iterable[Tuple[str, Any]],
         *,
         db: 'BaseDatabase',
-        bulk_size: int = 1000,
+        bulk_size: int = 10000,
         status_step: int = 10000,
     ):
         """Stores {key:val} mapping, key: [val, ...].
 
         Args:
             bulk_size (int): Size of chunks to use for dumping data into
-                databases. Default is 1000.
+                databases.
 
             status_step (int): Print status message after this number of
-                records is dumped to databases. Default is 10000.
+                records is dumped to databases.
         """
-        # Profile
         prev_time = time.time()
 
         i = 0
@@ -302,7 +293,6 @@ class BaseFacet(ABC):
             if i % bulk_size == 0:
                 db.commit()
 
-            # Profile
             if VERBOSE and i % status_step == 0:
                 curr_time = time.time()
                 elapsed_time = curr_time - prev_time
@@ -320,7 +310,7 @@ class BaseFacet(ABC):
         data: Iterable[Tuple[str, Any]],
         *,
         db: 'BaseDatabase',
-        bulk_size: int = 1000,
+        bulk_size: int = 10000,
         status_step: int = 10000,
     ):
         """Stores {Term:...} in Matcher database and stores {key:val}
@@ -328,12 +318,11 @@ class BaseFacet(ABC):
 
         Args:
             bulk_size (int): Size of chunks to use for dumping data into
-                databases. Default is 1000.
+                databases.
 
             status_step (int): Print status message after this number of
-                records is dumped to databases. Default is 10000.
+                records is dumped to databases.
         """
-        # Profile
         prev_time = time.time()
 
         i = 0
@@ -345,7 +334,6 @@ class BaseFacet(ABC):
                 self._matcher.db.commit()
                 db.commit()
 
-            # Profile
             if VERBOSE and i % status_step == 0:
                 curr_time = time.time()
                 elapsed_time = curr_time - prev_time
@@ -372,5 +360,5 @@ class BaseFacet(ABC):
         pass
 
     @abstractmethod
-    def _install(self, data, *, overwrite: str = True, **kwargs):
+    def _install(self, data, **kwargs):
         pass

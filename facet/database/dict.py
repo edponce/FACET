@@ -65,11 +65,7 @@ class FileDictKVDatabase(BaseKVDatabase):
         return len(self._db)
 
     def __contains__(self, key):
-        return str(key) in self._db
-
-    def _check_write_access(self):
-        if self._access_mode == 'r':
-            raise ValueError('invalid operation on read-only shelf')
+        return key in self._db
 
     def get_config(self):
         return {
@@ -82,24 +78,22 @@ class FileDictKVDatabase(BaseKVDatabase):
         }
 
     def get(self, key):
-        return self._db.get(str(key))
+        return self._db.get(key)
 
     def set(self, key, value):
-        self._check_write_access()
-        self._db[str(key)] = value
+        self._db[key] = value
 
     def keys(self):
         return iter(self._db.keys())
 
     def delete(self, key):
-        self._check_write_access()
-        del self._db[str(key)]
+        del self._db[key]
 
     def connect(self, *, access_mode='w'):
         if self._is_connected:
             if self._access_mode == access_mode:
                 return
-            self._db.close()
+            self.disconnect()
 
         # NOTE: Writeback allows natural operations on mutable entries,
         # but consumes more memory and makes sync/close operations take
@@ -109,7 +103,6 @@ class FileDictKVDatabase(BaseKVDatabase):
         # empty the cache and synchronize with disk.
         self._db = shelve.open(
             self._name,
-            # writeback=self._access_mode != 'r',
             writeback=self._use_pipeline,
             flag=access_mode,
             protocol=self._protocol,
@@ -119,91 +112,47 @@ class FileDictKVDatabase(BaseKVDatabase):
         self._is_connected = True
 
     def commit(self):
-        if self._use_pipeline:
-            self._check_write_access()
-            self._db.sync()
+        self._db.sync()
 
     def disconnect(self):
-        if self._is_connected:
-            self._db.close()
-            self._is_connected = False
+        self._db.close()
+        self._is_connected = False
 
     def clear(self):
-        self._check_write_access()
         self._db.clear()
 
 
 class MemoryDictKVDatabase(BaseKVDatabase):
-    """In-memory dictionary database.
+    """In-memory key/value database."""
 
-    Args:
-        access_mode (str): Access mode for database.
-            Valid values are: 'r' = read-only, 'w' = read/write,
-            'c' = read/write/create if not exists, 'n' = new read/write.
-    """
-
-    def __init__(self, *, access_mode='c'):
-        self._db = None
-        self._access_mode = None
-        self._is_connected = False
-        self.connect(access_mode=access_mode)
+    def __init__(self):
+        self._db = {}
 
     def __len__(self):
-        self._check_connection_access()
         return len(self._db)
 
     def __contains__(self, key):
-        self._check_connection_access()
         return key in self._db
-
-    def _check_connection_access(self):
-        if not self._is_connected:
-            raise ValueError('invalid operation on closed database')
-
-    def _check_write_access(self):
-        if self._access_mode == 'r':
-            raise ValueError('invalid operation on read-only database')
 
     def get_config(self):
         return {
-            'access mode': self._access_mode,
             'memory usage': sys.getsizeof(self._db),
-            'item count': len(self._db) if self._is_connected else -1,
+            'item count': len(self._db),
         }
 
     def get(self, key):
-        self._check_connection_access()
         return self._db.get(key)
 
     def set(self, key, value):
-        self._check_connection_access()
-        self._check_write_access()
         self._db[key] = value
 
     def keys(self):
-        self._check_connection_access()
         return self._db.keys()
 
     def delete(self, key):
-        self._check_connection_access()
-        self._check_write_access()
         del self._db[key]
 
-    def connect(self, *, access_mode='w'):
-        if (
-            (access_mode == 'c' and self._db is None)
-            or access_mode == 'n'
-        ):
-            self._db = {}
-        self._access_mode = access_mode
-        self._is_connected = True
-
-    def disconnect(self):
-        self._is_connected = False
-
     def clear(self):
-        self._check_connection_access()
-        self._check_write_access()
         self._db = {}
 
 

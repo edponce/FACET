@@ -47,16 +47,14 @@ class BaseDatabase(ABC):
     def commit(self):
         pass
 
+    def connect(self, **kwargs):
+        pass
+
+    def disconnect(self):
+        pass
+
     @abstractmethod
     def get_config(self):
-        pass
-
-    @abstractmethod
-    def connect(self):
-        pass
-
-    @abstractmethod
-    def disconnect(self):
         pass
 
     @abstractmethod

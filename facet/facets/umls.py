@@ -7,11 +7,6 @@ from ..database import (
     BaseDatabase,
 )
 from .base import BaseFacet
-from .umls_constants import (
-    HEADERS_MRSTY,
-    HEADERS_MRCONSO,
-    ACCEPTED_SEMTYPES,
-)
 from typing import (
     Any,
     List,
@@ -31,6 +26,47 @@ VERBOSE = True
 PROFILE = False
 if PROFILE:
     import cProfile
+
+
+# NOTE: UMLS headers should be automatically parsed from UMLS MRFILES.RRF.
+HEADERS_MRCONSO = (
+    'cui', 'lat', 'ts', 'lui', 'stt', 'sui', 'ispref', 'aui', 'saui',
+    'scui', 'sdui', 'sab', 'tty', 'code', 'str', 'srl', 'suppress', 'cvf'
+)
+
+# NOTE: UMLS headers should be automatically parsed from UMLS MRFILES.RRF.
+HEADERS_MRSTY = (
+    'cui', 'sty', 'hier', 'desc', 'sid', 'num'
+)
+
+ACCEPTED_SEMTYPES = {
+    'T029': 'Body Location or Region',
+    'T023': 'Body Part, Organ, or Organ Component',
+    'T031': 'Body Substance',
+    'T060': 'Diagnostic Procedure',
+    'T047': 'Disease or Syndrome',
+    'T074': 'Medical Device',
+    'T200': 'Clinical Drug',
+    'T203': 'Drug Delivery Device',
+    'T033': 'Finding',
+    'T184': 'Sign or Symptom',
+    'T034': 'Laboratory or Test Result',
+    'T058': 'Health Care Activity',
+    'T059': 'Laboratory Procedure',
+    'T037': 'Injury or Poisoning',
+    'T061': 'Therapeutic or Preventive Procedure',
+    'T048': 'Mental or Behavioral Dysfunction',
+    'T046': 'Pathologic Function',
+    'T121': 'Pharmacologic Substance',
+    'T201': 'Clinical Attribute',
+    'T130': 'Indicator, Reagent, or Diagnostic Aid',
+    'T195': 'Antibiotic',
+    'T039': 'Physiologic Function',
+    'T040': 'Organism Function',
+    'T041': 'Mental Process',
+    'T170': 'Intellectual Product',
+    'T191': 'Neoplastic Process'
+}
 
 
 class UMLSFacet(BaseFacet):
@@ -92,7 +128,6 @@ class UMLSFacet(BaseFacet):
         self,
         umls_dir: str,
         *,
-        overwrite: bool = True,
         cui_valids: Dict[str, Iterable[Any]] = {},
         sty_valids: Dict[str, Iterable[Any]] = {'sty': ACCEPTED_SEMTYPES},
         **kwargs,
@@ -109,12 +144,6 @@ class UMLSFacet(BaseFacet):
         Kwargs:
             Options passed directly to '*load_data()' function.
         """
-        if overwrite:
-            if self._conso_db is not None:
-                self._conso_db.clear()
-            if self._cuisty_db is not None:
-                self._cuisty_db.clear()
-
         t1 = time.time()
 
         if self._cuisty_db is not None:

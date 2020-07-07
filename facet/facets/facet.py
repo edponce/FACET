@@ -28,17 +28,14 @@ class Facet(BaseFacet):
 
     def _install(
         self,
-        data_file: str,
+        data: str,
         *,
-        overwrite: bool = True,
         cols: Union[int, Iterable[int]] = 0,
         **kwargs,
     ):
         """
         Args:
-            data_file (str): File with data to install.
-
-            overwrite (bool): Not used, conforms with 'BaseFacet' API.
+            data (str): File with data to install.
 
         Kwargs:
             Options passed directly to '*load_data()' function.
@@ -52,7 +49,7 @@ class Facet(BaseFacet):
         print('Loading/parsing data...')
         start = time.time()
         data = iload_data(
-            data_file,
+            data,
             keys=cols,
             converters={cols[0]: [unidecode, str.lower]},
             **kwargs,

@@ -89,20 +89,10 @@ class RedisKVDatabase(BaseKVDatabase):
         self._serializer = obj
 
     def __contains__(self, key):
-        self._check_connection_access()
         return bool(self._db.exists(key))
 
     def __len__(self):
-        self._check_connection_access()
         return self._db.dbsize()
-
-    def _check_connection_access(self):
-        if not self._is_connected:
-            raise ValueError('invalid operation on closed database')
-
-    def _check_write_access(self):
-        if self._access_mode == 'r':
-            raise ValueError('invalid operation on read-only database')
 
     def get_config(self):
         return {
@@ -122,30 +112,23 @@ class RedisKVDatabase(BaseKVDatabase):
         return info if self._is_connected else {}
 
     def get(self, key):
-        self._check_connection_access()
         value = self._db.get(key)
         return value if value is None else self._serializer.loads(value)
 
     def set(self, key, value):
-        self._check_connection_access()
-        self._check_write_access()
         self._dbp.set(key, self._serializer.dumps(value))
 
     def keys(self):
-        self._check_connection_access()
         return list(map(lambda k: k.decode(), self._db.keys()))
 
     def delete(self, key):
-        self._check_connection_access()
-        self._check_write_access()
         self._db.delete(key)
 
     def connect(self, *, access_mode='w'):
         if self._is_connected:
             if self._access_mode == access_mode:
                 return
-            self._db = None
-            self._dbp = None
+            self.disconnect()
 
         self._db = redis.Redis(
             host=self._host,
@@ -160,18 +143,14 @@ class RedisKVDatabase(BaseKVDatabase):
 
     def commit(self):
         if self._is_connected and self._use_pipeline:
-            self._check_write_access()
             self._dbp.execute()
 
     def disconnect(self):
-        if self._is_connected:
-            self._db = None
-            self._dbp = None
-            self._is_connected = False
+        self._db = None
+        self._dbp = None
+        self._is_connected = False
 
     def clear(self):
-        self._check_connection_access()
-        self._check_write_access()
         self._db.flushdb()
 
 
