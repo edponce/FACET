@@ -494,7 +494,7 @@ def client(config, host, port, query, formatter, output, dump_config):
             repl_loop(f)
 
 
-@click.command('shutdown-server', context_settings=CONTEXT_SETTINGS)
+@click.command('server-shutdown', context_settings=CONTEXT_SETTINGS)
 @click.help_option(show_default=False)
 @click.option(
     '-h', '--host',
@@ -520,7 +520,7 @@ def client(config, host, port, query, formatter, output, dump_config):
     type=int,
     help='Process ID of server (only for local system)',
 )
-def shutdown_server(host, port, fileno, pid):
+def server_shutdown(host, port, fileno, pid):
     """Stop network server."""
     if pid:
         os.kill(pid, signal.SIGKILL)
@@ -563,7 +563,7 @@ def shutdown_server(host, port, fileno, pid):
 cli.add_command(run)
 cli.add_command(server)
 cli.add_command(client)
-cli.add_command(shutdown_server)
+cli.add_command(server_shutdown)
 
 
 def main():

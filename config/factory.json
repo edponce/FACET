@@ -1,50 +1,9 @@
 {
     "Facet": {
-        "class": "Facet",
-        "matcher": {
-            "class": "simstring",
-            "db": {
-                "class": "dict",
-                "db": "db/umls_midsmall",
-                "flag": "r"
-            },
-            "cache_db": null,
-            "alpha": 0.7,
-            "similarity": "jaccard",
-            "ngram": "character"
-        },
-        "tokenizer": "ws",
-        "formatter": "json"
-    },
-    "UMLSFacet": {
-        "class": "UMLSFacet",
-        "conso_db": {
-            "class": "redis",
-            "host": "localhost",
-            "port": 6379,
-            "db": 0,
-            "serializer": "json"
-        },
-        "cuisty_db": {
-            "class": "redis",
-            "host": "localhost",
-            "port": 6379,
-            "db": 1,
-            "serializer": "json"
-        },
-        "matcher": {
-            "class": "simstring",
-            "db": {
-                "class": "dict",
-                "db": "db/umls_midsmall",
-                "flag": "r"
-            },
-            "cache_db": null,
-            "alpha": 0.7,
-            "similarity": "jaccard",
-            "ngram": "character"
-        },
-        "tokenizer": "ws",
-        "formatter": "json"
+        "matcher": "simstring",
+        "install": {
+            "data": "data/install/american-english",
+            "nrows": 3000
+        }
     }
 }

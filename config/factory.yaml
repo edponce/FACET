@@ -1,8 +1,8 @@
 SimpleMemory:
     matcher: simstring
     install:
-        data: data/american-english
-        # nrows: 3000
+        data: data/install/american-english
+        nrows: 3000
 
 
 FacetMemory:
