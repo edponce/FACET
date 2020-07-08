@@ -5,31 +5,33 @@ import facet
 # tokenizer = facet.SimpleTokenizer()
 # tokenizer = facet.NLTKTokenizer()
 # tokenizer = facet.SpacyTokenizer()
-# tokenizer = facet.WhitespaceTokenizer()
+tokenizer = facet.WhitespaceTokenizer()
 
 
-db1 = facet.RedisDatabase(db=0)
-db2 = facet.RedisDatabase(db=1)
-db3 = facet.DictDatabase('db/umls_midsmall', flag='r')
-# cdb = facet.RedisDatabase(db=2)
+# Connect to database
+db1 = facet.RedisDatabase(n=0)
+db2 = facet.RedisDatabase(n=1)
+db3 = facet.RedisDatabase(n=2)
+# cdb = facet.RedisDatabase(n=3)
+cdb = None
+
+# Create Simstring instance
 ss = facet.Simstring(
     db=db3,
-    cache_db=None,
+    cache_db=cdb,
     alpha=0.7,
     similarity='cosine',
 )
 
+# Create FACET instance and match
 f = facet.UMLSFacet(
     conso_db=db1,
     cuisty_db=db2,
     matcher=ss,
-    tokenizer='ws',
+    tokenizer=tokenizer,
     formatter='json',
 )
 
-# query = 'data/katie_note.txt'
-# query = 'data/synthetic_note.txt'
-query = 'acetate'
-
-data = f.match(query, output=None)
-print(data)
+query = ['acetate', 'data/sample.txt']
+matches = f.match(query, output=None)
+print(matches)

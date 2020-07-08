@@ -21,6 +21,8 @@ __all__ = ['FacetFactory']
 class FacetFactory:
     """Creates a FACET instance from a given configuration."""
 
+    DEFAULT_OBJ = 'facet'
+
     OBJTYPE_CLASSMAP_MAP = {
         'tokenizer': tokenizer_map,
         'formatter': formatter_map,
@@ -48,7 +50,7 @@ class FacetFactory:
 
     def __init__(
         self,
-        config: Union[str, Dict[str, Any]],
+        config: Union[str, Dict[str, Any]] = None,
         *,
         section: str = None,
     ):
@@ -56,14 +58,12 @@ class FacetFactory:
 
     def create(self):
         """Create a new FACET instance."""
-        if self._config:
-            # NOTE: Copy configuration because '_parse_config()' modifies it.
-            config = copy.deepcopy(self._config)
-
+        # NOTE: Copy configuration because '_parse_config()' modifies it.
+        config = copy.deepcopy(self._config)
         obj_class = (
             config.pop(type(self).OBJ_CLASS_LABEL).lower()
             if type(self).OBJ_CLASS_LABEL in config
-            else None
+            else type(self).DEFAULT_OBJ
         )
         return facet_map[obj_class](**self._parse_config(config))
 
@@ -72,8 +72,7 @@ class FacetFactory:
     def create_generic(self) -> Any:
         """Create a new instance of any FACET-related classes."""
         # NOTE: Copy configuration because '_parse_config()' modifies it.
-        if self._config:
-            config = copy.deepcopy(self._config)
+        config = copy.deepcopy(self._config)
         objs = [v for k, v in self._parse_config(config).items()]
         return objs if len(objs) > 1 else objs[0]
 
@@ -92,7 +91,8 @@ class FacetFactory:
                     obj_class = v.pop(type(self).OBJ_CLASS_LABEL).lower()
                     if (
                         obj_type in type(self).OBJTYPE_CLASSMAP_MAP
-                        and obj_class in type(self).OBJTYPE_CLASSMAP_MAP[obj_type]
+                        and
+                        obj_class in type(self).OBJTYPE_CLASSMAP_MAP[obj_type]
                     ):
                         obj_params = self._parse_config(v)
                         v = type(self).OBJTYPE_CLASSMAP_MAP[obj_type][obj_class](**obj_params)
