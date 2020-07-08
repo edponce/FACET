@@ -213,7 +213,8 @@ class Simstring(BaseMatcher):
         # the exception of 'alpha'.
         query_in_cache = False
         if self._cache_db is not None:
-            candidate_strings = self._cache_db.get(str(alpha) + query_string)
+            cache_key = str(alpha) + query_string
+            candidate_strings = self._cache_db.get(cache_key)
             if candidate_strings is not None:
                 query_in_cache = True
 
@@ -249,7 +250,8 @@ class Simstring(BaseMatcher):
             # Insert candidate strings into cache
             # NOTE: Need a way to limit database and only cache heavy hitters.
             if update_cache and self._cache_db is not None:
-                self._cache_db.set(str(alpha) + query_string, candidate_strings)
+                cache_key = str(alpha) + query_string
+                self._cache_db.set(cache_key, candidate_strings)
 
         similarities = [
             self._similarity.similarity(

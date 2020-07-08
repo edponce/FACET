@@ -25,7 +25,7 @@ VERBOSE = True
 # Enable/disable profiling
 PROFILE = False
 if PROFILE:
-    import cProfile
+    import cProfile  # noqa: F401
 
 
 # NOTE: UMLS headers should be automatically parsed from UMLS MRFILES.RRF.

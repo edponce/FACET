@@ -1,23 +1,22 @@
 SimpleMemory:
+    matcher: simstring
     install:
-        data: data/umls_midsmall/MRCONSO.RRF
-        delimiter: "|"
-        cols: 14
+        data: data/american-english
+        # nrows: 3000
 
 
 FacetMemory:
     class: facet
-    use_proxy_install: false
     matcher:
         class: simstring
         db: dict
         alpha: 0.7
-        similarity: cosine
+        similarity: jaccard
         ngram: character
     tokenizer: ws
     formatter: json
     install:
-        data: data/umls_midsmall/MRCONSO.RRF
+        data: data/umls/MRCONSO.RRF
         delimiter: "|"
         cols: 14
 
@@ -31,12 +30,13 @@ FacetFile:
             filename: db/simstring
             use_pipeline: true
         alpha: 0.7
-        similarity: cosine
+        similarity: jaccard
         ngram: character
     tokenizer: ws
     formatter: json
+    use_proxy_install: true
     install:
-        data: data/umls_midsmall/MRCONSO.RRF
+        data: data/umls/MRCONSO.RRF
         delimiter: "|"
         cols: 14
 
@@ -49,16 +49,18 @@ FacetRedis:
             class: redis
             host: localhost
             port: 6379
-            id: 3
+            n: 3
+            access_mode: c
             use_pipeline: true
         cache_db: null
         alpha: 0.7
-        similarity: cosine
+        similarity: jaccard
         ngram: character
     tokenizer: ws
     formatter: json
+    use_proxy_install: true
     install:
-        data: data/umls_midsmall/MRCONSO.RRF
+        data: data/umls/MRCONSO.RRF
         delimiter: "|"
         cols: 14
 
@@ -76,31 +78,31 @@ FacetSQL:
             check_same_thread: false
         cache_db: null
         alpha: 0.7
-        similarity: cosine
+        similarity: jaccard
         ngram: character
     tokenizer: ws
     formatter: json
+    use_proxy_install: true
     install:
-        data: data/umls_midsmall/MRCONSO.RRF
+        data: data/umls/MRCONSO.RRF
         delimiter: "|"
         cols: 14
 
 
 UMLSMemory:
     class: umlsfacet
-    use_proxy_install: false
     conso_db: dict
     cuisty_db: dict
     matcher:
         class: simstring
         db: dict
         alpha: 0.7
-        similarity: cosine
+        similarity: jaccard
         ngram: character
     tokenizer: ws
     formatter: json
     install:
-        data: data/umls_midsmall
+        data: data/umls
         # cui_valids: null
         # sty_valids: null
 
@@ -122,11 +124,12 @@ UMLSFile:
             filename: db/simstring
             use_pipeline: true
         alpha: 0.7
-        similarity: cosine
+        similarity: jaccard
         ngram: character
     tokenizer: ws
     formatter: json
-    install: data/umls_midsmall
+    use_proxy_install: true
+    install: data/umls
 
 
 UMLSRedis:
@@ -135,14 +138,16 @@ UMLSRedis:
         class: redis
         host: localhost
         port: 6379
-        id: 0
+        n: 0
+        access_mode: c
         serializer: json
         use_pipeline: true
     cuisty_db:
         class: redis
         host: localhost
         port: 6379
-        id: 1
+        n: 1
+        access_mode: c
         serializer: json
         use_pipeline: true
     matcher:
@@ -151,16 +156,18 @@ UMLSRedis:
             class: redis
             host: localhost
             port: 6379
-            id: 2
+            n: 2
+            access_mode: c
             serializer: json
             use_pipeline: true
         cache_db: null
         alpha: 0.7
-        similarity: cosine
+        similarity: jaccard
         ngram: character
     tokenizer: ws
     formatter: json
-    install: data/umls_midsmall
+    use_proxy_install: true
+    install: data/umls
 
 
 UMLSSQL:
@@ -190,8 +197,9 @@ UMLSSQL:
             check_same_thread: false
         cache_db: null
         alpha: 0.7
-        similarity: cosine
+        similarity: jaccard
         ngram: character
     tokenizer: ws
     formatter: json
-    install: data/umls_midsmall
+    use_proxy_install: true
+    install: data/umls

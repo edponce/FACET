@@ -47,7 +47,7 @@ class BaseDatabase(ABC):
     def commit(self):
         pass
 
-    def connect(self, **kwargs):
+    def connect(self):
         pass
 
     def disconnect(self):

@@ -13,7 +13,6 @@ from typing import (
     Union,
     Iterable,
     Iterator,
-    Optional,
 )
 
 

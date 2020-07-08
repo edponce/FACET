@@ -45,10 +45,10 @@ class FileDictKVDatabase(BaseKVDatabase):
         use_pipeline: bool = False,
         protocol=pickle.HIGHEST_PROTOCOL,
     ):
-        self._db = None
+        self._conn = None
         self._name = None
         self._file = None
-        self._access_mode = None
+        self._access_mode = access_mode
         self._use_pipeline = use_pipeline
         self._protocol = protocol
         self._is_connected = False
@@ -59,13 +59,13 @@ class FileDictKVDatabase(BaseKVDatabase):
         self._name = filename
         self._file = os.path.join(db_dir, db_base) + '.dat'
 
-        self.connect(access_mode=access_mode)
+        self.connect()
 
     def __len__(self):
-        return len(self._db)
+        return len(self._conn)
 
     def __contains__(self, key):
-        return key in self._db
+        return key in self._conn
 
     def get_config(self):
         return {
@@ -73,101 +73,87 @@ class FileDictKVDatabase(BaseKVDatabase):
             'file': self._file,
             'access mode': self._access_mode,
             'memory usage': os.path.getsize(self._file),
-            'item count': len(self._db) if self._is_connected else -1,
+            'item count': len(self._conn) if self._is_connected else -1,
             'serialization protocol': self._protocol,
         }
 
     def get(self, key):
-        return self._db.get(key)
+        return self._conn.get(key)
 
     def set(self, key, value):
-        self._db[key] = value
+        self._conn[key] = value
 
     def keys(self):
-        return iter(self._db.keys())
+        return iter(self._conn.keys())
 
     def delete(self, key):
-        del self._db[key]
+        del self._conn[key]
 
-    def connect(self, *, access_mode='w'):
-        if self._is_connected:
-            if self._access_mode == access_mode:
-                return
-            self.disconnect()
-
+    def connect(self):
         # NOTE: Writeback allows natural operations on mutable entries,
         # but consumes more memory and makes sync/close operations take
         # longer. Writeback queues operations to a database cache. But
         # because Python language does not allow detecting when a mutation
         # occurs, read operations are also cached. Use sync command to
         # empty the cache and synchronize with disk.
-        self._db = shelve.open(
+        self._conn = shelve.open(
             self._name,
             writeback=self._use_pipeline,
-            flag=access_mode,
+            flag=self._access_mode,
             protocol=self._protocol,
         )
-
-        self._access_mode = access_mode
         self._is_connected = True
 
     def commit(self):
-        self._db.sync()
+        self._conn.sync()
 
     def disconnect(self):
-        self._db.close()
+        self._conn.close()
         self._is_connected = False
 
     def clear(self):
-        self._db.clear()
+        self._conn.clear()
 
 
 class MemoryDictKVDatabase(BaseKVDatabase):
     """In-memory key/value database."""
 
     def __init__(self):
-        self._db = {}
+        self._conn = {}
 
     def __len__(self):
-        return len(self._db)
+        return len(self._conn)
 
     def __contains__(self, key):
-        return key in self._db
+        return key in self._conn
 
     def get_config(self):
         return {
-            'memory usage': sys.getsizeof(self._db),
-            'item count': len(self._db),
+            'memory usage': sys.getsizeof(self._conn),
+            'item count': len(self._conn),
         }
 
     def get(self, key):
-        return self._db.get(key)
+        return self._conn.get(key)
 
     def set(self, key, value):
-        self._db[key] = value
+        self._conn[key] = value
 
     def keys(self):
-        return self._db.keys()
+        return self._conn.keys()
 
     def delete(self, key):
-        del self._db[key]
+        del self._conn[key]
 
     def clear(self):
-        self._db = {}
+        self._conn = {}
 
 
-def DictDatabase(*args, filename=None, db_type='kv', **kwargs):
-    """Factory function for dictionary-based database.
-
-    Args:
-        db_type (str): Type of database. Valid values are: 'kv'.
-    """
-    if db_type == 'kv':
-        if filename:
-            cls = FileDictKVDatabase
-            kwargs['filename'] = filename
-        else:
-            cls = MemoryDictKVDatabase
+def DictDatabase(*args, filename=None, **kwargs):
+    """Factory function for dictionary-based database."""
+    if filename:
+        cls = FileDictKVDatabase
+        kwargs['filename'] = filename
     else:
-        raise ValueError(f'invalid database type, {db_type}')
+        cls = MemoryDictKVDatabase
     return cls(*args, **kwargs)

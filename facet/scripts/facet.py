@@ -129,7 +129,7 @@ def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
                         print(obj.match(query_or_cmd))
                 else:
                     print(obj.match(query_or_cmd))
-            except AttributeError as ex:
+            except AttributeError:
                 print('Current mode does not supports commands')
     except (KeyboardInterrupt, EOFError):
         print()
@@ -209,7 +209,7 @@ def cli():
          'Option form: "file", "file:format", "format"'
          'Formats supported: json, yaml, xml',
 )
-def match(
+def run(
     config,
     query,
     alpha,
@@ -560,7 +560,7 @@ def shutdown_server(host, port, fileno, pid):
 
 
 # Organize groups and commands
-cli.add_command(match)
+cli.add_command(run)
 cli.add_command(server)
 cli.add_command(client)
 cli.add_command(shutdown_server)

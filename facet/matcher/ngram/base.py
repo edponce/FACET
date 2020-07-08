@@ -12,18 +12,23 @@ class BaseNgram(ABC):
     """Provided capabilities to extract N-gram features from a given text."""
 
     @staticmethod
-    def _extract_features(features: Iterable[str]) -> List[str]:
-        # Attach ordinal numbers to n-grams (Chaudhuri et at. 2006)
+    def _make_feature_set(features: Iterable[str]) -> List[str]:
+        """Attach ordinal numbers to n-grams (Chaudhuri et at. 2006)."""
         unique_features = []
         seen_features = set()
         for feature in features:
             for i in range(len(features)):
-                if feature not in seen_features:
-                    unique_features.append(feature + str(i))
-                    seen_features.add(feature)
+                _feature = feature + str(i)
+                if _feature not in seen_features:
+                    unique_features.append(_feature)
+                    seen_features.add(_feature)
                     break
         return unique_features
 
+    def get_features(self, text: str, *, unique: bool = True) -> List[str]:
+        features = self._extract_features(text)
+        return type(self)._make_feature_set(features) if unique else features
+
     @abstractmethod
-    def get_features(self, text: str, **kwargs) -> List[str]:
+    def _extract_features(self, text: str) -> List[str]:
         pass

@@ -20,7 +20,7 @@ VERBOSE = True
 # Enable/disable profiling
 PROFILE = False
 if PROFILE:
-    import cProfile
+    import cProfile  # noqa: F401
 
 
 class Facet(BaseFacet):
@@ -33,7 +33,8 @@ class Facet(BaseFacet):
         cols: Union[int, Iterable[int]] = 0,
         **kwargs,
     ):
-        """
+        """Install.
+
         Args:
             data (str): File with data to install.
 
@@ -72,7 +73,8 @@ class Facet(BaseFacet):
         ngram_struct: Tuple[int, int, str],
         **kwargs,
     ) -> List[Dict[str, Any]]:
-        """
+        """Match.
+
         Args:
             ngram (Tuple[int, int, str]): Parsed N-grams with span.
 

@@ -29,7 +29,6 @@ from typing import (
     Tuple,
     Union,
     Iterable,
-    Callable,
 )
 
 
@@ -81,7 +80,7 @@ class BaseFacet(ABC):
         matcher: Union[str, 'BaseMatcher'] = 'simstring',
         tokenizer: Union[str, 'BaseTokenizer'] = 'ws',
         formatter: Union[str, 'BaseFormatter'] = None,
-        use_proxy_install: bool = True,
+        use_proxy_install: bool = False,
     ):
         self._matcher = None
         self._tokenizer = None
@@ -234,7 +233,7 @@ class BaseFacet(ABC):
 
         Kwargs:
             Options passed directly to '*load_data()' function method via
-                `_install()`.
+            `_install()`.
         """
         self._install(data, **kwargs)
 

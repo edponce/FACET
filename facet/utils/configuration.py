@@ -1,5 +1,4 @@
 import os
-import re
 import yaml
 import json
 import urllib.parse
@@ -409,8 +408,11 @@ def unparse_address(
 
 
 def parse_address_query(query: str):
-    return dict(filter(lambda x: len(x) == 2,
-                map(lambda x: x.split('='), query.split('&'))))
+    return dict(
+        filter(
+            lambda x: all(x),
+            map(lambda x: urllib.parse.splitvalue(x), query.split('&')))
+    )
 
 
 def unparse_address_query(query: dict):
