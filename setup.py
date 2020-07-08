@@ -1,4 +1,6 @@
 import os
+import re
+import collections
 from setuptools import setup, find_packages
 import meta
 
@@ -23,19 +25,33 @@ def get_requirements_from_files(*filenames):
         try:
             with open(fn) as fd:
                 requirements += [line.strip() for line in fd.readlines()]
-        except Exception:
+        except IOError:
+            pass
+    return requirements
+
+
+def get_extras_requirements_from_files(*filenames):
+    requirements = collections.defaultdict(list)
+    for fn in filenames:
+        try:
+            with open(fn) as fd:
+                for line in fd.readlines():
+                    pkg = line.strip()
+                    match = re.search(r'\[(.*)\]', pkg)
+                    if match:
+                        requirements[match.groups(1)[0]].append(
+                            re.sub(r'\[.*\]', '', pkg)
+                        )
+        except IOError:
             pass
     return requirements
 
 
 long_description = get_text_from_files('README.rst', 'LICENSE')
 install_requirements = get_requirements_from_files('requirements.txt')
-extras_requirements = {
-    'reST': ['Sphinx>=3.0', 'sphinx_rtd_theme>=0.4.3', 'sphinx-click>=2.3'],
-    'lint': ['flake8>=3.5'],
-    'coverage': ['coverage>=4.5'],
-    'test': ['pytest>=5.3'],
-}
+extras_requirements = get_extras_requirements_from_files(
+    'extras_requirements.txt',
+)
 
 
 # For PyPI, the 'download_url' is a link to a hosted repository.

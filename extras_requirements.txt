@@ -1,0 +1,6 @@
+Sphinx[reST]>=3.0
+sphinx_rtd_theme[reST]>=0.4.3
+sphinx-click[reST]>=2.3
+flake8[lint]>=3.5
+coverage[coverage]>=4.5
+pytest[test]>=5.3
