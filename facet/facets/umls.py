@@ -7,11 +7,6 @@ from ..database import (
     BaseDatabase,
 )
 from .base import BaseFacet
-from .umls_constants import (
-    HEADERS_MRSTY,
-    HEADERS_MRCONSO,
-    ACCEPTED_SEMTYPES,
-)
 from typing import (
     Any,
     List,
@@ -30,7 +25,48 @@ VERBOSE = True
 # Enable/disable profiling
 PROFILE = False
 if PROFILE:
-    import cProfile
+    import cProfile  # noqa: F401
+
+
+# NOTE: UMLS headers should be automatically parsed from UMLS MRFILES.RRF.
+HEADERS_MRCONSO = (
+    'cui', 'lat', 'ts', 'lui', 'stt', 'sui', 'ispref', 'aui', 'saui',
+    'scui', 'sdui', 'sab', 'tty', 'code', 'str', 'srl', 'suppress', 'cvf'
+)
+
+# NOTE: UMLS headers should be automatically parsed from UMLS MRFILES.RRF.
+HEADERS_MRSTY = (
+    'cui', 'sty', 'hier', 'desc', 'sid', 'num'
+)
+
+ACCEPTED_SEMTYPES = {
+    'T029': 'Body Location or Region',
+    'T023': 'Body Part, Organ, or Organ Component',
+    'T031': 'Body Substance',
+    'T060': 'Diagnostic Procedure',
+    'T047': 'Disease or Syndrome',
+    'T074': 'Medical Device',
+    'T200': 'Clinical Drug',
+    'T203': 'Drug Delivery Device',
+    'T033': 'Finding',
+    'T184': 'Sign or Symptom',
+    'T034': 'Laboratory or Test Result',
+    'T058': 'Health Care Activity',
+    'T059': 'Laboratory Procedure',
+    'T037': 'Injury or Poisoning',
+    'T061': 'Therapeutic or Preventive Procedure',
+    'T048': 'Mental or Behavioral Dysfunction',
+    'T046': 'Pathologic Function',
+    'T121': 'Pharmacologic Substance',
+    'T201': 'Clinical Attribute',
+    'T130': 'Indicator, Reagent, or Diagnostic Aid',
+    'T195': 'Antibiotic',
+    'T039': 'Physiologic Function',
+    'T040': 'Organism Function',
+    'T041': 'Mental Process',
+    'T170': 'Intellectual Product',
+    'T191': 'Neoplastic Process'
+}
 
 
 class UMLSFacet(BaseFacet):
@@ -90,9 +126,8 @@ class UMLSFacet(BaseFacet):
 
     def _install(
         self,
-        umls_dir: str,
+        data: str,
         *,
-        overwrite: bool = True,
         cui_valids: Dict[str, Iterable[Any]] = {},
         sty_valids: Dict[str, Iterable[Any]] = {'sty': ACCEPTED_SEMTYPES},
         **kwargs,
@@ -104,23 +139,26 @@ class UMLSFacet(BaseFacet):
         are joined based on CUIs and ACCEPTED_SEMTYPES.
 
         Args:
-            umls_dir (str): Directory of UMLS RRF files.
+            data (str): Directory of UMLS RRF files.
 
         Kwargs:
             Options passed directly to '*load_data()' function.
         """
-        if overwrite:
-            if self._conso_db is not None:
-                self._conso_db.clear()
-            if self._cuisty_db is not None:
-                self._cuisty_db.clear()
-
         t1 = time.time()
 
+        # NOTE: This allows user configuration to use either None or {}
+        # for disabling these filters.
+        if cui_valids is None:
+            cui_valids = {}
+        if sty_valids is None:
+            sty_valids = {}
+
+        # NOTE: Even if 'conso_db' is None, we can filter based on semantic
+        # types selected.
         if self._cuisty_db is not None:
             print('Loading/parsing semantic types...')
             start = time.time()
-            mrsty_file = os.path.join(umls_dir, 'MRSTY.RRF')
+            mrsty_file = os.path.join(data, 'MRSTY.RRF')
             cuisty = load_data(
                 mrsty_file,
                 keys=['cui'],
@@ -148,7 +186,7 @@ class UMLSFacet(BaseFacet):
 
         print('Loading/parsing concepts...')
         start = time.time()
-        mrconso_file = os.path.join(umls_dir, 'MRCONSO.RRF')
+        mrconso_file = os.path.join(data, 'MRCONSO.RRF')
         conso = load_data(
             mrconso_file,
             keys=['str'],

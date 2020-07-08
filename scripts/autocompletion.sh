@@ -6,12 +6,20 @@
 #   . autocompletion.sh
 #   cat autocompletion.sh >> ~/.<shell>rc
 
+if [ "$(command -v readlink)" ]; then
+    shell=$(basename "$(readlink -f $SHELL)")
+else
+    shell=$SHELL
+fi
 
-# Bash (~/.bashrc)
-eval "$(_FACET_COMPLETE=source_bash facet)"
-
-# Zsh (~/.zshrc)
-#eval "$(_FACET_COMPLETE=source_zsh facet)"
-
-# Fish (~/.config/fish/completions/facet.fish)
-#eval (env _FACET_COMPLETE=source_fish facet)
+case $shell in
+    *zsh*) # Zsh (~/.zshrc)
+        eval "$(_FACET_COMPLETE=source_zsh facet)"
+        ;;
+    *fish*) # Fish (~/.config/fish/completions/facet.fish)
+        eval (env _FACET_COMPLETE=source_fish facet)
+        ;;
+    *bash*) # Bash (~/.bashrc)
+        eval "$(_FACET_COMPLETE=source_bash facet)"
+        ;;
+esac

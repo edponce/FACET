@@ -20,7 +20,7 @@ VERBOSE = True
 # Enable/disable profiling
 PROFILE = False
 if PROFILE:
-    import cProfile
+    import cProfile  # noqa: F401
 
 
 class Facet(BaseFacet):
@@ -28,17 +28,15 @@ class Facet(BaseFacet):
 
     def _install(
         self,
-        data_file: str,
+        data: str,
         *,
-        overwrite: bool = True,
         cols: Union[int, Iterable[int]] = 0,
         **kwargs,
     ):
-        """
-        Args:
-            data_file (str): File with data to install.
+        """Install.
 
-            overwrite (bool): Not used, conforms with 'BaseFacet' API.
+        Args:
+            data (str): File with data to install.
 
         Kwargs:
             Options passed directly to '*load_data()' function.
@@ -52,7 +50,7 @@ class Facet(BaseFacet):
         print('Loading/parsing data...')
         start = time.time()
         data = iload_data(
-            data_file,
+            data,
             keys=cols,
             converters={cols[0]: [unidecode, str.lower]},
             **kwargs,
@@ -75,7 +73,8 @@ class Facet(BaseFacet):
         ngram_struct: Tuple[int, int, str],
         **kwargs,
     ) -> List[Dict[str, Any]]:
-        """
+        """Match.
+
         Args:
             ngram (Tuple[int, int, str]): Parsed N-grams with span.
 

@@ -7,6 +7,7 @@ from ..utils import (
     parse_filename,
     parse_address_query,
     unparse_address_query,
+    get_obj_map_key,
 )
 from ..serializer import (
     serializer_map,
@@ -14,13 +15,9 @@ from ..serializer import (
 )
 from typing import (
     Any,
-    List,
-    Dict,
     Tuple,
     Union,
-    Iterable,
     Iterator,
-    NoReturn,
 )
 
 
@@ -61,12 +58,13 @@ class SQLiteKVDatabase(BaseKVDatabase):
         serializer (str, BaseSerializer): Serializer instance or serializer
             name.
 
-    Kwargs (see 'sqlite3.connect()'):
-        timeout
-        detect_types
-        isolation_level
-        check_same_thread
-        cached_statements
+    Kwargs:
+        Options passed directly to 'sqlite3.connect()'.
+            timeout
+            detect_types
+            isolation_level
+            check_same_thread
+            cached_statements
 
     Notes:
         * After closing an in-memory database, re-connection creates
@@ -92,47 +90,49 @@ class SQLiteKVDatabase(BaseKVDatabase):
         key_type=str,
         value_type=None,
         serializer: Union[str, 'BaseSerializer'] = 'json',
-        **kwargs,
+        **conn_info,
     ):
-        self._db = None
+        self._conn = None
         self._name = None
         self._table = table
-        self._access_mode = None
         self._uri = None
-        self._query = None
         self._serializer = None
-        # Disable serializer if value type is supported by sqlite3
+        self._is_connected = False
+        self._conn_info = copy.deepcopy(conn_info)
+
+        # Disable serializer if value type is supported by database
         self.serializer = (
             None if value_type in (str, int, bool, float, bytes)
             else serializer
         )
-        self._is_connected = False
-        self._conn_params = copy.deepcopy(kwargs)
 
         # Parse file name as if in URI format
         parsed = urllib.parse.urlsplit(filename)
         self._name = parsed.path
 
-        # Prioritize query mode in URI over argument value
+        # Prioritize access mode in URI over argument value
         query = parse_address_query(parsed.query)
-        self._query = query
-        query_mode = query.get('mode')
-        if query_mode:
-            if query_mode == 'ro':
+        mode = query.get('mode')
+        if mode:
+            if mode == 'ro':
                 access_mode = 'r'
-            elif query_mode == 'rw':
+            elif mode == 'rw':
                 access_mode = 'w'
-            elif query_mode == 'rwc':
+            elif mode == 'rwc':
                 access_mode = 'c'
             else:
-                # NOTE: If invalid access mode, keep it so that
-                # sqlite3 triggers error. But this also allows setting
-                # query_mode to 'r', 'w', etc. and processed as correct
-                # when in fact they are not valid sqlite modes.
-                access_mode = query_mode
+                access_mode = mode
+        else:
+            if access_mode == 'r':
+                query['mode'] = 'ro'
+                query['nolock'] = '1'
+            elif access_mode == 'w':
+                query['mode'] = 'rw'
+            elif access_mode in ('c', 'n'):
+                query['mode'] = 'rwc'
 
         # Create path/file for persistent database
-        if parsed.path != ':memory:' and query_mode != 'memory':
+        if parsed.path != ':memory:' and mode != 'memory':
             db_dir, db_base = parse_filename(parsed.path)
             if access_mode == 'c':
                 os.makedirs(db_dir, exist_ok=True)
@@ -144,10 +144,18 @@ class SQLiteKVDatabase(BaseKVDatabase):
 
         # Convert file name to URI format
         self._uri = filename if parsed.scheme else 'file:' + parsed.path
+        if query:
+            self._uri += '?' + unparse_address_query(query)
 
         # Connect and create table
-        self.connect(access_mode=access_mode)
-        self._db.execute(
+        self.connect()
+
+        # Reset table based on access mode
+        if access_mode == 'n':
+            self._conn.execute(f"DROP TABLE IF EXISTS {self._table};")
+
+        # Create table
+        self._conn.execute(
             f"CREATE TABLE IF NOT EXISTS {self._table} ("
             f"key {type(self).PYTYPE_SQLTYPE_MAP[key_type]} PRIMARY KEY, "
             f"value {type(self).PYTYPE_SQLTYPE_MAP[value_type]});"
@@ -168,7 +176,7 @@ class SQLiteKVDatabase(BaseKVDatabase):
         self._serializer = obj
 
     def __contains__(self, key: str) -> bool:
-        cur = self._db.execute(
+        cur = self._conn.execute(
             "SELECT EXISTS("
             f"SELECT value FROM {self._table} "
             "WHERE key=(?));", (key,)
@@ -176,12 +184,12 @@ class SQLiteKVDatabase(BaseKVDatabase):
         return bool(cur.fetchone()[0])
 
     def __len__(self):
-        cur = self._db.execute(f"SELECT COUNT(key) FROM {self._table};")
+        cur = self._conn.execute(f"SELECT COUNT(key) FROM {self._table};")
         return cur.fetchone()[0]
 
     def get_table_memsize(self):
         try:
-            cur = self._db.execute(
+            cur = self._conn.execute(
                 "SELECT SUM(\"pgsize\") FROM \"dbstat\" "
                 "WHERE name=(?);", (self._table,)
             )
@@ -191,54 +199,53 @@ class SQLiteKVDatabase(BaseKVDatabase):
 
     def execute(self, cmd, *args):
         if len(args) == 0:
-            cur = self._db.execute(cmd)
+            cur = self._conn.execute(cmd)
         else:
-            cur = self._db.execute(cmd, args)
+            cur = self._conn.execute(cmd, args)
         return cur.fetchall()
 
     def get_schema(self):
-        cur = self._db.execute(
-            f"SELECT sql FROM sqlite_master "
-            f"WHERE type='table' AND tbl_name=(?);", (self._table,)
+        cur = self._conn.execute(
+            "SELECT sql FROM sqlite_master "
+            "WHERE type='table' AND tbl_name=(?);", (self._table,)
         )
         return cur.fetchone()[0]
 
     def get_config(self):
         return {
             'name': self._name,
-            'uri': self._uri,
             'table': self._table,
-            'access mode': self._access_mode,
+            'uri': self._uri,
             'memory usage': (
                 self.get_table_memsize() if self._is_connected else -1
             ),
             'item count': len(self) if self._is_connected else -1,
             'schema': self.get_schema() if self._is_connected else '',
-            'serializer': self._serializer,
+            'serializer': get_obj_map_key(self._serializer, serializer_map),
         }
 
     def get(self, key):
-        cur = self._db.execute(
+        cur = self._conn.execute(
             f"SELECT value FROM {self._table} "
             "WHERE key=(?);", (key,)
         )
         value = cur.fetchone()
         return value if value is None else self._serializer.loads(value[0])
 
-    def set(self, key, value, **kwargs):
+    def set(self, key, value):
         _value = self._serializer.dumps(value)
-        cur = self._db.execute(
+        self._conn.execute(
             f"INSERT INTO {self._table}(key, value) VALUES (?, ?) "
             f"ON CONFLICT(key) DO UPDATE SET value=(?);",
             (key, _value, _value)
         )
 
     def keys(self):
-        cur = self._db.execute(f"SELECT key FROM {self._table};")
+        cur = self._conn.execute(f"SELECT key FROM {self._table};")
         return map(lambda row: row[0], cur)
 
     def items(self, *, chunk=100) -> Iterator[Tuple[str, Any]]:
-        cur = self._db.execute(f"SELECT key, value FROM {self._table};")
+        cur = self._conn.execute(f"SELECT key, value FROM {self._table};")
         data = cur.fetchmany(chunk)
         while data:
             for k, v in data:
@@ -246,57 +253,33 @@ class SQLiteKVDatabase(BaseKVDatabase):
             data = cur.fetchmany(chunk)
 
     def delete(self, key):
-        self._db.execute(
+        self._conn.execute(
             f"DELETE FROM {self._table} "
             "WHERE EXISTS ("
             f"SELECT * FROM {self._table} "
             "WHERE key=(?));", (key,)
         )
 
-    def connect(self, *, access_mode='w'):
-        if self._is_connected:
-            if self._access_mode == access_mode:
-                return
-            self._db.close()
-
-        # Add/change access mode options to URI
-        query_mode = self._query.get('mode')
-        if query_mode != 'memory':
-            if access_mode == 'r':
-                self._query['mode'] = 'ro'
-                self._query['nolock'] = '1'
-            elif access_mode == 'w':
-                self._query['mode'] = 'rw'
-            elif access_mode in ('c', 'n'):
-                self._query['mode'] = 'rwc'
-
-        # Update query in URI
-        db_uri = self._uri.split('?')[0]
-        query = unparse_address_query(self._query)
-        self._uri = db_uri + '?' + query if query else db_uri
-
-        self._db = sqlite3.connect(self._uri, uri=True, **self._conn_params)
-        self._access_mode = access_mode
+    def connect(self):
+        self._conn_info.pop('uri', None)
+        self._conn = sqlite3.connect(self._uri, uri=True, **self._conn_info)
         self._is_connected = True
 
     def commit(self):
         # NOTE: Check for connection status to allow invoking
         # on a closed database.
-        if self._is_connected and self._db.in_transaction:
-            self._db.commit()
+        if self._is_connected and self._conn.in_transaction:
+            self._conn.commit()
 
     def disconnect(self):
         if self._is_connected:
-            self._db.close()
+            self._conn.close()
             self._is_connected = False
 
     def clear(self):
-        self._db.execute(f"DELETE FROM {self._table};")
+        self._conn.execute(f"DELETE FROM {self._table};")
 
 
-def SQLiteDatabase(*args, db_type='kv', **kwargs):
-    if db_type == 'kv':
-        cls = SQLiteKVDatabase
-    else:
-        raise ValueError(f'invalid database type, {db_type}')
+def SQLiteDatabase(*args, **kwargs):
+    cls = SQLiteKVDatabase
     return cls(*args, **kwargs)
