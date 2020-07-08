@@ -106,7 +106,5 @@ cache/
 **/*.swp
 **/*.bak
 **/*.log
-data/
-db/
 doc/_build/
 doc/html/
