@@ -7,6 +7,7 @@ from ..utils import (
     parse_filename,
     parse_address_query,
     unparse_address_query,
+    get_obj_map_key,
 )
 from ..serializer import (
     serializer_map,
@@ -220,7 +221,7 @@ class SQLiteKVDatabase(BaseKVDatabase):
             ),
             'item count': len(self) if self._is_connected else -1,
             'schema': self.get_schema() if self._is_connected else '',
-            'serializer': self._serializer,
+            'serializer': get_obj_map_key(self._serializer, serializer_map),
         }
 
     def get(self, key):

@@ -31,4 +31,4 @@ RUN source /FACET/scripts/autocompletion.sh
 
 # Start FACET server
 EXPOSE 4444
-RUN facet server -c config/factory.yaml:SimpleMemory
+RUN facet server -c config/factory.yaml:SimpleMemory -p 4444

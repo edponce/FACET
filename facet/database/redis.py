@@ -5,7 +5,10 @@ from ..serializer import (
     serializer_map,
     BaseSerializer,
 )
-from ..utils import parse_address
+from ..utils import (
+    parse_address,
+    get_obj_map_key,
+)
 from typing import Union
 
 
@@ -104,7 +107,7 @@ class RedisKVDatabase(BaseKVDatabase):
             'db num': self._n,
             'item count': len(self) if self._is_connected else -1,
             'use pipeline': self._use_pipeline,
-            'serializer': self._serializer,
+            'serializer': get_obj_map_key(self._serializer, serializer_map),
         }
 
     def get_info(self):
