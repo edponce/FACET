@@ -1,11 +1,16 @@
+include setup.cfg
+include setup.py
+include *requirements.txt
+include tox.ini
 include LICENSE
 include *.rst
-include *.txt
-include setup.cfg
-include tox.ini
+include Makefile
+include Dockerfile
+include environment.yml
 recursive-include meta *.py
 recursive-include doc *.py *.rst Makefile
-recursive-include scripts *.sh *.py *.yaml
+recursive-include scripts *.sh *.py
 recursive-include config *.cfg *.yaml *.json
 recursive-include examples *.py
 recursive-include tests *.py
+graft data
