@@ -3,7 +3,6 @@ import pandas
 import collections
 from typing import (
     Any,
-    Set,
     List,
     Dict,
     Union,
@@ -96,7 +95,7 @@ def valid_items_from_dict(
         else:
             is_valid = True
     else:
-        # invalids is not None
+        # Case: invalids is not None
         for k, item in zip(keys, items):
             if k in invalids:
                 if not valid_item(item, invalids=invalids[k]):
@@ -493,4 +492,3 @@ def get_obj_map_key(obj, class_map):
         if isinstance(obj, v):
             return k
     return obj
-

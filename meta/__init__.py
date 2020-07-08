@@ -17,7 +17,7 @@ __all__ = [
 
 __title__ = "FACET"
 __name__ = "FACET"
-__version__ = "0.9"
+__version__ = "1.0"
 __description__ = """Framework for Annotation and Concept Extraction in Text"""
 __keywords__ = [
     "information extraction",

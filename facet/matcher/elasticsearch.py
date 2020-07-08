@@ -184,9 +184,6 @@ class ElasticsearchSimstring(BaseMatcher):
             for hit in self._db.get(size, feature)['hits']['hits']
         ]
 
-    # NOTE: Consider supporting iterable data so that
-    # it can be passed directly to underlying database
-    # when pipe is enabled.
     def insert(self, string: str) -> NoReturn:
         """Insert string into database."""
         features = self._ngram.get_features(string)

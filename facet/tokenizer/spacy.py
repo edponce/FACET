@@ -1,6 +1,6 @@
 import spacy
 from .base import BaseTokenizer
-from typing import Tuple, Generator
+from typing import Iterator
 
 
 __all__ = ['SpaCyTokenizer']
@@ -25,7 +25,7 @@ class SpaCyTokenizer(BaseTokenizer):
             raise OSError(err)
         self._stopwords = self._nlp.Defaults.stop_words
 
-    def sentencize(self, text) -> Generator['spacy.Span', None, None]:
+    def sentencize(self, text) -> Iterator['spacy.Span']:
         # len(Doc) == number of words
         doc = self._nlp(text)
         return doc.sents
@@ -51,7 +51,7 @@ class SpaCyTokenizer(BaseTokenizer):
             ignore_syntax (bool): Ignore token types when parsing text.
                 Default is False.
 
-        Returns (Generator[Tuple[int, int, str]]: Span start, span end,
+        Returns (Iterator[Tuple[int, int, str]]: Span start, span end,
             and text.
         """
         if ignore_syntax:

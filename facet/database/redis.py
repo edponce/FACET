@@ -5,7 +5,10 @@ from ..serializer import (
     serializer_map,
     BaseSerializer,
 )
-from ..utils import parse_address
+from ..utils import (
+    parse_address,
+    get_obj_map_key,
+)
 from typing import Union
 
 
@@ -19,11 +22,11 @@ class RedisKVDatabase(BaseKVDatabase):
     """Redis database interface.
 
     Args:
-        host (str): See Redis documentation.
+        host (str): Host name of database connection.
 
-        port (int): See Redis documentation.
+        port (int): Port number of database connection.
 
-        id (int): Database ID, see Redis documentation.
+        n (int): Database number, see Redis documentation.
 
         access_mode (str): Access mode for database.
             Valid values are: 'r' = read-only, 'w' = read/write,
@@ -51,28 +54,31 @@ class RedisKVDatabase(BaseKVDatabase):
 
     def __init__(
         self,
-        host='localhost',
+        host: str = 'localhost',
         *,
-        port=6379,
-        id=0,
-        access_mode='c',
+        port: int = 6379,
+        n: int = 0,
+        access_mode: str = 'c',
         use_pipeline: bool = False,
         serializer: Union[str, 'BaseSerializer'] = 'json',
-        **kwargs,
+        **conn_info,
     ):
-        self._db = None
-        self._dbp = None
+        self._conn = None
+        self._conn_pipe = None
         self._host, self._port = parse_address(host, port)
-        self._uri = host
-        self._db_id = id
-        self._access_mode = None
+        self._n = n
+        self._access_mode = access_mode
         self._use_pipeline = use_pipeline
         self._serializer = None
         self.serializer = serializer
         self._is_connected = False
-        self._conn_params = copy.deepcopy(kwargs)
+        self._conn_info = copy.deepcopy(conn_info)
 
-        self.connect(access_mode=access_mode)
+        self.connect()
+
+        # Reset database based on access mode
+        if access_mode == 'n':
+            self.clear()
 
     @property
     def serializer(self):
@@ -89,95 +95,69 @@ class RedisKVDatabase(BaseKVDatabase):
         self._serializer = obj
 
     def __contains__(self, key):
-        self._check_connection_access()
-        return bool(self._db.exists(key))
+        return bool(self._conn.exists(key))
 
     def __len__(self):
-        self._check_connection_access()
-        return self._db.dbsize()
-
-    def _check_connection_access(self):
-        if not self._is_connected:
-            raise ValueError('invalid operation on closed database')
-
-    def _check_write_access(self):
-        if self._access_mode == 'r':
-            raise ValueError('invalid operation on read-only database')
+        return self._conn.dbsize()
 
     def get_config(self):
         return {
             'host': self._host,
             'port': self._port,
-            'db id': self._db_id,
-            'uri': self._uri,
-            'access mode': self._access_mode,
+            'db num': self._n,
             'item count': len(self) if self._is_connected else -1,
             'use pipeline': self._use_pipeline,
-            'serializer': self._serializer,
+            'serializer': get_obj_map_key(self._serializer, serializer_map),
         }
 
     def get_info(self):
-        info = copy.deepcopy(self._db.info())
-        info.update(self._db.config_get())
-        return info if self._is_connected else {}
+        if not self._is_connected:
+            return {}
+        info = copy.deepcopy(self._conn.info())
+        info.update(self._conn.config_get())
+        return info
 
     def get(self, key):
-        self._check_connection_access()
-        value = self._db.get(key)
+        value = self._conn.get(key)
         return value if value is None else self._serializer.loads(value)
 
     def set(self, key, value):
-        self._check_connection_access()
-        self._check_write_access()
-        self._dbp.set(key, self._serializer.dumps(value))
+        self._conn_pipe.set(key, self._serializer.dumps(value))
 
     def keys(self):
-        self._check_connection_access()
-        return list(map(lambda k: k.decode(), self._db.keys()))
+        return list(map(lambda k: k.decode(), self._conn.keys()))
 
     def delete(self, key):
-        self._check_connection_access()
-        self._check_write_access()
-        self._db.delete(key)
+        self._conn.delete(key)
 
-    def connect(self, *, access_mode='w'):
-        if self._is_connected:
-            if self._access_mode == access_mode:
-                return
-            self._db = None
-            self._dbp = None
-
-        self._db = redis.Redis(
+    def connect(self):
+        self._conn = redis.Redis(
             host=self._host,
             port=self._port,
-            db=self._db_id,
-            **self._conn_params,
+            db=self._n,
+            **self._conn_info,
         )
 
-        self._dbp = self._db.pipeline() if self._use_pipeline else self._db
-        self._access_mode = access_mode
+        self._conn_pipe = (
+            self._conn.pipeline()
+            if self._use_pipeline
+            else self._conn
+        )
         self._is_connected = True
 
     def commit(self):
         if self._is_connected and self._use_pipeline:
-            self._check_write_access()
-            self._dbp.execute()
+            self._conn_pipe.execute()
 
     def disconnect(self):
-        if self._is_connected:
-            self._db = None
-            self._dbp = None
-            self._is_connected = False
+        self._conn = None
+        self._conn_pipe = None
+        self._is_connected = False
 
     def clear(self):
-        self._check_connection_access()
-        self._check_write_access()
-        self._db.flushdb()
+        self._conn.flushdb()
 
 
-def RedisDatabase(*args, db_type='kv', **kwargs):
-    if db_type == 'kv':
-        cls = RedisKVDatabase
-    else:
-        raise ValueError(f'invalid database type, {db_type}')
+def RedisDatabase(*args, **kwargs):
+    cls = RedisKVDatabase
     return cls(*args, **kwargs)

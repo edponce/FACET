@@ -81,12 +81,12 @@ class Simstring(BaseMatcher):
         # processes nor during a later search. Solution is to store the value
         # into the database. But what if the database is not a key-value store,
         # such as ElasticSearch.
-        # gmf = self._db.get('__GLOBAL_MAX_FEATURES__')
-        # self._global_max_features = (
-        #     gmf
-        #     if gmf is not None
-        #     else type(self)._GLOBAL_MAX_FEATURES
-        # )
+        gmf = self._db.get('__GLOBAL_MAX_FEATURES__')
+        self._global_max_features = (
+            type(self)._GLOBAL_MAX_FEATURES
+            if gmf is None
+            else gmf
+        )
         self._global_max_features = type(self)._GLOBAL_MAX_FEATURES
 
     @property
@@ -157,26 +157,25 @@ class Simstring(BaseMatcher):
     def _get_strings(self, size: int, feature: str) -> List[str]:
         """Get strings corresponding to feature size and query feature."""
         strings = self._db.get(str(size) + feature)
-        return strings if strings is not None else []
+        return [] if strings is None else strings
 
     def insert(self, string: str) -> NoReturn:
         """Insert string into database."""
         features = self._ngram.get_features(string)
-        flen = str(len(features))
         for feature in features:
             strings = self._get_strings(len(features), feature)
             if string not in strings:
                 strings.append(string)
-                self._db.set(flen + feature, strings)
+                self._db.set(str(len(features)) + feature, strings)
 
         # Track and store longest sequence of features
         # NOTE: Too many database accesses. Probably it is best to estimate or
         # fix a value or assume inserts occur during the same installation
         # phase and keep track using class variables, then require a "closing"
         # operation to store value into database.
-        # if len(features) > self._global_max_features:
-        #     self._global_max_features = len(features)
-        #     self._db.set('__GLOBAL_MAX_FEATURES__', self._global_max_features)
+        if len(features) > self._global_max_features:
+            self._global_max_features = len(features)
+            self._db.set('__GLOBAL_MAX_FEATURES__', self._global_max_features)
 
     def search(
         self,
@@ -214,7 +213,8 @@ class Simstring(BaseMatcher):
         # the exception of 'alpha'.
         query_in_cache = False
         if self._cache_db is not None:
-            candidate_strings = self._cache_db.get(query_string, alpha)[0]
+            cache_key = str(alpha) + query_string
+            candidate_strings = self._cache_db.get(cache_key)
             if candidate_strings is not None:
                 query_in_cache = True
 
@@ -248,8 +248,10 @@ class Simstring(BaseMatcher):
             ]
 
             # Insert candidate strings into cache
+            # NOTE: Need a way to limit database and only cache heavy hitters.
             if update_cache and self._cache_db is not None:
-                self._cache_db.set(query_string, alpha, candidate_strings)
+                cache_key = str(alpha) + query_string
+                self._cache_db.set(cache_key, candidate_strings)
 
         similarities = [
             self._similarity.similarity(

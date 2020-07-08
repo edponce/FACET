@@ -13,7 +13,7 @@ FACET Command Line Interface
 FACET API
 ---------
 
-.. autoclass:: facet.base.BaseFacet
+.. autoclass:: facet.facets.base.BaseFacet
     :members:
 
 .. autoclass:: facet.Facet
