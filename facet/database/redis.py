@@ -12,13 +12,10 @@ from ..utils import (
 from typing import Union
 
 
-__all__ = [
-    'RedisKVDatabase',
-    'RedisDatabase',
-]
+__all__ = ['RedisDatabase']
 
 
-class RedisKVDatabase(BaseKVDatabase):
+class RedisDatabase(BaseKVDatabase):
     """Redis database interface.
 
     Args:
@@ -67,7 +64,6 @@ class RedisKVDatabase(BaseKVDatabase):
         self._conn_pipe = None
         self._host, self._port = parse_address(host, port)
         self._n = n
-        self._access_mode = access_mode
         self._use_pipeline = use_pipeline
         self._serializer = None
         self.serializer = serializer
@@ -156,8 +152,3 @@ class RedisKVDatabase(BaseKVDatabase):
 
     def clear(self):
         self._conn.flushdb()
-
-
-def RedisDatabase(*args, **kwargs):
-    cls = RedisKVDatabase
-    return cls(*args, **kwargs)

@@ -39,6 +39,7 @@ class FacetFactory:
     # name from the object type are listed here.
     PARAM_OBJTYPE_MAP = {
         'db': 'database',         # Matcher database
+        'db2': 'database',        # Matcher database
         'cache_db': 'database',   # Matcher cache database
         'cuisty_db': 'database',  # (UMLSFacet) CUI-STY database
         'conso_db': 'database',   # (UMLSFacet) CONCEPT-CUI database

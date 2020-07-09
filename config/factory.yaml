@@ -104,6 +104,7 @@ UMLSMemory:
     matcher:
         class: simstring
         db: dict
+        db2: dict
         alpha: 0.7
         similarity: jaccard
         ngram: character
@@ -129,7 +130,11 @@ UMLSFile:
         class: simstring
         db:
             class: dict
-            filename: db/simstring
+            filename: db/simstring1
+            use_pipeline: true
+        db2:
+            class: dict
+            filename: db/simstring2
             use_pipeline: true
         alpha: 0.7
         similarity: jaccard
@@ -166,8 +171,16 @@ UMLSRedis:
             port: 6379
             n: 2
             access_mode: c
-            serializer: json
+            serializer: pickle
             use_pipeline: true
+        # db2:
+        #     class: redis
+        #     host: localhost
+        #     port: 6379
+        #     n: 3
+        #     access_mode: c
+        #     serializer: pickle
+        #     use_pipeline: true
         cache_db: null
         alpha: 0.7
         similarity: jaccard
@@ -182,14 +195,14 @@ UMLSSQL:
     class: umlsfacet
     conso_db:
         class: sqlite
-        filename: db/conso
+        filename: db/umls
         table: conso
         access_mode: c
         serializer: json
         check_same_thread: false
     cuisty_db:
         class: sqlite
-        filename: db/cuisty
+        filename: db/umls
         table: cuisty
         access_mode: c
         serializer: json
@@ -198,10 +211,17 @@ UMLSSQL:
         class: simstring
         db:
             class: sqlite
-            filename: db/simstring
-            table: simstring
+            filename: db/umls
+            table: simstring1
             access_mode: c
-            serializer: json
+            serializer: pickle
+            check_same_thread: false
+        db2:
+            class: sqlite
+            filename: db/umls
+            table: simstring2
+            access_mode: c
+            serializer: pickle
             check_same_thread: false
         cache_db: null
         alpha: 0.7

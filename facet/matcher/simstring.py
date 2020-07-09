@@ -34,8 +34,12 @@ class Simstring(BaseMatcher):
 
     Args:
         db (str, BaseDatabase): Handle to database instance or database name
-            for strings storage. Valid databases are: 'dict', 'redis',
-            'elasticsearch'.
+            for mapping features to strings hashes.
+            Valid databases are: 'dict', 'redis'.
+
+        db2 (str, BaseDatabase): Handle to database instance or database name
+            for mapping string hashes to strings. Valid databases are: 'dict',
+            'redis'.
 
         cache_db (str, BaseDatabase): Handle to database instance or database
             name for strings cache. Valid databases are: 'dict', 'redis',
@@ -57,6 +61,7 @@ class Simstring(BaseMatcher):
         self,
         *,
         db: Union[str, 'BaseDatabase'] = 'dict',
+        db2: Union[str, 'BaseDatabase'] = 'dict',
         cache_db: Union[str, 'BaseDatabase'] = None,
         alpha: float = 0.7,
         similarity: Union[str, 'BaseSimilarity'] = 'jaccard',
@@ -65,12 +70,14 @@ class Simstring(BaseMatcher):
         # Key/value store for {feature: terms}
         # NOTE: Actually stored as {str(len(features)) + feature: [terms]}
         self._db = None
+        self._db2 = None
         self._cache_db = None
         self._alpha = None
         self._similarity = None
         self._ngram = None
 
         self.db = db
+        self.db2 = db2
         self.cache_db = cache_db
         self.alpha = alpha
         self.similarity = similarity
@@ -102,6 +109,20 @@ class Simstring(BaseMatcher):
         else:
             raise ValueError(f'invalid Simstring database, {value}')
         self._db = obj
+
+    @property
+    def db2(self):
+        return self._db2
+
+    @db2.setter
+    def db2(self, value: Union[str, 'BaseDatabase']):
+        if isinstance(value, str):
+            obj = database_map[value]()
+        elif isinstance(value, BaseDatabase):
+            obj = value
+        else:
+            raise ValueError(f'invalid Simstring database, {value}')
+        self._db2 = obj
 
     @property
     def cache_db(self):
@@ -157,7 +178,7 @@ class Simstring(BaseMatcher):
     def _get_strings(self, size: int, feature: str) -> List[str]:
         """Get strings corresponding to feature size and query feature."""
         strings = self._db.get(str(size) + feature)
-        return [] if strings is None else strings
+        return set() if strings is None else strings
 
     def insert(self, string: str) -> NoReturn:
         """Insert string into database."""
@@ -165,7 +186,7 @@ class Simstring(BaseMatcher):
         for feature in features:
             strings = self._get_strings(len(features), feature)
             if string not in strings:
-                strings.append(string)
+                strings.add(string)
                 self._db.set(str(len(features)) + feature, strings)
 
         # Track and store longest sequence of features
@@ -200,6 +221,9 @@ class Simstring(BaseMatcher):
         """
         if alpha is None:
             alpha = self._alpha
+        else:
+            alpha = min(1, max(alpha, 0.01))
+
         if similarity is None:
             similarity = self._similarity
         elif isinstance(similarity, str):
@@ -297,6 +321,8 @@ class Simstring(BaseMatcher):
                 # M[s] = M[s] + 1
                 strings_frequency[string] += 1
 
+        # NOTE: I think if the following loops are exchanged, there is no
+        # need to do pruning.
         # for k in range(|X|-t+1,|X|-1)
         for i, feature in enumerate(query_features[tau_split:],
                                     start=tau_split):
