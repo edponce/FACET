@@ -157,7 +157,7 @@ class Simstring(BaseMatcher):
     def _get_strings(self, size: int, feature: str) -> List[str]:
         """Get strings corresponding to feature size and query feature."""
         strings = self._db.get(str(size) + feature)
-        return [] if strings is None else strings
+        return set() if strings is None else strings
 
     def insert(self, string: str) -> NoReturn:
         """Insert string into database."""
@@ -165,7 +165,8 @@ class Simstring(BaseMatcher):
         for feature in features:
             strings = self._get_strings(len(features), feature)
             if string not in strings:
-                strings.append(string)
+                strings.add(string)
+                # strings.append(string)
                 self._db.set(str(len(features)) + feature, strings)
 
         # Track and store longest sequence of features
@@ -195,6 +196,9 @@ class Simstring(BaseMatcher):
                 similarity name. Valid measures are: 'cosine', 'jaccard',
                 'dice', 'exact', 'overlap', 'hamming'.
 
+            rank (bool): Order matches based on similarity measure from
+                highest to lowest.
+
             update_cache (bool): If set, then cache database is updated with
                 new queries. Default is True.
         """
@@ -221,11 +225,11 @@ class Simstring(BaseMatcher):
         if not query_in_cache:
             min_features = max(
                 1,
-                self._similarity.min_features(len(query_features), alpha)
+                similarity.min_features(len(query_features), alpha)
             )
             max_features = min(
                 self._global_max_features,
-                self._similarity.max_features(len(query_features), alpha)
+                similarity.max_features(len(query_features), alpha)
             )
 
             # Y = list of strings similar to the query
@@ -239,7 +243,7 @@ class Simstring(BaseMatcher):
                 for candidate_string in self._overlap_join(
                     query_features,
                     candidate_feature_size,
-                    self._similarity.min_common_features(
+                    similarity.min_common_features(
                         len(query_features),
                         candidate_feature_size,
                         alpha,
@@ -254,7 +258,7 @@ class Simstring(BaseMatcher):
                 self._cache_db.set(cache_key, candidate_strings)
 
         similarities = [
-            self._similarity.similarity(
+            similarity.similarity(
                 query_features,
                 self._ngram.get_features(candidate_string),
             )

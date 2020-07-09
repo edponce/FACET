@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import copy
 import click
@@ -81,13 +82,37 @@ def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
         enable_cmds (bool): If set, get/set commands are supported alongside
             matching queries. Commands allow changing some options from the
             command prompt. A '=' symbol represents an option=value pair.
+
+        prompt_symbol (str): Symbol for prompt.
     """
+    params_types = {
+        'alpha': float,
+        'similarity': str,
+        'rank': bool,
+        'case': str,
+        'normalize_unicode': bool,
+        'formatter': str,
+        'tokenizer': str,
+        'output': str,
+    }
+
+    params_values = {
+        'alpha': obj.matcher.alpha,
+        'similarity': get_obj_map_key(obj.matcher.similarity, similarity_map),
+        'rank': True,
+        'case': 'l',
+        'normalize_unicode': False,
+        'formatter': get_obj_map_key(obj.formatter, formatter_map),
+        'tokenizer': get_obj_map_key(obj.tokenizer, tokenizer_map),
+        'output': None,
+    }
+
     prompt = prompt_symbol + ' '
     try:
         while True:
             query_or_cmd = input(prompt)
             if not enable_cmds:
-                print(obj.match(query_or_cmd))
+                print(obj.match(query_or_cmd, **params_values))
                 continue
 
             if query_or_cmd == 'exit()':
@@ -95,42 +120,29 @@ def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
 
             try:
                 if '()' in query_or_cmd:
-                    query = query_or_cmd
-                    if query == 'help()':
+                    cmd = re.sub(r'\(()\)$', '', query_or_cmd)
+                    if cmd == 'help':
                         print('Commands:')
-                        print('  alpha, similarity, tokenizer, formatter')
+                        print('  ' + ', '.join(params_types.keys()))
                         print()
                         print('Get syntax: cmd()')
                         print('Set syntax: cmd = value')
                         print()
                         print('To exit: exit()')
-                    elif query == 'alpha()':
-                        print(obj.matcher.alpha)
-                    elif query == 'similarity()':
-                        print(get_obj_map_key(obj.matcher.similarity,
-                                              similarity_map))
-                    elif query == 'tokenizer()':
-                        print(get_obj_map_key(obj.tokenizer, tokenizer_map))
-                    elif query == 'formatter()':
-                        print(get_obj_map_key(obj.formatter, formatter_map))
+                    elif cmd in params_values:
+                        print(params_values[cmd])
                     else:
-                        print(obj.match(query))
+                        print(obj.match(query, **params_values))
                 elif '=' in query_or_cmd:
                     option, value = query_or_cmd.split('=')
                     option = option.strip()
                     value = value.strip('\'" ')
-                    if option == 'alpha':
-                        obj.matcher.alpha = float(value)
-                    elif option == 'similarity':
-                        obj.matcher.similarity = value
-                    elif option == 'tokenizer':
-                        obj.tokenizer = value
-                    elif option == 'formatter':
-                        obj.formatter = value
+                    if option in params_values:
+                        params_values[option] = params_types[option](value)
                     else:
-                        print(obj.match(query_or_cmd))
+                        print(obj.match(query_or_cmd, **params_values))
                 else:
-                    print(obj.match(query_or_cmd))
+                    print(obj.match(query_or_cmd, **params_values))
             except AttributeError:
                 print('Current mode does not supports commands')
     except (KeyboardInterrupt, EOFError):

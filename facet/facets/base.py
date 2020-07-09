@@ -138,11 +138,12 @@ class BaseFacet(ABC):
         corpora: Union[str, Iterable[str]],
         *,
         # best_match: bool = True,
-        case: str = None,
+        case: str = 'l',
         normalize_unicode: bool = False,
         # NOTE: The following default values are based on the corresponding
         # function/method call using them.
-        format: str = '',
+        formatter: str = '',
+        tokenizer: str = '',
         output: str = None,
         corpus_kwargs: Dict[str, Any] = {},
         **kwargs,
@@ -159,8 +160,11 @@ class BaseFacet(ABC):
 
             normalize_unicode (bool): Enable Unicode normalization.
 
-            format (str): Formatting mode for match results. Valid values
-                are: 'json', 'xml', 'pickle', 'csv'.
+            formatter (str): Formatter name. Valid formatters are: 'json',
+                'yaml', 'xml', 'pickle', 'csv'.
+
+            tokenizer (str): Tokenizer name. Valid tokenizers are: 'basic',
+                'ws', 'nltk', 'spacy'.
 
             output (str): Output file for match results.
 
@@ -182,6 +186,20 @@ class BaseFacet(ABC):
         >>>     for term in terms:
         >>>         print(term['concept'], term['cui'], term['semantic type'])
         """
+        # Resolve formatter
+        formatter = (
+            self._formatter
+            if formatter == ''
+            else formatter_map[formatter]()
+        )
+
+        # Resolve tokenizer
+        tokenizer = (
+            self._tokenizer
+            if tokenizer == ''
+            else tokenizer_map[tokenizer]()
+        )
+
         if PROFILE:
             prof = cProfile.Profile(subcalls=True, builtins=True)
             prof.enable()
@@ -196,8 +214,8 @@ class BaseFacet(ABC):
             if normalize_unicode:
                 corpus = unidecode(corpus)
 
-            for sentence in self._tokenizer.sentencize(corpus):
-                for ngram_struct in self._tokenizer.tokenize(sentence):
+            for sentence in tokenizer.sentencize(corpus):
+                for ngram_struct in tokenizer.tokenize(sentence):
                     ngram_matches = self._match(ngram_struct, **kwargs)
                     if len(ngram_matches) == 0:
                         continue
@@ -218,11 +236,6 @@ class BaseFacet(ABC):
             prof.print_stats('time')
             prof.clear()
 
-        formatter = (
-            self._formatter
-            if format == ''
-            else formatter_map[format]()
-        )
         return formatter(matches, output=output)
 
     def install(self, data, **kwargs):
