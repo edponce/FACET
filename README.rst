@@ -170,22 +170,18 @@ Redis
 Performance
 ===========
 
-============================ ===========
-Task (dict)                  Runtime (s)
-============================ ===========
-Load concepts                5.48e-05
-Write concepts and Simstring 59.00
-Load semantic types          2.28e-05
-Write semantic types         10.49
-============================ ===========
+UMLS 2018-AA with selected semantic types: 4,532,193 concepts
+Semantic types: 1,782,484
+Simstring (character features with n=3): 7,000,905 entries
 
 ============================ ===========
-Task (Redis)                 Runtime (s)
+Task (in-memory dict)        Runtime (s)
 ============================ ===========
-Load concepts                5.76e-05
-Write concepts and Simstring 816.18
-Load semantic types          2.38e-05
-Write semantic types         153.19
+Load/parse semantic types    7.16
+Write semantic types         1.06
+Load/parse concepts          41.69
+Write concepts and Simstring 615.87
+Total time                   665.79
 ============================ ===========
 
 
