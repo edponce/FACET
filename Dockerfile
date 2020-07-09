@@ -12,22 +12,28 @@ RUN apt upgrade
 RUN apt install -y build-essential
 RUN apt install -y redis-server
 
-# Install pip
-RUN python -m pip install --upgrade pip
-
-# Install Conda
-RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-RUN bash Miniconda3-latest-Linux-x86_64.sh
-
 # Install FACET Python package
 COPY . /FACET
+
+#### Conda ####
+# Install Conda
+# RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+# RUN bash Miniconda3-latest-Linux-x86_64.sh
 
 # Set up a conda environment
 # RUN conda env create -n facet python=3.7
 # RUN conda env create --file /FACET/environment.yml
 # RUN conda activate facet
+###############
+#
+# or
+#
+#### Local ####
+# Install pip
+RUN python -m pip install --upgrade pip
+###############
 
-RUN pip install /FACET
+RUN pip install /FACET/
 
 # Install spaCy language support
 RUN python -m spacy download en
