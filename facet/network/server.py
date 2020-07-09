@@ -83,7 +83,8 @@ class SocketServer(socketserver.ThreadingTCPServer):
     timeout = None  # wait for requests, used in handle_request()
     # socketserver.TCPServer
     address_family = socket.AF_INET  # AF_INET{,6}, AF_UNIT (TCP/UNIX sockets)
-    socket_type = socket.SOCK_STREAM | socket.SOCK_CLOEXEC  # TCP
+    socket_type = socket.SOCK_STREAM  # TCP
+    # socket_type = socket.SOCK_STREAM | socket.SOCK_CLOEXEC  # TCP
     allow_reuse_address = True  # NOTE: shoule be False for security measures
     # Number of unaccepted connections for socket.listen() before system
     # refuses connections
