@@ -108,3 +108,4 @@ cache/
 **/*.log
 doc/_build/
 doc/html/
+data/umls

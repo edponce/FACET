@@ -1,16 +1,19 @@
 SimpleMemory:
-    install:
-        data: data/install/american-english
-        nrows: 3000
+    install: data/install/american-english
+
+
+AutoMemory:
+    install: data/install/american-english
+    query: data/sample.txt
+    formatter: json
+    output: annotations.json
 
 
 SimpleRedis:
     matcher:
         class: simstring
         db: redis
-    install:
-        data: data/install/american-english
-        nrows: 3000
+    install: data/install/american-english
 
 
 FacetMemory:

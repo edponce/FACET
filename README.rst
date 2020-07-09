@@ -43,20 +43,26 @@ Setup and Installation
     $ git clone https://github.com/edponce/FACET.git
     $ cd FACET/
 
-2. Install package ::
+2. Install package::
 
+    $ # For conda environment
     $ conda env create --file environment.yaml
     $ conda activate facet
-
-    or
-
+    $
+    $ # Install FACET
     $ pip install .[extra]
 
-2a. (Optional) Install spaCy language support::
+3. Configure FACET shell command::
+
+    $ source scripts/shell_completion.sh
+
+4. (Optional) Install spaCy language model, see `spaCy models`_::
 
     $ python -m spacy download en
 
-2b. (Optional) Install NLTK NLP components::
+.. _spaCy models: https://spacy.io/models/en
+
+5. (Optional) Install NLTK NLP components::
 
     $ python scripts/setup_nltk.py
 
@@ -66,35 +72,38 @@ Setup and Installation
     >>> nltk.download('stopwords')
     >>> nltk.download('punkt')
     >>> nltk.download('averaged_perceptron_tagger')
-    >>> nltk.download('universal')
+    >>> nltk.download('universal_tagset')
 
-2c. (Optional) Install UMLS files::
+6. (Optional) Install UMLS files::
 
-   You require to have a valid UMLS installation on disk. To use UMLS files, you
-   must first obtain a `UMLS license`_ from the National Library of Medicine,
-   then download the corresponding `UMLS`_ files. Currently, FACET in UMLS mode
-   supports the *MRCONSO.RRF* and (optional) *MRSTY.RRF* files. Note that `UMLS`_
-   provides *MRCONSO.RRF* as a single downloadable item.
+    You require to have a valid UMLS installation on disk. To use UMLS files,
+    you must first obtain a `UMLS license`_ from the National Library of
+    Medicine, then download the corresponding `UMLS`_ files. Currently, FACET in
+    UMLS mode supports the *MRCONSO.RRF* and (optional) *MRSTY.RRF* files. Note
+    that `UMLS`_ provides *MRCONSO.RRF* as a single downloadable item.
 
 .. _UMLS license: https://uts.nlm.nih.gov/license.html
 .. _UMLS: https://www.nlm.nih.gov/research/umls/licensedcontent/umlsknowledgesources.html
 
-   For running examples, create a symbolic link of UMLS directory in FACET path.
+    For running examples, create a symbolic link of UMLS directory in FACET path.
 
-   $ ln -s YOUR_UMLS_FULLPATH/ data/umls
+    $ ln -s YOUR_UMLS_FULLPATH/ data/umls
 
-3. Run tests ::
+7. Run tests ::
 
     $ tox
 
-4. Generate documentation ::
+8. Generate documentation ::
 
     $ make -C doc/ html
     $ <browser> doc/_build/html/index.html
 
-5. Browse commands and help descriptions ::
+9. Browse commands and help descriptions ::
 
     $ facet --help
+    $ facet run --help
+    $ facet server --help
+    $ facet client --help
 
 
 Usage
@@ -105,29 +114,33 @@ command line tool, or a library.
 
 * Run REPL on command line ::
 
-    $ facet run --install data/sample.txt
+    $ facet run --install data/install/american-english
     $ > cancer
-    $ > thorax
+    $ > alphametic
+    $ > help()               # View help info
     $ > alpha()              # Get similarity threshold
     $ > alpha = 0.5          # Set similarity threshold
     $ > similarity()         # Get similarity metric
     $ > similarity = cosine  # Set similarity metric
     $ > formatter()          # Get format mode
-    $ > formatter = json     # Set format mode
+    $ > formatter = csv      # Set format mode
+    $ > cancer
+    $ > alphametic
     $ > exit()               # Stop FACET
 
 * Process file via command line ::
 
-    $ facet run --database redis --query corpus.txt --format json --output corpus.json
+    $ facet run --install data/install/american-english --query data/sample.txt --formatter json --output annotations.json
 
 * Run with a configuration file::
 
-    $ facet run --config config/factory.yaml:SimpleMemory --output corpus.json
+    $ facet run --config config/factory.yaml:AutoMemory
+    $ <viewer> annotations.json
 
 * Run as a web service ::
 
-    $ facet server --port 4452
-    $ facet client --host localhost --port 4452 --format json
+    $ facet server --install data/install/american-english --port 4444
+    $ facet client --host localhost --port 4444 --formatter json
 
 * Run programmatically using Python's API (see example scripts) ::
 

@@ -102,6 +102,8 @@ def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
                         print()
                         print('Get syntax: cmd()')
                         print('Set syntax: cmd = value')
+                        print()
+                        print('To exit: exit()')
                     elif query == 'alpha()':
                         print(obj.matcher.alpha)
                     elif query == 'similarity()':
