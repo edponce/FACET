@@ -169,7 +169,7 @@ UMLSRedis:
             port: 6379
             n: 2
             access_mode: c
-            serializer: json
+            serializer: pickle
             use_pipeline: true
         cache_db: null
         alpha: 0.7
@@ -204,7 +204,7 @@ UMLSSQL:
             filename: db/simstring
             table: simstring
             access_mode: c
-            serializer: json
+            serializer: pickle
             check_same_thread: false
         cache_db: null
         alpha: 0.7

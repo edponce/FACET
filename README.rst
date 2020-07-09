@@ -74,20 +74,20 @@ Setup and Installation
     >>> nltk.download('averaged_perceptron_tagger')
     >>> nltk.download('universal_tagset')
 
-6. (Optional) Install UMLS files::
+6. (Optional) Install UMLS files:
 
-    You require to have a valid UMLS installation on disk. To use UMLS files,
-    you must first obtain a `UMLS license`_ from the National Library of
-    Medicine, then download the corresponding `UMLS`_ files. Currently, FACET in
-    UMLS mode supports the *MRCONSO.RRF* and (optional) *MRSTY.RRF* files. Note
-    that `UMLS`_ provides *MRCONSO.RRF* as a single downloadable item.
+   You require to have a valid UMLS installation on disk. To use UMLS files,
+   you must first obtain a `UMLS license`_ from the National Library of
+   Medicine, then download the corresponding `UMLS`_ files. Currently, FACET in
+   UMLS mode supports the *MRCONSO.RRF* and (optional) *MRSTY.RRF* files. Note
+   that `UMLS`_ provides *MRCONSO.RRF* as a single downloadable item.
+
+   For running examples, create a symbolic link of UMLS directory in FACET path::
+
+    $ ln -s YOUR_UMLS_FULLPATH/ data/umls
 
 .. _UMLS license: https://uts.nlm.nih.gov/license.html
 .. _UMLS: https://www.nlm.nih.gov/research/umls/licensedcontent/umlsknowledgesources.html
-
-    For running examples, create a symbolic link of UMLS directory in FACET path.
-
-    $ ln -s YOUR_UMLS_FULLPATH/ data/umls
 
 7. Run tests ::
 
@@ -188,16 +188,18 @@ Total time                   665.79
 UMLS Related Tools
 ==================
 
-py-umls: https://github.com/chb/py-umls
-UMLS Description:
-* http://text-analytics101.rxnlp.com/2013/11/what-tui-cui-lui-you-silly-sui.html
-* https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-2001-108.pdf
+* py-umls: https://github.com/chb/py-umls
+* UMLS Description:
+
+  * http://text-analytics101.rxnlp.com/2013/11/what-tui-cui-lui-you-silly-sui.html
+  * https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-2001-108.pdf
 
 
 Coming Soon
 ===========
 
 Matchers with fuzzy string matching:
+
 * ElasticSearch
 * fuzzywuzzy
 * python-Levenshtein

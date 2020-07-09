@@ -3,13 +3,13 @@
 #   https://click.palletsprojects.com/en/7.x/bashcomplete/#activation-script
 #
 # Source this script manually or from your .<shell>rc file:
-#   . shell_completion.sh
+#   source shell_completion.sh
 #   cat shell_completion.sh >> ~/.<shell>rc
 
 if [ "$(command -v readlink)" ]; then
-    shell=$(basename "$(readlink -f $SHELL)")
+    shell=$(basename "$(readlink -n $SHELL)")
 else
-    shell=$SHELL
+    shell=$(basename "$SHELL")
 fi
 
 case $shell in
@@ -19,7 +19,7 @@ case $shell in
     *fish*) # Fish (~/.config/fish/completions/facet.fish)
         eval "(env _FACET_COMPLETE=source_fish facet)"
         ;;
-    *bash* | *sh) # Bash (~/.bashrc)
+    *bash*) # Bash (~/.bashrc)
         eval "$(_FACET_COMPLETE=source_bash facet)"
         ;;
     *) echo "Shell completion does not supports current shell, $shell"
