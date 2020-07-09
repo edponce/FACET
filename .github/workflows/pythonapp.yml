@@ -32,4 +32,4 @@ jobs:
     - name: Run FACET
       run: |
         source scripts/shell_completion.sh
-        facet run -c config/factory.yaml:SimpleRedis -q "beautiful window in Apollo spacecraft"
+        facet run -c config/factory.yaml:SimpleMemory -q "beautiful window in Apollo spacecraft"
