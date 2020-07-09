@@ -17,11 +17,6 @@ __all__ = ['Facet']
 
 VERBOSE = True
 
-# Enable/disable profiling
-PROFILE = False
-if PROFILE:
-    import cProfile  # noqa: F401
-
 
 class Facet(BaseFacet):
     """FACET text matcher."""

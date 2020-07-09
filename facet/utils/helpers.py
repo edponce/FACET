@@ -116,7 +116,7 @@ def iterable_true(
 ) -> bool:
     """Tests truth value for an iterable.
 
-    An empty iterable or an iterable of Nones is considered false,
+    An empty iterable or an iterable of None is considered false,
     otherwise, it is true.
     """
     return is_iterable(obj) and any(obj)
@@ -252,8 +252,6 @@ def iload_data(
         headers = list(headers) + [' ']
 
     # Data reader or iterator
-    # NOTE: Could we benefit from using Modin.pandas? This function returns
-    # a generator, but for the 'dict' version we could use DataFrames instead?
     reader = pandas.read_csv(
         data,
         names=headers,

@@ -22,11 +22,6 @@ __all__ = ['UMLSFacet']
 
 VERBOSE = True
 
-# Enable/disable profiling
-PROFILE = False
-if PROFILE:
-    import cProfile  # noqa: F401
-
 
 # NOTE: UMLS headers should be automatically parsed from UMLS MRFILES.RRF.
 HEADERS_MRCONSO = (
@@ -128,7 +123,7 @@ class UMLSFacet(BaseFacet):
         self,
         data: str,
         *,
-        cui_valids: Dict[str, Iterable[Any]] = {},
+        cui_valids: Dict[str, Iterable[Any]] = None,
         sty_valids: Dict[str, Iterable[Any]] = {'sty': ACCEPTED_SEMTYPES},
         **kwargs,
     ):
@@ -194,8 +189,6 @@ class UMLSFacet(BaseFacet):
             headers=HEADERS_MRCONSO,
             valids={**cui_valids, **{'lat': ['ENG']}},
             converters={'str': [unidecode, str.lower]},
-            multiple_values=True,
-            unique_values=True,
             delimiter='|',
             **kwargs,
         )
@@ -263,10 +256,7 @@ class UMLSFacet(BaseFacet):
                 ngram_matches.append(ngram_match)
                 continue
 
-            semtypes = list(filter(None, map(self._cuisty_db.get, cui)))
-            if len(semtypes) == 0:
-                continue
-
+            semtypes = self._cuisty_db.get(cui)
             ngram_match['semantic types'] = semtypes
             ngram_matches.append(ngram_match)
 

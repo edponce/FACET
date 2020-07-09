@@ -235,7 +235,17 @@ class BaseFacet(ABC):
             Options passed directly to '*load_data()' function method via
             `_install()`.
         """
+        if PROFILE:
+            prof = cProfile.Profile(subcalls=True, builtins=True)
+            prof.enable()
+
         self._install(data, **kwargs)
+
+        if PROFILE:
+            prof.disable()
+            prof.create_stats()
+            prof.print_stats('time')
+            prof.clear()
 
     def close(self):
         self._matcher.db.close()
