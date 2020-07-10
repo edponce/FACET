@@ -137,10 +137,10 @@ class SQLiteKVDatabase(BaseKVDatabase):
             if access_mode == 'c':
                 os.makedirs(db_dir, exist_ok=True)
             elif access_mode == 'n':
-                if os.path.isfile(parsed.path):
-                    os.remove(parsed.path)
-                else:
-                    os.makedirs(db_dir, exist_ok=True)
+                # if os.path.isfile(parsed.path):
+                #     os.remove(parsed.path)
+                # else:
+                os.makedirs(db_dir, exist_ok=True)
 
         # Convert file name to URI format
         self._uri = filename if parsed.scheme else 'file:' + parsed.path

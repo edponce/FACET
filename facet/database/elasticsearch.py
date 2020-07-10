@@ -5,6 +5,7 @@ from elasticsearch.helpers import (
     parallel_bulk,
     streaming_bulk,
 )
+from .base import BaseDatabase
 from typing import (
     Any,
     List,
@@ -19,7 +20,7 @@ from typing import (
 __all__ = ['ElasticsearchDatabase', 'Elasticsearchx']
 
 
-class ElasticsearchDatabase:
+class ElasticsearchDatabase(BaseDatabase):
     """Elasticsearch interface for Simstring algorithm.
 
     Args:
@@ -32,8 +33,12 @@ class ElasticsearchDatabase:
 
         body (Dict[str, Any]): Index settings and document mappings.
 
-        pipe (bool): If set, queue 'set-related' commands to database.
-            Run 'sync' command to submit commands in pipe.
+        access_mode (str): Access mode for database.
+            Valid values are: 'r' = read-only, 'w' = read/write,
+            'c' = read/write/create if not exists, 'n' = new read/write.
+
+        use_pipeline (bool): If set, queue 'set-related' commands to database.
+            Run 'commit()' command to submit commands in pipe.
             Default is False.
 
     Kwargs:
@@ -65,28 +70,33 @@ class ElasticsearchDatabase:
         index: str = 'facet',
         fields: Iterable[str] = None,
         body: Dict[str, Any] = None,
-        pipe: bool = False,
-        overwrite: bool = False,
+        access_mode: str = 'c',
+        use_pipeline: bool = False,
         **kwargs
     ):
         self._db = Elasticsearchx(hosts, **kwargs)
         self._index = index
         self.fields = fields
-        if body is not None:
-            if not self._db.indices.exists(index=self._index):
-                self._db.indices.create(index=self._index, body=body)
-            elif overwrite:
-                self._db.indices.delete(index=self._index)
-                self._db.indices.create(index=self._index, body=body)
+
+        # Reset database based on access mode
+        if access_mode == 'n':
+            self.clear()
+
+        if (
+            access_mode in ('c', 'n')
+            and not self._db.indices.exists(index=index)
+        ):
+            self._db.indices.create(index=index, body=body)
+
         # NOTE: Stores an iterable of actions which
-        # are sent to bulk API when sync() is invoked.
+        # are sent to bulk API when commit() is invoked.
         self._dbp = None
         self._is_pipe = None
-        self.set_pipe(pipe)
+        self.set_pipe(use_pipeline)
 
     def set_pipe(self, pipe):
         if not pipe:
-            self.sync()
+            self.commit()
         self._is_pipe = pipe
         self._dbp = []
 
@@ -118,12 +128,15 @@ class ElasticsearchDatabase:
                 **kwargs
             )
 
+    def get_config(self):
+        return {}
+
     # NOTE: This can be removed, use pipe capability
     # def mset(self, documents, **kwargs):
     #     """See 'Elasticsearchx.bulk_index()'."""
     #     return self._db.bulk_index(documents, index=self._index, **kwargs)
 
-    def sync(self, **kwargs):
+    def commit(self, **kwargs):
         if self._is_pipe:
             response = self._db.bulk_index(
                 self._dbp,
@@ -132,8 +145,6 @@ class ElasticsearchDatabase:
             )
             self._dbp = []
             return response
-
-    save = sync
 
     def get(
         self,

@@ -81,7 +81,10 @@ class ElasticsearchSimstring(BaseMatcher):
         },
     }
 
-    _GLOBAL_MAX_FEATURES = 64
+    # Fields for ElasticsearchDatabase to use in search
+    FIELDS = ['sz', 'ng']
+
+    _GLOBAL_MAX_FEATURES = 128
 
     def __init__(
         self,
@@ -112,17 +115,16 @@ class ElasticsearchSimstring(BaseMatcher):
 
     @db.setter
     def db(self, value: Union[str, 'ElasticsearchDatabase']):
-        obj = None
         if isinstance(value, str):
             obj = ElasticsearchDatabase(
                 index=value,
                 body={**type(self).SETTINGS, **type(self).MAPPINGS},
             )
-            obj.fields = ['sz', 'ng']
+            obj.fields = type(self).FIELDS
         elif isinstance(value, ElasticsearchDatabase):
             obj = value
-
-        if obj is None:
+            obj.fields = type(self).FIELDS
+        else:
             raise ValueError(f'invalid Elasticsearch database, {value}')
         self._db = obj
 
@@ -151,7 +153,7 @@ class ElasticsearchSimstring(BaseMatcher):
 
     @property
     def similarity(self):
-        return self._similarity.name
+        return self._similarity
 
     @similarity.setter
     def similarity(self, value: Union[str, 'BaseSimilarity']):
@@ -216,6 +218,9 @@ class ElasticsearchSimstring(BaseMatcher):
         """
         if alpha is None:
             alpha = self._alpha
+        else:
+            alpha = min(1, max(alpha, 0.01))
+
         if similarity is None:
             similarity = self._similarity
         elif isinstance(similarity, str):
@@ -236,11 +241,11 @@ class ElasticsearchSimstring(BaseMatcher):
         if not query_in_cache:
             min_features = max(
                 1,
-                self._similarity.min_features(len(query_features), alpha)
+                similarity.min_features(len(query_features), alpha)
             )
             max_features = min(
                 self._global_max_features,
-                self._similarity.max_features(len(query_features), alpha)
+                similarity.max_features(len(query_features), alpha)
             )
 
             # Y = list of strings similar to the query
@@ -254,7 +259,7 @@ class ElasticsearchSimstring(BaseMatcher):
                 for candidate_string in self._overlap_join(
                     query_features,
                     candidate_feature_size,
-                    self._similarity.min_common_features(
+                    similarity.min_common_features(
                         len(query_features),
                         candidate_feature_size,
                         alpha,
@@ -267,7 +272,7 @@ class ElasticsearchSimstring(BaseMatcher):
                 self._cache_db.set(query_string, alpha, candidate_strings)
 
         similarities = [
-            self._similarity.similarity(
+            similarity.similarity(
                 query_features,
                 self._ngram.get_features(candidate_string),
             )

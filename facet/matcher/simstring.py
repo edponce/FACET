@@ -37,10 +37,6 @@ class Simstring(BaseMatcher):
             for mapping features to strings hashes.
             Valid databases are: 'dict', 'redis'.
 
-        db2 (str, BaseDatabase): Handle to database instance or database name
-            for mapping string hashes to strings. Valid databases are: 'dict',
-            'redis'.
-
         cache_db (str, BaseDatabase): Handle to database instance or database
             name for strings cache. Valid databases are: 'dict', 'redis',
             'elasticsearch'.
@@ -61,7 +57,6 @@ class Simstring(BaseMatcher):
         self,
         *,
         db: Union[str, 'BaseDatabase'] = 'dict',
-        db2: Union[str, 'BaseDatabase'] = 'dict',
         cache_db: Union[str, 'BaseDatabase'] = None,
         alpha: float = 0.7,
         similarity: Union[str, 'BaseSimilarity'] = 'jaccard',
@@ -70,14 +65,12 @@ class Simstring(BaseMatcher):
         # Key/value store for {feature: terms}
         # NOTE: Actually stored as {str(len(features)) + feature: [terms]}
         self._db = None
-        self._db2 = None
         self._cache_db = None
         self._alpha = None
         self._similarity = None
         self._ngram = None
 
         self.db = db
-        self.db2 = db2
         self.cache_db = cache_db
         self.alpha = alpha
         self.similarity = similarity
@@ -109,20 +102,6 @@ class Simstring(BaseMatcher):
         else:
             raise ValueError(f'invalid Simstring database, {value}')
         self._db = obj
-
-    @property
-    def db2(self):
-        return self._db2
-
-    @db2.setter
-    def db2(self, value: Union[str, 'BaseDatabase']):
-        if isinstance(value, str):
-            obj = database_map[value]()
-        elif isinstance(value, BaseDatabase):
-            obj = value
-        else:
-            raise ValueError(f'invalid Simstring database, {value}')
-        self._db2 = obj
 
     @property
     def cache_db(self):
@@ -245,11 +224,11 @@ class Simstring(BaseMatcher):
         if not query_in_cache:
             min_features = max(
                 1,
-                self._similarity.min_features(len(query_features), alpha)
+                similarity.min_features(len(query_features), alpha)
             )
             max_features = min(
                 self._global_max_features,
-                self._similarity.max_features(len(query_features), alpha)
+                similarity.max_features(len(query_features), alpha)
             )
 
             # Y = list of strings similar to the query
@@ -263,7 +242,7 @@ class Simstring(BaseMatcher):
                 for candidate_string in self._overlap_join(
                     query_features,
                     candidate_feature_size,
-                    self._similarity.min_common_features(
+                    similarity.min_common_features(
                         len(query_features),
                         candidate_feature_size,
                         alpha,
@@ -278,7 +257,7 @@ class Simstring(BaseMatcher):
                 self._cache_db.set(cache_key, candidate_strings)
 
         similarities = [
-            self._similarity.similarity(
+            similarity.similarity(
                 query_features,
                 self._ngram.get_features(candidate_string),
             )

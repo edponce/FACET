@@ -213,13 +213,6 @@ def cli():
     help='Database for Matcher install/query.',
 )
 @click.option(
-    '-d2', '--database2',
-    type=click.Choice(('dict', 'sqlite', 'redis', 'elasticsearch')),
-    default='dict',
-    show_default=True,
-    help='Database for Matcher install/query.',
-)
-@click.option(
     '-i', '--install',
     type=str,
     help='Data file to install (default is first column of CSV file). '
@@ -241,7 +234,6 @@ def run(
     output,
     tokenizer,
     database,
-    database2,
     install,
     dump_config,
 ):
@@ -266,7 +258,6 @@ def run(
     factory_config['matcher'] = config.get('matcher', {
         'class': 'simstring',
         'db': database,
-        'db2': database2,
         'alpha': config.get('alpha', alpha),
         'similarity': config.get('similarity', similarity),
     })
@@ -362,13 +353,6 @@ def run(
     help='Database for Matcher install/query.',
 )
 @click.option(
-    '-d2', '--database2',
-    type=click.Choice(('dict', 'sqlite', 'redis', 'elasticsearch')),
-    default='dict',
-    show_default=True,
-    help='Database for Matcher install/query.',
-)
-@click.option(
     '-i', '--install',
     type=str,
     help='Data file to install (default is first column of CSV file). '
@@ -391,7 +375,6 @@ def server(
     formatter,
     tokenizer,
     database,
-    database2,
     install,
     dump_config,
 ):
@@ -417,7 +400,6 @@ def server(
     factory_config['matcher'] = config.get('matcher', {
         'class': 'simstring',
         'db': database,
-        'db2': database2,
         'alpha': config.get('alpha', alpha),
         'similarity': config.get('similarity', similarity),
     })
