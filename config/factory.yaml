@@ -213,20 +213,20 @@ UMLSSQL:
     install: data/umls
 
 
-UMLSES:
+UMLSESS:
     class: umlsfacet
     conso_db:
         class: sqlite
         filename: db/umls
         table: conso
-        access_mode: n
+        access_mode: c
         serializer: json
         check_same_thread: false
     cuisty_db:
         class: sqlite
         filename: db/umls
         table: cuisty
-        access_mode: n
+        access_mode: c
         serializer: json
         check_same_thread: false
     matcher:
@@ -234,7 +234,7 @@ UMLSES:
         db:
             class: elasticsearch
             pipe: true
-            access_mode: n
+            access_mode: c
         cache_db: null
         alpha: 0.7
         similarity: jaccard
@@ -242,3 +242,34 @@ UMLSES:
     tokenizer: ws
     formatter: json
     install: data/umls
+
+
+UMLSESR:
+    class: umlsfacet
+    conso_db:
+        class: redis
+        host: localhost
+        port: 6379
+        n: 0
+        access_mode: c
+        use_pipeline: true
+    cuisty_db:
+        class: redis
+        host: localhost
+        port: 6379
+        n: 1
+        access_mode: c
+        use_pipeline: true
+    matcher:
+        class: elasticsearch
+        db:
+            class: elasticsearch
+            pipe: true
+            access_mode: c
+        cache_db: null
+        alpha: 0.7
+        similarity: jaccard
+        ngram: character
+    tokenizer: ws
+    formatter: json
+    # install: data/umls
