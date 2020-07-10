@@ -24,7 +24,7 @@ class BaseFormatter(ABC):
     ) -> Any:
         formatted_data = self._format(data)
 
-        if output is None:
+        if not output:
             return formatted_data
 
         with open(output, 'w') as fd:

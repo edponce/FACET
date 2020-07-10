@@ -200,11 +200,11 @@ class BaseFacet(ABC):
             else tokenizer_map[tokenizer]()
         )
 
+        casefunc = strcase_map[case]
+
         if PROFILE:
             prof = cProfile.Profile(subcalls=True, builtins=True)
             prof.enable()
-
-        casefunc = strcase_map[case]
 
         t1 = time.time()
         matches = collections.defaultdict(list)
@@ -383,9 +383,9 @@ class BaseFacet(ABC):
         """
         # Set up proxy database
         if self._use_proxy_install:
-            orig_db1 = self._matcher.db
-            proxy_db1 = create_proxy_db()
-            self._matcher.db = proxy_db1
+            orig_db = self._matcher.db
+            proxy_db = create_proxy_db()
+            self._matcher.db = proxy_db
 
             orig_db2 = db
             proxy_db2 = create_proxy_db()
@@ -418,9 +418,9 @@ class BaseFacet(ABC):
 
         # Copy proxy database
         if self._use_proxy_install:
-            proxy_db1.copy(orig_db1)
-            self._matcher.db = orig_db1
-            proxy_db1.clear()
+            proxy_db.copy(orig_db)
+            self._matcher.db = orig_db
+            proxy_db.clear()
 
             proxy_db2.copy(orig_db2)
             db = orig_db2

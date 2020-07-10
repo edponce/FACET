@@ -34,8 +34,8 @@ class Simstring(BaseMatcher):
 
     Args:
         db (str, BaseDatabase): Handle to database instance or database name
-            for strings storage. Valid databases are: 'dict', 'redis',
-            'elasticsearch'.
+            for mapping features to strings hashes.
+            Valid databases are: 'dict', 'redis'.
 
         cache_db (str, BaseDatabase): Handle to database instance or database
             name for strings cache. Valid databases are: 'dict', 'redis',
@@ -166,7 +166,6 @@ class Simstring(BaseMatcher):
             strings = self._get_strings(len(features), feature)
             if string not in strings:
                 strings.add(string)
-                # strings.append(string)
                 self._db.set(str(len(features)) + feature, strings)
 
         # Track and store longest sequence of features
@@ -204,6 +203,9 @@ class Simstring(BaseMatcher):
         """
         if alpha is None:
             alpha = self._alpha
+        else:
+            alpha = min(1, max(alpha, 0.01))
+
         if similarity is None:
             similarity = self._similarity
         elif isinstance(similarity, str):
@@ -301,6 +303,8 @@ class Simstring(BaseMatcher):
                 # M[s] = M[s] + 1
                 strings_frequency[string] += 1
 
+        # NOTE: I think if the following loops are exchanged, there is no
+        # need to do pruning.
         # for k in range(|X|-t+1,|X|-1)
         for i, feature in enumerate(query_features[tau_split:],
                                     start=tau_split):
