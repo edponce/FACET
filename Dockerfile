@@ -21,9 +21,9 @@ COPY . /FACET
 # RUN bash Miniconda3-latest-Linux-x86_64.sh
 
 # Set up a conda environment
-# RUN conda env create -n facet python=3.7
 # RUN conda env create --file /FACET/environment.yml
 # RUN conda activate facet
+# RUN echo 'conda activate facet' >> ~/.bashrc
 ###############
 #
 # or

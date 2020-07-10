@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import copy
 import click
@@ -81,13 +82,50 @@ def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
         enable_cmds (bool): If set, get/set commands are supported alongside
             matching queries. Commands allow changing some options from the
             command prompt. A '=' symbol represents an option=value pair.
+
+        prompt_symbol (str): Symbol for prompt.
     """
+    # Parameters and type conversion
+    params_types = {
+        'alpha': float,
+        'similarity': str,
+        'rank': bool,
+        'case': str,
+        'normalize_unicode': bool,
+        'formatter': str,
+        'tokenizer': str,
+        'output': str,
+    }
+
+    # Current value of parameters
+    params_values = {
+        'alpha': obj.matcher.alpha,
+        'similarity': get_obj_map_key(obj.matcher.similarity, similarity_map),
+        'rank': True,
+        'case': 'l',
+        'normalize_unicode': False,
+        'formatter': get_obj_map_key(obj.formatter, formatter_map),
+        'tokenizer': get_obj_map_key(obj.tokenizer, tokenizer_map),
+        'output': None,
+    }
+
+    params_help = (
+        'alpha       similarity threshold, (0,1]\n'
+        + 'similarity  jaccard, cosine, exact, dice, overlap, hamming\n'
+        + 'rank        ordered results, 0 = False, 1 = True\n'
+        + 'case        apply string casing, l/u\n'
+        + 'normalize_unicode  0 = False, 1 = True\n'
+        + 'formatter   json, yaml, csv, xml\n'
+        + 'tokenizer   nltk, spacy, ws, null\n'
+        + 'output      filename for results\n'
+    )
+
     prompt = prompt_symbol + ' '
     try:
         while True:
             query_or_cmd = input(prompt)
             if not enable_cmds:
-                print(obj.match(query_or_cmd))
+                print(obj.match(query_or_cmd, **params_values))
                 continue
 
             if query_or_cmd == 'exit()':
@@ -95,40 +133,31 @@ def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
 
             try:
                 if '()' in query_or_cmd:
-                    query = query_or_cmd
-                    if query == 'help()':
+                    cmd = re.sub(r'\(()\)$', '', query_or_cmd)
+                    if cmd == 'help':
+                        print('-------------------------')
                         print('Commands:')
-                        print('  alpha, similarity, tokenizer, formatter')
+                        print('  Get value: cmd()')
+                        print('  Set value: cmd = value')
                         print()
-                        print('Get syntax: cmd()')
-                        print('Set syntax: cmd = value')
-                    elif query == 'alpha()':
-                        print(obj.matcher.alpha)
-                    elif query == 'similarity()':
-                        print(get_obj_map_key(obj.matcher.similarity,
-                                              similarity_map))
-                    elif query == 'tokenizer()':
-                        print(get_obj_map_key(obj.tokenizer, tokenizer_map))
-                    elif query == 'formatter()':
-                        print(get_obj_map_key(obj.formatter, formatter_map))
+                        print(params_help)
+                        print('exit()')
+                        print('-------------------------')
+                    elif cmd in params_values:
+                        print(params_values[cmd])
                     else:
-                        print(obj.match(query))
+                        print(obj.match(cmd, **params_values))
                 elif '=' in query_or_cmd:
                     option, value = query_or_cmd.split('=')
                     option = option.strip()
-                    value = value.strip('\'" ')
-                    if option == 'alpha':
-                        obj.matcher.alpha = float(value)
-                    elif option == 'similarity':
-                        obj.matcher.similarity = value
-                    elif option == 'tokenizer':
-                        obj.tokenizer = value
-                    elif option == 'formatter':
-                        obj.formatter = value
+                    if option in params_values:
+                        value = value.strip()
+                        params_values[option] = params_types[option](value)
+                        print(f'Set value: {option} = {value}')
                     else:
-                        print(obj.match(query_or_cmd))
+                        print(obj.match(query_or_cmd, **params_values))
                 else:
-                    print(obj.match(query_or_cmd))
+                    print(obj.match(query_or_cmd, **params_values))
             except AttributeError:
                 print('Current mode does not supports commands')
     except (KeyboardInterrupt, EOFError):
@@ -193,8 +222,7 @@ def cli():
 )
 @click.option(
     '-d', '--database',
-    # type=click.Choice(('dict', 'redis', 'elasticsearch')),
-    type=str,
+    type=click.Choice(('dict', 'sqlite', 'redis', 'elasticsearch')),
     default='dict',
     show_default=True,
     help='Database for Matcher install/query.',
@@ -244,7 +272,7 @@ def run(
     factory_config['formatter'] = config.get('formatter', formatter)
     factory_config['matcher'] = config.get('matcher', {
         'class': 'simstring',
-        'db': config.get('database', database),
+        'db': database,
         'alpha': config.get('alpha', alpha),
         'similarity': config.get('similarity', similarity),
     })
@@ -334,7 +362,7 @@ def run(
 )
 @click.option(
     '-d', '--database',
-    type=click.Choice(('dict', 'redis', 'elasticsearch')),
+    type=click.Choice(('dict', 'sqlite', 'redis', 'elasticsearch')),
     default='dict',
     show_default=True,
     help='Database for Matcher install/query.',
@@ -386,7 +414,7 @@ def server(
     factory_config['formatter'] = config.get('formatter', formatter)
     factory_config['matcher'] = config.get('matcher', {
         'class': 'simstring',
-        'db': config.get('database', database),
+        'db': database,
         'alpha': config.get('alpha', alpha),
         'similarity': config.get('similarity', similarity),
     })

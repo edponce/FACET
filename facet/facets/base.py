@@ -142,7 +142,8 @@ class BaseFacet(ABC):
         normalize_unicode: bool = False,
         # NOTE: The following default values are based on the corresponding
         # function/method call using them.
-        format: str = '',
+        formatter: str = '',
+        tokenizer: str = '',
         output: str = None,
         corpus_kwargs: Dict[str, Any] = {},
         **kwargs,
@@ -159,8 +160,11 @@ class BaseFacet(ABC):
 
             normalize_unicode (bool): Enable Unicode normalization.
 
-            format (str): Formatting mode for match results. Valid values
-                are: 'json', 'xml', 'pickle', 'csv'.
+            formatter (str): Formatter name. Valid values are: 'json',
+            'yaml', 'xml', 'pickle', 'csv'.
+
+            tokenizer (str): Tokenizer name. Valid values are: 'basic',
+            'ws', 'nltk', 'spacy'.
 
             output (str): Output file for match results.
 
@@ -182,11 +186,23 @@ class BaseFacet(ABC):
         >>>     for term in terms:
         >>>         print(term['concept'], term['cui'], term['semantic type'])
         """
+        formatter = (
+            self._formatter
+            if formatter == ''
+            else formatter_map[formatter]()
+        )
+
+        tokenizer = (
+            self._tokenizer
+            if tokenizer == ''
+            else tokenizer_map[tokenizer]()
+        )
+
+        casefunc = strcase_map[case]
+
         if PROFILE:
             prof = cProfile.Profile(subcalls=True, builtins=True)
             prof.enable()
-
-        casefunc = strcase_map[case]
 
         t1 = time.time()
         matches = collections.defaultdict(list)
@@ -196,8 +212,8 @@ class BaseFacet(ABC):
             if normalize_unicode:
                 corpus = unidecode(corpus)
 
-            for sentence in self._tokenizer.sentencize(corpus):
-                for ngram_struct in self._tokenizer.tokenize(sentence):
+            for sentence in tokenizer.sentencize(corpus):
+                for ngram_struct in tokenizer.tokenize(sentence):
                     ngram_matches = self._match(ngram_struct, **kwargs)
                     if len(ngram_matches) == 0:
                         continue
@@ -218,11 +234,6 @@ class BaseFacet(ABC):
             prof.print_stats('time')
             prof.clear()
 
-        formatter = (
-            self._formatter
-            if format == ''
-            else formatter_map[format]()
-        )
         return formatter(matches, output=output)
 
     def install(self, data, **kwargs):
@@ -360,9 +371,9 @@ class BaseFacet(ABC):
         """
         # Set up proxy database
         if self._use_proxy_install:
-            orig_db1 = self._matcher.db
-            proxy_db1 = create_proxy_db()
-            self._matcher.db = proxy_db1
+            orig_db = self._matcher.db
+            proxy_db = create_proxy_db()
+            self._matcher.db = proxy_db
 
             orig_db2 = db
             proxy_db2 = create_proxy_db()
@@ -395,9 +406,9 @@ class BaseFacet(ABC):
 
         # Copy proxy database
         if self._use_proxy_install:
-            proxy_db1.copy(orig_db1)
-            self._matcher.db = orig_db1
-            proxy_db1.clear()
+            proxy_db.copy(orig_db)
+            self._matcher.db = orig_db
+            proxy_db.clear()
 
             proxy_db2.copy(orig_db2)
             db = orig_db2

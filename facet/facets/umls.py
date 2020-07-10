@@ -194,8 +194,6 @@ class UMLSFacet(BaseFacet):
             headers=HEADERS_MRCONSO,
             valids={**cui_valids, **{'lat': ['ENG']}},
             converters={'str': [unidecode, str.lower]},
-            multiple_values=True,
-            unique_values=True,
             delimiter='|',
             **kwargs,
         )
@@ -249,25 +247,11 @@ class UMLSFacet(BaseFacet):
                 'similarity': similarity,
             }
 
-            if self._conso_db is None:
-                ngram_matches.append(ngram_match)
-                continue
-
-            cui = self._conso_db.get(candidate)
-            if len(cui) == 0:
-                continue
-
-            ngram_match['CUI'] = cui
-
-            if self._cuisty_db is None:
-                ngram_matches.append(ngram_match)
-                continue
-
-            semtypes = list(filter(None, map(self._cuisty_db.get, cui)))
-            if len(semtypes) == 0:
-                continue
-
-            ngram_match['semantic types'] = semtypes
+            if self._conso_db is not None:
+                cui = self._conso_db.get(candidate)
+                ngram_match['CUI'] = cui
+                if cui is not None and self._cuisty_db is not None:
+                    ngram_match['semantic types'] = self._cuisty_db.get(cui)
             ngram_matches.append(ngram_match)
 
         return ngram_matches
