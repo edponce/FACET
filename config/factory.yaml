@@ -272,4 +272,4 @@ UMLSESR:
         ngram: character
     tokenizer: ws
     formatter: json
-    # install: data/umls
+    install: data/umls

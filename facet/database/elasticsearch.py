@@ -1,3 +1,4 @@
+import copy
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import (
     scan,
@@ -49,18 +50,6 @@ class ElasticsearchDatabase(BaseDatabase):
                            and Iterable[str] (ngrams)
         * get operations - keys are composites of int (ngram count)
                            and str (joined ngrams)
-        * get operations - keys are composites of Iterable[int]
-                           (min/max ngram count) and str (joined ngrams)
-
-    >>> db = ElasticsearchDatabase(index='default')
-    >>> db.set({'term': 'hello',
-    >>>         'ng': [' h' , 'he', 'el', 'll', 'lo', 'o '],
-    >>>         'sz': 6})
-    >>> db.get(6)
-    >>> db.get(6, [' h', 'he', 'el', 'll', 'lo', 'o '])
-    >>> db.get(6, [' h', 'he', 'el', 'll', 'lo', 'o '],
-    >>>        filter_path=['hits.hits._source']) # _['hits']['hits]
-    >>> db.get((5, 8), ['he', 'll'])  # range 5-7
     """
 
     def __init__(
@@ -72,11 +61,18 @@ class ElasticsearchDatabase(BaseDatabase):
         body: Dict[str, Any] = None,
         access_mode: str = 'c',
         use_pipeline: bool = False,
-        **kwargs
+        **conn_info,
     ):
-        self._db = Elasticsearchx(hosts, **kwargs)
+        self._db = None
+        self._dbp = []
+        self._host = hosts
         self._index = index
         self.fields = fields
+        self._use_pipeline = use_pipeline
+        self._is_connected = False
+        self._conn_info = copy.deepcopy(conn_info)
+
+        self.connect()
 
         # Reset database based on access mode
         if access_mode == 'n':
@@ -88,17 +84,26 @@ class ElasticsearchDatabase(BaseDatabase):
         ):
             self._db.indices.create(index=index, body=body)
 
-        # NOTE: Stores an iterable of actions which
-        # are sent to bulk API when commit() is invoked.
-        self._dbp = None
-        self._is_pipe = None
-        self.set_pipe(use_pipeline)
+    def __len__(self):
+        return self._db.count()['count']
 
-    def set_pipe(self, pipe):
-        if not pipe:
-            self.commit()
-        self._is_pipe = pipe
-        self._dbp = []
+    def get_config(self):
+        return {
+            'hosts': self._host,
+            'index': self._index,
+            'item count': len(self._conn) if self._is_connected else -1,
+        }
+
+    def get(
+        self,
+        key1: Union[int, Tuple[int, int]],
+        key2: Iterable[str] = None,
+        *,
+        max_size: int = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        body = self._resolve_search_body(key1, key2, max_size=max_size)
+        return self._db.search(index=self._index, body=body, **kwargs)
 
     def set(
         self,
@@ -118,7 +123,7 @@ class ElasticsearchDatabase(BaseDatabase):
         Kwargs:
             Options forwarded to 'Elasticsearch.index()'.
         """
-        if self._is_pipe:
+        if self._use_pipeline:
             self._dbp.append(document)
         else:
             return self._db.index(
@@ -128,34 +133,10 @@ class ElasticsearchDatabase(BaseDatabase):
                 **kwargs
             )
 
-    def get_config(self):
-        return {}
-
     # NOTE: This can be removed, use pipe capability
     # def mset(self, documents, **kwargs):
     #     """See 'Elasticsearchx.bulk_index()'."""
     #     return self._db.bulk_index(documents, index=self._index, **kwargs)
-
-    def commit(self, **kwargs):
-        if self._is_pipe:
-            response = self._db.bulk_index(
-                self._dbp,
-                index=self._index,
-                **kwargs
-            )
-            self._dbp = []
-            return response
-
-    def get(
-        self,
-        key1: Union[int, Tuple[int, int]],
-        key2: Iterable[str] = None,
-        *,
-        max_size: int = None,
-        **kwargs
-    ) -> Dict[str, Any]:
-        body = self._resolve_search_body(key1, key2, max_size=max_size)
-        return self._db.search(index=self._index, body=body, **kwargs)
 
     def scan(
         self,
@@ -169,14 +150,27 @@ class ElasticsearchDatabase(BaseDatabase):
         body = self._resolve_search_body(key1, key2, max_size=max_size)
         return self._db.scan(body, index=self._index, **kwargs)
 
+    def connect(self):
+        self._db = Elasticsearchx(self._host, **self._conn_info)
+        self._is_connected = True
+
+    def commit(self, **kwargs):
+        if self._use_pipeline:
+            response = self._db.bulk_index(
+                self._dbp,
+                index=self._index,
+                **kwargs
+            )
+            self._dbp = []
+            return response
+
+    def disconnect(self):
+        self._db.close()
+        self._dbp = []
+        self._is_connected = False
+
     def clear(self):
         self._db.indices.delete(index=self._index)
-
-    def close(self):
-        self._db.close()
-
-    def __len__(self):
-        return self._db.count()['count']
 
     def _resolve_search_body(
         self,
