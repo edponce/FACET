@@ -238,7 +238,7 @@ class UMLSFacet(BaseFacet):
                 'begin': begin,
                 'end': end,
                 'ngram': ngram,
-                'concept': candidate,
+                'candidate': candidate,
                 'similarity': similarity,
             }
 

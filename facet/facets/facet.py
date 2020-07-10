@@ -82,7 +82,7 @@ class Facet(BaseFacet):
                 'begin': begin,
                 'end': end,
                 'ngram': ngram,
-                'concept': candidate,
+                'candidate': candidate,
                 'similarity': similarity,
             }
             for candidate, similarity in self._matcher.search(
