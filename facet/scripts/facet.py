@@ -85,6 +85,7 @@ def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
 
         prompt_symbol (str): Symbol for prompt.
     """
+    # Parameters and type conversion
     params_types = {
         'alpha': float,
         'similarity': str,
@@ -96,6 +97,7 @@ def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
         'output': str,
     }
 
+    # Current value of parameters
     params_values = {
         'alpha': obj.matcher.alpha,
         'similarity': get_obj_map_key(obj.matcher.similarity, similarity_map),
@@ -106,6 +108,17 @@ def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
         'tokenizer': get_obj_map_key(obj.tokenizer, tokenizer_map),
         'output': None,
     }
+
+    params_help = (
+        'alpha       similarity threshold, (0,1]\n'
+        + 'similarity  jaccard, cosine, exact, dice, overlap, hamming\n'
+        + 'rank        ordered results, 0 = False, 1 = True\n'
+        + 'case        apply string casing, l/u\n'
+        + 'normalize_unicode  0 = False, 1 = True\n'
+        + 'formatter   json, yaml, csv, xml\n'
+        + 'tokenizer   nltk, spacy, ws, null\n'
+        + 'output      filename for results\n'
+    )
 
     prompt = prompt_symbol + ' '
     try:
@@ -122,13 +135,14 @@ def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
                 if '()' in query_or_cmd:
                     cmd = re.sub(r'\(()\)$', '', query_or_cmd)
                     if cmd == 'help':
+                        print('-------------------------')
                         print('Commands:')
-                        print('  ' + ', '.join(params_types.keys()))
+                        print('  Get value: cmd()')
+                        print('  Set value: cmd = value')
                         print()
-                        print('Get syntax: cmd()')
-                        print('Set syntax: cmd = value')
-                        print()
-                        print('To exit: exit()')
+                        print(params_help)
+                        print('exit()')
+                        print('-------------------------')
                     elif cmd in params_values:
                         print(params_values[cmd])
                     else:
@@ -136,9 +150,10 @@ def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
                 elif '=' in query_or_cmd:
                     option, value = query_or_cmd.split('=')
                     option = option.strip()
-                    value = value.strip('\'" ')
                     if option in params_values:
+                        value = value.strip()
                         params_values[option] = params_types[option](value)
+                        print(f'Set value: {option} = {value}')
                     else:
                         print(obj.match(query_or_cmd, **params_values))
                 else:
