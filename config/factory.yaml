@@ -97,6 +97,26 @@ FacetSQL:
         cols: 14
 
 
+FacetES:
+    class: facet
+    matcher:
+        class: elasticsearch_simstring
+        index: facet
+        db:
+            host: localhost
+            use_pipeline: true
+        cache_db: null
+        alpha: 0.7
+        similarity: jaccard
+        ngram: character
+    tokenizer: ws
+    formatter: json
+    install:
+        data: data/umls/MRCONSO.RRF
+        delimiter: "|"
+        cols: 14
+
+
 UMLSMemory:
     class: umlsfacet
     conso_db: dict
@@ -111,8 +131,6 @@ UMLSMemory:
     formatter: json
     install:
         data: data/umls
-        # cui_valids: null
-        # sty_valids: null
 
 
 UMLSFile:
@@ -230,11 +248,11 @@ UMLSESS:
         serializer: json
         check_same_thread: false
     matcher:
-        class: elasticsearch
+        class: elasticsearch_simstring
+        index: umls
         db:
-            class: elasticsearch
-            pipe: true
-            access_mode: c
+            host: localhost
+            use_pipeline: true
         cache_db: null
         alpha: 0.7
         similarity: jaccard
@@ -261,11 +279,11 @@ UMLSESR:
         access_mode: c
         use_pipeline: true
     matcher:
-        class: elasticsearch
+        class: elasticsearch_simstring
         db:
-            class: elasticsearch
-            pipe: true
-            access_mode: c
+            host: localhost
+            use_pipeline: true
+        index: umls
         cache_db: null
         alpha: 0.7
         similarity: jaccard

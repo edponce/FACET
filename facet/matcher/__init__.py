@@ -11,11 +11,12 @@ from .ngram import (
     CharacterNgram,
 )
 from .base import BaseMatcher
+from .base_simstring import BaseSimstring
 from .simstring import Simstring
-from .elasticsearch import ElasticsearchSimstring
+from .elasticsearch_simstring import ElasticsearchSimstring
 
 
 matcher_map = {
     'simstring': Simstring,
-    'elasticsearch': ElasticsearchSimstring,
+    'elasticsearch_simstring': ElasticsearchSimstring,
 }

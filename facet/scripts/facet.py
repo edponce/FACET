@@ -202,6 +202,13 @@ def cli():
     help='Similarity measure.',
 )
 @click.option(
+    '-n', '--ngram',
+    type=click.Choice(('character', 'word')),
+    default='character',
+    show_default=True,
+    help='N-gram feature extractor.',
+)
+@click.option(
     '-f', '--formatter',
     type=click.Choice(('json', 'yaml', 'xml', 'pickle', 'csv')),
     default='json',
@@ -245,6 +252,7 @@ def run(
     query,
     alpha,
     similarity,
+    ngram,
     formatter,
     output,
     tokenizer,
@@ -275,6 +283,7 @@ def run(
         'db': database,
         'alpha': config.get('alpha', alpha),
         'similarity': config.get('similarity', similarity),
+        'ngram': config.get('ngram', ngram),
     })
 
     if dump_config:
@@ -347,6 +356,13 @@ def run(
     help='Similarity measure.',
 )
 @click.option(
+    '-n', '--ngram',
+    type=click.Choice(('character', 'word')),
+    default='character',
+    show_default=True,
+    help='N-gram feature extractor.',
+)
+@click.option(
     '-f', '--formatter',
     type=click.Choice(('json', 'yaml', 'xml', 'pickle', 'csv')),
     default='json',
@@ -387,6 +403,7 @@ def server(
     query,
     alpha,
     similarity,
+    ngram,
     formatter,
     tokenizer,
     database,
@@ -417,6 +434,7 @@ def server(
         'db': database,
         'alpha': config.get('alpha', alpha),
         'similarity': config.get('similarity', similarity),
+        'ngram': config.get('ngram', ngram),
     })
 
     if dump_config:

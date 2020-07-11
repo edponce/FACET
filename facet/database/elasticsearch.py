@@ -148,7 +148,7 @@ class ElasticsearchDatabase(BaseDatabase):
             Default is False.
 
     Kwargs:
-        Options forwarded to 'Elasticsearchx'.
+        Options forwarded to 'Elasticsearch()' via 'Elasticsearchx()'.
     """
 
     def __init__(
@@ -184,7 +184,7 @@ class ElasticsearchDatabase(BaseDatabase):
             )
 
     def __len__(self):
-        return self._db.count()['count']
+        return self._db.count(index=self._index)['count']
 
     def __contains__(self, id):
         return NotImplemented
@@ -193,14 +193,22 @@ class ElasticsearchDatabase(BaseDatabase):
         return {
             'host': self._host,
             'index': self._index,
+            'memory usage': (
+                self._db.indices.stats(
+                    index=self._index,
+                    **kwargs,
+                )['_all']['primaries']['store']['size_in_bytes']
+                if self._is_connected
+                else -1
+            ),
             'item count': len(self) if self._is_connected else -1,
             'mapping': (
-                self._db.indices.get_mapping(self._index, **kwargs)
+                self._db.indices.get_mapping(index=self._index, **kwargs)
                 if self._is_connected
                 else {}
             ),
             'settings': (
-                self._db.indices.get_settings(self._index, **kwargs)
+                self._db.indices.get_settings(index=self._index, **kwargs)
                 if self._is_connected
                 else {}
             ),
@@ -210,7 +218,7 @@ class ElasticsearchDatabase(BaseDatabase):
         return self._db.info(**kwargs)
 
     def get_stats(self, **kwargs):
-        return self._db.indices.stats(self._index, **kwargs)
+        return self._db.indices.stats(index=self._index, **kwargs)
 
     def get(self, query: Dict[str, Any], **kwargs) -> Dict[str, Any]:
         return self._db.search(index=self._index, body=query, **kwargs)
@@ -236,7 +244,7 @@ class ElasticsearchDatabase(BaseDatabase):
             response = self._db.bulk_index(
                 self._dbp,
                 index=self._index,
-                **kwargs
+                **kwargs,
             )
             self._dbp = []
             # self._db.flush(index=self._index, **kwargs)
