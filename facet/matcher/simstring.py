@@ -1,4 +1,5 @@
 from .base_simstring import BaseSimstring
+from ..database import BaseDatabase
 from typing import (
     List,
     Union,

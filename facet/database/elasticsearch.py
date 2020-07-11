@@ -6,10 +6,7 @@ from elasticsearch.helpers import (
     parallel_bulk,
     streaming_bulk,
 )
-from .base import (
-    BaseDatabase,
-    BaseKVDatabase,
-)
+from .base import BaseDatabase
 from typing import (
     Any,
     List,
@@ -79,8 +76,8 @@ class Elasticsearchx(Elasticsearch):
         """Bulk index and create documents.
 
         Args:
-            documents (Iterable[Dict[str, Any]]): List of document fields/values
-                to index.
+            documents (Iterable[Dict[str, Any]]): List of document
+                fields/values to index.
 
             index (str): Index name to search.
 
