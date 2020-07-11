@@ -44,6 +44,17 @@ class FacetFactory:
         'conso_db': 'database',   # (UMLSFacet) CONCEPT-CUI database
     }
 
+    # NOTE: These are CLI parameters that should be removed so that factory
+    # can be use programatically using the same CLI-based configuration files.
+    INVALID_KEYS = {
+        'query',
+        'output',
+        'install',
+        'host',
+        'port',
+        'dump_config',
+    }
+
     # Configuration keyword used to specify classes.
     # Keyword can be modified in case it is the same as a class parameter.
     OBJ_CLASS_LABEL = 'class'
@@ -55,28 +66,32 @@ class FacetFactory:
         section: str = None,
     ):
         self._config = load_configuration(config, keys=section)
+        # NOTE: Remove CLI-specific parameters
+        for key in type(self).INVALID_KEYS:
+            if key in self._config:
+                del self._config[key]
 
     def create(self):
         """Create a new FACET instance."""
-        # NOTE: Copy configuration because '_parse_config()' modifies it.
+        # NOTE: Copy configuration because '_parse_config_map()' modifies it.
         config = copy.deepcopy(self._config)
         obj_class = (
             config.pop(type(self).OBJ_CLASS_LABEL).lower()
             if type(self).OBJ_CLASS_LABEL in config
             else type(self).DEFAULT_OBJ
         )
-        return facet_map[obj_class](**self._parse_config(config))
+        return facet_map[obj_class](**self._parse_config_map(config))
 
     __call__ = create
 
     def create_generic(self) -> Any:
         """Create a new instance of any FACET-related classes."""
-        # NOTE: Copy configuration because '_parse_config()' modifies it.
+        # NOTE: Copy configuration because '_parse_config_map()' modifies it.
         config = copy.deepcopy(self._config)
-        objs = [v for k, v in self._parse_config(config).items()]
+        objs = [v for k, v in self._parse_config_map(config).items()]
         return objs if len(objs) > 1 else objs[0]
 
-    def _parse_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+    def _parse_config_map(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """Recusively parse a configuration map."""
         factory_config = {}
         for k, v in config.items():
@@ -94,10 +109,12 @@ class FacetFactory:
                         and
                         obj_class in type(self).OBJTYPE_CLASSMAP_MAP[obj_type]
                     ):
-                        obj_params = self._parse_config(v)
-                        v = type(self).OBJTYPE_CLASSMAP_MAP[obj_type][obj_class](**obj_params)
+                        obj_params = self._parse_config_map(v)
+                        v = type(self).OBJTYPE_CLASSMAP_MAP[
+                            obj_type
+                        ][obj_class](**obj_params)
                 else:
-                    v = self._parse_config(v)
+                    v = self._parse_config_map(v)
 
             # It is an object, by default
             elif isinstance(v, str):

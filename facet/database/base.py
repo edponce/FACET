@@ -87,9 +87,11 @@ class BaseKVDatabase(BaseDatabase):
         return iter(self.keys())
 
     def items(self):
+        # NOTE: Derived databases might have direct methods to key/values.
         return ((k, self.get(k)) for k in self.keys())
 
     def values(self):
+        # NOTE: Derived databases might have direct methods to key/values.
         return (self.get(k) for k in self.keys())
 
     def update(self, data):
