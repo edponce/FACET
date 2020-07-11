@@ -10,6 +10,8 @@ from meta import *
 __all__ = []
 
 
+import .utils
+import .network
 from .factory import FacetFactory
 from .facets import (
     Facet,
