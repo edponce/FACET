@@ -10,8 +10,16 @@ from meta import *
 __all__ = []
 
 
-import .utils
-import .network
+from .utils import (
+    load_configuration,
+    get_obj_map_key,
+    parse_address,
+)
+from .network import (
+    SocketClient,
+    SocketServer,
+    SocketServerHandler,
+)
 from .factory import FacetFactory
 from .facets import (
     Facet,

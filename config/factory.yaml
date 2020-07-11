@@ -100,11 +100,12 @@ FacetSQL:
 FacetES:
     class: facet
     matcher:
-        class: elasticsearch_simstring
+        class: elasticsearch-simstring
         index: facet
         db:
             host: localhost
             use_pipeline: true
+            access_mode: c
         cache_db: null
         alpha: 0.7
         similarity: jaccard
@@ -248,11 +249,12 @@ UMLSESS:
         serializer: json
         check_same_thread: false
     matcher:
-        class: elasticsearch_simstring
+        class: elasticsearch-simstring
         index: umls
         db:
             host: localhost
             use_pipeline: true
+            access_mode: c
         cache_db: null
         alpha: 0.7
         similarity: jaccard
@@ -279,7 +281,7 @@ UMLSESR:
         access_mode: c
         use_pipeline: true
     matcher:
-        class: elasticsearch_simstring
+        class: elasticsearch-simstring
         db:
             host: localhost
             use_pipeline: true

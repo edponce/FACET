@@ -18,5 +18,5 @@ from .elasticsearch_simstring import ElasticsearchSimstring
 
 matcher_map = {
     'simstring': Simstring,
-    'elasticsearch_simstring': ElasticsearchSimstring,
+    'elasticsearch-simstring': ElasticsearchSimstring,
 }
