@@ -10,6 +10,16 @@ from meta import *
 __all__ = []
 
 
+from .utils import (
+    load_configuration,
+    get_obj_map_key,
+    parse_address,
+)
+from .network import (
+    SocketClient,
+    SocketServer,
+    SocketServerHandler,
+)
 from .factory import FacetFactory
 from .facets import (
     Facet,
@@ -33,8 +43,8 @@ from .database import (
     DictDatabase,
     RedisDatabase,
     SQLiteDatabase,
-    Elasticsearchx,
     ElasticsearchDatabase,
+    ElasticsearchKVDatabase,
 )
 from .serializer import (
     NullSerializer,

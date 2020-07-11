@@ -6,22 +6,7 @@ import click
 import signal
 import socket
 import functools
-from ..utils import (
-    load_configuration,
-    parse_address,
-    get_obj_map_key,
-)
-from .. import __version__
-from ..network import (
-    SocketClient,
-    SocketServer,
-    SocketServerHandler,
-)
-from ..facets import facet_map
-from ..factory import FacetFactory
-from ..formatter import formatter_map
-from ..tokenizer import tokenizer_map
-from ..matcher.similarity import similarity_map
+import facet
 from typing import (
     Any,
     Dict,
@@ -43,7 +28,7 @@ DEFAULT_SECTION = 'FACET'
 
 
 def load_config(ctx, param, config: str, key=None):
-    return load_configuration(config, keys=key)
+    return facet.utils.load_configuration(config, keys=key)
 
 
 def parse_dump_configuration(output: str, format='yaml'):
@@ -57,7 +42,7 @@ def parse_dump_configuration(output: str, format='yaml'):
     """
     if ':' in output:
         output, format = output.split(':')
-    elif output in formatter_map:
+    elif output in facet.formatter.formatter_map:
         output, format = None, output
     return output, format
 
@@ -65,9 +50,9 @@ def parse_dump_configuration(output: str, format='yaml'):
 def dump_configuration(config: Dict[str, Any], output=None, format='yaml'):
     """Dump configuration data to a file or STDOUT."""
     # Run configuration through loader so that it gets parsed
-    parsed_config = load_configuration(config)
+    parsed_config = facet.utils.load_configuration(config)
 
-    formatter = formatter_map[format]()
+    formatter = facet.formatter.formatter_map[format]()
     formatted_config = formatter(parsed_config, output=output)
     if formatted_config is not None:
         print(formatted_config)
@@ -100,12 +85,21 @@ def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
     # Current value of parameters
     params_values = {
         'alpha': obj.matcher.alpha,
-        'similarity': get_obj_map_key(obj.matcher.similarity, similarity_map),
+        'similarity': facet.utils.get_obj_map_key(
+            obj.matcher.similarity,
+            facet.matcher.similarity.similarity_map,
+        ),
         'rank': True,
         'case': 'l',
         'normalize_unicode': False,
-        'formatter': get_obj_map_key(obj.formatter, formatter_map),
-        'tokenizer': get_obj_map_key(obj.tokenizer, tokenizer_map),
+        'formatter': facet.utils.get_obj_map_key(
+            obj.formatter,
+            facet.formatter.formatter_map,
+        ),
+        'tokenizer': facet.utils.get_obj_map_key(
+            obj.tokenizer,
+            facet.tokenizer.tokenizer_map,
+        ),
         'output': None,
     }
 
@@ -165,7 +159,6 @@ def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
-@click.version_option(version=__version__)
 def cli():
     pass
 
@@ -200,6 +193,13 @@ def cli():
     default='jaccard',
     show_default=True,
     help='Similarity measure.',
+)
+@click.option(
+    '-n', '--ngram',
+    type=click.Choice(('character', 'word')),
+    default='character',
+    show_default=True,
+    help='N-gram feature extractor.',
 )
 @click.option(
     '-f', '--formatter',
@@ -245,6 +245,7 @@ def run(
     query,
     alpha,
     similarity,
+    ngram,
     formatter,
     output,
     tokenizer,
@@ -275,6 +276,7 @@ def run(
         'db': database,
         'alpha': config.get('alpha', alpha),
         'similarity': config.get('similarity', similarity),
+        'ngram': config.get('ngram', ngram),
     })
 
     if dump_config:
@@ -286,7 +288,7 @@ def run(
         )
         return
 
-    f = FacetFactory(factory_config).create()
+    f = facet.FacetFactory(factory_config).create()
 
     if install:
         f.install(**install)
@@ -347,6 +349,13 @@ def run(
     help='Similarity measure.',
 )
 @click.option(
+    '-n', '--ngram',
+    type=click.Choice(('character', 'word')),
+    default='character',
+    show_default=True,
+    help='N-gram feature extractor.',
+)
+@click.option(
     '-f', '--formatter',
     type=click.Choice(('json', 'yaml', 'xml', 'pickle', 'csv')),
     default='json',
@@ -387,6 +396,7 @@ def server(
     query,
     alpha,
     similarity,
+    ngram,
     formatter,
     tokenizer,
     database,
@@ -417,6 +427,7 @@ def server(
         'db': database,
         'alpha': config.get('alpha', alpha),
         'similarity': config.get('similarity', similarity),
+        'ngram': config.get('ngram', ngram),
     })
 
     if dump_config:
@@ -428,14 +439,14 @@ def server(
         )
         return
 
-    f = FacetFactory(factory_config).create()
+    f = facet.FacetFactory(factory_config).create()
 
     if install:
         f.install(**install)
 
-    with SocketServer(
+    with facet.network.SocketServer(
         (host, port),
-        SocketServerHandler,
+        facet.network.SocketServerHandler,
         served_object=f,
     ) as server:
         server.serve_forever()
@@ -519,9 +530,9 @@ def client(config, host, port, query, formatter, output, dump_config):
         )
         return
 
-    with SocketClient(
+    with facet.network.SocketClient(
         (host, port),
-        target_class=facet_map[factory_config['class']],
+        target_class=facet.facets.facet_map[factory_config['class']],
     ) as f:
         if query:
             matches = f.match(query)
@@ -572,7 +583,7 @@ def server_shutdown(host, port, fileno, pid):
                 print('failed to close server socket:', ex, file=sys.stderr)
     elif host:
         # Port embedded with 'host' parameter has priority over 'port'
-        host, _port = parse_address(host)
+        host, _port = facet.utils.parse_address(host)
         if _port:
             port = _port
 

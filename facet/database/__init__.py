@@ -2,7 +2,7 @@ from .base import BaseDatabase
 from .dict import DictDatabase
 from .redis import RedisDatabase
 from .sqlite import SQLiteDatabase
-from .elasticsearch import Elasticsearchx, ElasticsearchDatabase
+from .elasticsearch import ElasticsearchDatabase, ElasticsearchKVDatabase
 
 
 database_map = {
