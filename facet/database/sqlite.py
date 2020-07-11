@@ -21,13 +21,10 @@ from typing import (
 )
 
 
-__all__ = [
-    'SQLiteKVDatabase',
-    'SQLiteDatabase',
-]
+__all__ = ['SQLiteDatabase']
 
 
-class SQLiteKVDatabase(BaseKVDatabase):
+class SQLiteDatabase(BaseKVDatabase):
     """SQLite database interface.
 
     Args:
@@ -266,8 +263,6 @@ class SQLiteKVDatabase(BaseKVDatabase):
         self._is_connected = True
 
     def commit(self):
-        # NOTE: Check for connection status to allow invoking
-        # on a closed database.
         if self._is_connected and self._conn.in_transaction:
             self._conn.commit()
 
@@ -278,8 +273,3 @@ class SQLiteKVDatabase(BaseKVDatabase):
 
     def clear(self):
         self._conn.execute(f"DELETE FROM {self._table};")
-
-
-def SQLiteDatabase(*args, **kwargs):
-    cls = SQLiteKVDatabase
-    return cls(*args, **kwargs)

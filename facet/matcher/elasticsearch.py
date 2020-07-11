@@ -14,10 +14,13 @@ from .ngram import (
     BaseNgram,
 )
 from typing import (
+    Any,
     List,
+    Dict,
     Tuple,
     Union,
     NoReturn,
+    Iterable,
     Iterator,
 )
 
@@ -34,8 +37,7 @@ class ElasticsearchSimstring(BaseMatcher):
     Linguistics, 2010.
 
     Args:
-        db (str, ElasticsearchDatabase): Elasticsearch database instance or
-            index for storage.
+        index (str): Elasticsearch database index for storage.
 
         cache_db (str, BaseDatabase): Handle to database instance or database
             name for strings cache. Valid databases are: 'dict', 'redis',
@@ -49,9 +51,12 @@ class ElasticsearchSimstring(BaseMatcher):
 
         ngram (str, BaseNgram): N-gram feature extractor instance
             or n-gram name. Valid n-gram extractors are: 'word', 'character'.
+
+    Kwargs:
+        Options passed directly to 'ElasticsearchDatabase()'.
     """
 
-    SETTINGS = {
+    _SETTINGS = {
         'settings': {
             'number_of_shards': 1,
             'number_of_replicas': 0,
@@ -61,7 +66,7 @@ class ElasticsearchSimstring(BaseMatcher):
         },
     }
 
-    MAPPINGS = {
+    _MAPPING = {
         'mappings': {
             'properties': {
                 'term': {
@@ -81,19 +86,17 @@ class ElasticsearchSimstring(BaseMatcher):
         },
     }
 
-    # Fields for ElasticsearchDatabase to use in search
-    FIELDS = ['sz', 'ng']
-
     _GLOBAL_MAX_FEATURES = 128
 
     def __init__(
         self,
         *,
-        db: Union[str, 'ElasticsearchDatabase'] = 'facet',
+        index: str = 'facet',
         cache_db: Union[str, 'BaseDatabase'] = None,
         alpha: float = 0.7,
         similarity: Union[str, 'BaseSimilarity'] = 'jaccard',
         ngram: Union[str, 'BaseNgram'] = 'character',
+        **conn_info,
     ):
         self._db = None
         self._cache_db = None
@@ -101,32 +104,20 @@ class ElasticsearchSimstring(BaseMatcher):
         self._similarity = None
         self._ngram = None
 
-        self.db = db
         self.cache_db = cache_db
         self.alpha = alpha
         self.similarity = similarity
         self.ngram = ngram
 
-        self._global_max_features = type(self)._GLOBAL_MAX_FEATURES
+        self._db = ElasticsearchDatabase(
+            index=index,
+            body={**type(self)._SETTINGS, **type(self)._MAPPING},
+            **conn_info,
+        )
 
     @property
     def db(self):
         return self._db
-
-    @db.setter
-    def db(self, value: Union[str, 'ElasticsearchDatabase']):
-        if isinstance(value, str):
-            obj = ElasticsearchDatabase(
-                index=value,
-                body={**type(self).SETTINGS, **type(self).MAPPINGS},
-            )
-            obj.fields = type(self).FIELDS
-        elif isinstance(value, ElasticsearchDatabase):
-            obj = value
-            obj.fields = type(self).FIELDS
-        else:
-            raise ValueError(f'invalid Elasticsearch database, {value}')
-        self._db = obj
 
     @property
     def cache_db(self):
@@ -179,12 +170,50 @@ class ElasticsearchSimstring(BaseMatcher):
             raise ValueError(f'invalid n-gram feature extractor, {value}')
         self._ngram = obj
 
+    def _prepare_query(
+        self,
+        size: Union[int, Tuple[int, int]],
+        features: Iterable[str] = None,
+        *,
+        max_size: int = None,
+    ) -> Dict[str, Any]:
+        """Construct Elasticsearch body for Simstring query.
+
+        Args:
+            size (int, Tuple[int, int]): Size (or range) to search for strings.
+
+            features (Iterable[str]): String features for search. If None, then
+                search only based on size.
+        """
+        if isinstance(size, int):
+            bool_body = {'must': {'match': {'sz': size}}}
+        else:
+            bool_body = {'must': {'range': {
+            # NOTE: Does ES has 'lt'? If so, remove -1.
+                'sz': {'gte': size[0], 'lte': size[1] - 1}
+            }}}
+
+        if features is not None:
+            if not isinstance(features, str):
+                features = ' '.join(features)
+            bool_body.update({'filter': {'match': {'ng': features}}})
+
+        if max_size is not None and max_size > 0:
+            body = {'size': max_size, 'query': {'bool': bool_body}}
+        else:
+            body = {'query': {'bool': bool_body}}
+        return body
+
     def _get_strings(self, size: int, feature: str) -> List[str]:
         """Get strings corresponding to feature size and query feature."""
+        body = self._prepare_query(size, feature)
         return [
             hit['_source']['term']
-            for hit in self._db.get(size, feature)['hits']['hits']
+            for hit in self._db.get(body)['hits']['hits']
         ]
+
+    def close(self):
+        self._db.close()
 
     def insert(self, string: str) -> NoReturn:
         """Insert string into database."""
@@ -197,8 +226,11 @@ class ElasticsearchSimstring(BaseMatcher):
 
     def search(
         self,
-        query_string: str,
+        string: str,
         *,
+        # NOTE: Allow changing parameters temporarily, so that CLI and
+        # programmatic modes can change them accordingly including in
+        # client/server mode.
         alpha: float = None,
         similarity: Union[str, 'BaseSimilarity'] = None,
         rank: bool = True,
@@ -216,10 +248,7 @@ class ElasticsearchSimstring(BaseMatcher):
             update_cache (bool): If set, then cache database is updated with
                 new queries. Default is True.
         """
-        if alpha is None:
-            alpha = self._alpha
-        else:
-            alpha = min(1, max(alpha, 0.01))
+        alpha = self._alpha if alpha is None else min(1, max(alpha, 0.01))
 
         if similarity is None:
             similarity = self._similarity
@@ -227,14 +256,14 @@ class ElasticsearchSimstring(BaseMatcher):
             similarity = similarity_map[similarity]()
 
         # X = string_to_feature(x)
-        query_features = self._ngram.get_features(query_string)
+        query_features = self._ngram.get_features(string)
 
         # Check if query string is in cache
         # NOTE: Cached data assumes all Simstring parameters are the same with
         # the exception of 'alpha'.
         query_in_cache = False
         if self._cache_db is not None:
-            candidate_strings = self._cache_db.get(query_string, alpha)[0]
+            candidate_strings = self._cache_db.get(string, alpha)[0]
             if candidate_strings is not None:
                 query_in_cache = True
 
@@ -244,7 +273,7 @@ class ElasticsearchSimstring(BaseMatcher):
                 similarity.min_features(len(query_features), alpha)
             )
             max_features = min(
-                self._global_max_features,
+                type(self)._GLOBAL_MAX_FEATURES,
                 similarity.max_features(len(query_features), alpha)
             )
 
@@ -269,7 +298,7 @@ class ElasticsearchSimstring(BaseMatcher):
 
             # Insert candidate strings into cache
             if update_cache and self._cache_db is not None:
-                self._cache_db.set(query_string, alpha, candidate_strings)
+                self._cache_db.set(string, alpha, candidate_strings)
 
         similarities = [
             similarity.similarity(

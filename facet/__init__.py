@@ -33,8 +33,8 @@ from .database import (
     DictDatabase,
     RedisDatabase,
     SQLiteDatabase,
-    Elasticsearchx,
     ElasticsearchDatabase,
+    ElasticsearchKVDatabase,
 )
 from .serializer import (
     NullSerializer,

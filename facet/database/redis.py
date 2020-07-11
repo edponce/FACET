@@ -90,11 +90,11 @@ class RedisDatabase(BaseKVDatabase):
             raise ValueError(f'invalid serializer, {value}')
         self._serializer = obj
 
-    def __contains__(self, key):
-        return bool(self._conn.exists(key))
-
     def __len__(self):
         return self._conn.dbsize()
+
+    def __contains__(self, key):
+        return bool(self._conn.exists(key))
 
     def get_config(self):
         return {
@@ -107,8 +107,6 @@ class RedisDatabase(BaseKVDatabase):
         }
 
     def get_info(self):
-        if not self._is_connected:
-            return {}
         info = copy.deepcopy(self._conn.info())
         info.update(self._conn.config_get())
         return info

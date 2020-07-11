@@ -105,11 +105,13 @@ class FileDictKVDatabase(BaseKVDatabase):
         self._is_connected = True
 
     def commit(self):
-        self._conn.sync()
+        if self._is_connected and self._use_pipeline:
+            self._conn.sync()
 
     def disconnect(self):
-        self._conn.close()
-        self._is_connected = False
+        if self._is_connected:
+            self._conn.close()
+            self._is_connected = False
 
     def clear(self):
         self._conn.clear()
