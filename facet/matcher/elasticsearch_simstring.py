@@ -64,13 +64,13 @@ class ElasticsearchSimstring(BaseSimstring):
     def __init__(
         self,
         *,
-        index: str = 'facet',
+        # NOTE: Hijack 'db' parameter from 'BaseMatcher'
         db: Dict[str, Any] = {},
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.db = ElasticsearchDatabase(
-            index=index,
+            index=db.pop('index', 'facet'),
             body={**type(self)._SETTINGS, **type(self)._MAPPING},
             **db,
         )
@@ -104,17 +104,17 @@ class ElasticsearchSimstring(BaseSimstring):
             bool_body.update({'filter': {'match': {'ng': features}}})
 
         if max_size is not None and max_size > 0:
-            body = {'size': max_size, 'query': {'bool': bool_body}}
+            query = {'size': max_size, 'query': {'bool': bool_body}}
         else:
-            body = {'query': {'bool': bool_body}}
-        return body
+            query = {'query': {'bool': bool_body}}
+        return query
 
     def get_strings(self, size: int, feature: str) -> List[str]:
         """Get strings corresponding to feature size and query feature."""
-        body = self._prepare_query(size, feature)
+        query = self._prepare_query(size, feature)
         return [
-            hit['_source']['term']
-            for hit in self.db.get(body)['hits']['hits']
+            document['_source']['term']
+            for document in self.db.get(query)['hits']['hits']
         ]
 
     def insert(self, string: str):

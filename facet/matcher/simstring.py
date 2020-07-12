@@ -25,7 +25,12 @@ class Simstring(BaseSimstring):
         Options passed directly to 'BaseSimstring()'.
     """
 
-    def __init__(self, db: Union[str, 'BaseDatabase'] = 'dict', **kwargs):
+    def __init__(
+        self,
+        *,
+        db: Union[str, 'BaseDatabase'] = 'dict',
+        **kwargs,
+    ):
         super().__init__(db=db, **kwargs)
 
         # NOTE: Can track max number of n-gram features when inserting strings

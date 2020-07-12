@@ -45,10 +45,8 @@ class BaseMatcher(ABC):
     def db(self, value: Union[str, 'BaseDatabase']):
         if isinstance(value, str):
             obj = database_map[value]()
-        elif isinstance(value, BaseDatabase):
+        elif value is None or isinstance(value, BaseDatabase):
             obj = value
-        elif value is None:
-            obj = None
         else:
             raise ValueError(f'invalid matcher database, {value}')
         self._db = obj
@@ -61,10 +59,8 @@ class BaseMatcher(ABC):
     def cache_db(self, value: Union[str, 'BaseDatabase']):
         if isinstance(value, str):
             obj = database_map[value]()
-        elif isinstance(value, BaseDatabase):
+        elif value is None or isinstance(value, BaseDatabase):
             obj = value
-        elif value is None:
-            obj = None
         else:
             raise ValueError(f'invalid matcher cache database, {value}')
         self._cache_db = obj

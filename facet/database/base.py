@@ -40,10 +40,6 @@ class BaseDatabase(ABC):
         self.commit()
         self.disconnect(*args, **kwargs)
 
-    def execute(self, cmd, **kwargs):
-        """Method to support database-specific commands."""
-        pass
-
     def commit(self):
         pass
 

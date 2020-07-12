@@ -51,10 +51,10 @@ class RedisDatabase(BaseKVDatabase):
 
     def __init__(
         self,
-        host: str = 'localhost',
-        *,
-        port: int = 6379,
         n: int = 0,
+        *,
+        host: str = 'localhost',
+        port: int = 6379,
         access_mode: str = 'c',
         use_pipeline: bool = False,
         serializer: Union[str, 'BaseSerializer'] = 'json',
