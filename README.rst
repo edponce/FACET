@@ -200,6 +200,5 @@ Coming Soon
 
 Matchers with fuzzy string matching:
 
-* ElasticSearch
 * fuzzywuzzy
 * python-Levenshtein

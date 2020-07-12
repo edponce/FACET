@@ -13,8 +13,8 @@ FACET Command Line Interface
 FACET API
 ---------
 
-.. autoclass:: facet.facets.base.BaseFacet
-    :members:
+.. .. autoclass:: facet.facets.base.BaseFacet
+..     :members:
 
 .. autoclass:: facet.Facet
     :members:
@@ -33,6 +33,9 @@ Tokenizer
 .. autoclass:: facet.tokenizer.BaseTokenizer
     :members:
 
+.. autoclass:: facet.BasicTokenizer
+    :members:
+
 .. autoclass:: facet.WhitespaceTokenizer
     :members:
 
@@ -49,16 +52,19 @@ Database
 .. autoclass:: facet.database.BaseDatabase
     :members:
 
-.. autoclass:: facet.RedisDatabase
-    :members:
-
 .. autoclass:: facet.DictDatabase
     :members:
 
-.. autoclass:: facet.Elasticsearchx
+.. autoclass:: facet.RedisDatabase
+    :members:
+
+.. autoclass:: facet.SQLiteDatabase
     :members:
 
 .. autoclass:: facet.ElasticsearchDatabase
+    :members:
+
+.. autoclass:: facet.MongoDatabase
     :members:
 
 
@@ -119,10 +125,20 @@ Database Serializer
 Simstring - Approximate String Matching
 ---------------------------------------
 
+.. autoclass:: facet.matcher.BaseSimstring
+    :members:
+
 .. autoclass:: facet.Simstring
     :members:
 
 .. autoclass:: facet.ElasticsearchSimstring
+    :members:
+
+
+Fuzzy String Matching
+---------------------
+
+.. autoclass:: facet.ElasticsearchFuzzy
     :members:
 
 
@@ -147,7 +163,7 @@ Formatter
 .. autoclass:: facet.CSVFormatter
     :members:
 
-.. autoclass:: facet.SimpleFormatter
+.. autoclass:: facet.NullFormatter
     :members:
 
 

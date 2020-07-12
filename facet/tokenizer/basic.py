@@ -6,7 +6,7 @@ __all__ = ['BasicTokenizer']
 
 
 class BasicTokenizer(BaseTokenizer):
-    """Tokenizer with simple effect, combines sequential whitespaces."""
+    """Tokenizer that only combines consecutive whitespaces."""
 
     def sentencize(self, text):
         yield text

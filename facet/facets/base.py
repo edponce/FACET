@@ -246,7 +246,7 @@ class BaseFacet(ABC):
 
         Kwargs:
             Options passed directly to '*load_data()' function method via
-            `_install()`.
+            'install()'.
         """
         if PROFILE:
             prof = cProfile.Profile(subcalls=True, builtins=True)
