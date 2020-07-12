@@ -70,56 +70,57 @@ def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
 
         prompt_symbol (str): Symbol for prompt.
     """
-    # Parameters and type conversion
-    params_types = {
-        'alpha': float,
-        'similarity': str,
-        'rank': bool,
-        'case': str,
-        'normalize_unicode': bool,
-        'formatter': str,
-        'tokenizer': str,
-        'output': str,
-    }
+    if enable_cmds:
+        # Parameters and type conversion
+        params_types = {
+            'alpha': float,
+            'similarity': str,
+            'rank': bool,
+            'case': str,
+            'normalize_unicode': bool,
+            'formatter': str,
+            'tokenizer': str,
+            'output': str,
+        }
 
-    # Current value of parameters
-    params_values = {
-        'alpha': obj.matcher.alpha,
-        'similarity': facet.utils.get_obj_map_key(
-            obj.matcher.similarity,
-            facet.matcher.similarity.similarity_map,
-        ),
-        'rank': True,
-        'case': 'l',
-        'normalize_unicode': False,
-        'formatter': facet.utils.get_obj_map_key(
-            obj.formatter,
-            facet.formatter.formatter_map,
-        ),
-        'tokenizer': facet.utils.get_obj_map_key(
-            obj.tokenizer,
-            facet.tokenizer.tokenizer_map,
-        ),
-        'output': None,
-    }
+        # Current value of parameters
+        params_values = {
+            'alpha': obj.matcher.alpha,
+            'similarity': facet.utils.get_obj_map_key(
+                obj.matcher.similarity,
+                facet.matcher.similarity.similarity_map,
+            ),
+            'rank': True,
+            'case': 'l',
+            'normalize_unicode': False,
+            'formatter': facet.utils.get_obj_map_key(
+                obj.formatter,
+                facet.formatter.formatter_map,
+            ),
+            'tokenizer': facet.utils.get_obj_map_key(
+                obj.tokenizer,
+                facet.tokenizer.tokenizer_map,
+            ),
+            'output': None,
+        }
 
-    params_help = (
-        'alpha       similarity threshold, (0,1]\n'
-        + 'similarity  jaccard, cosine, exact, dice, overlap, hamming\n'
-        + 'rank        ordered results, 0 = False, 1 = True\n'
-        + 'case        apply string casing, l/u\n'
-        + 'normalize_unicode  0 = False, 1 = True\n'
-        + 'formatter   json, yaml, csv, xml\n'
-        + 'tokenizer   nltk, spacy, ws, null\n'
-        + 'output      filename for results\n'
-    )
+        params_help = (
+            'alpha       similarity threshold, (0,1]\n'
+            + 'similarity  jaccard, cosine, exact, dice, overlap, hamming\n'
+            + 'rank        ordered results, 0 = False, 1 = True\n'
+            + 'case        apply string casing, l/u\n'
+            + 'normalize_unicode  0 = False, 1 = True\n'
+            + 'formatter   json, yaml, csv, xml\n'
+            + 'tokenizer   nltk, spacy, ws, null\n'
+            + 'output      filename for results\n'
+        )
 
     prompt = prompt_symbol + ' '
     try:
         while True:
             query_or_cmd = input(prompt)
             if not enable_cmds:
-                print(obj.match(query_or_cmd, **params_values))
+                print(obj.match(query_or_cmd))
                 continue
 
             if query_or_cmd == 'exit()':
@@ -145,7 +146,7 @@ def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
                     option, value = query_or_cmd.split('=')
                     option = option.strip()
                     if option in params_values:
-                        value = value.strip()
+                        value = value.strip('\'" ')
                         params_values[option] = params_types[option](value)
                         print(f'Set value: {option} = {value}')
                     else:
@@ -298,7 +299,10 @@ def run(
         if matches is not None:
             print(matches)
     else:
-        repl_loop(f)
+        if isinstance(f.matcher, facet.matcher.BaseSimstring):
+            repl_loop(f)
+        else:
+            repl_loop(f, enable_cmds=False)
 
     f.close()
 
@@ -539,7 +543,10 @@ def client(config, host, port, query, formatter, output, dump_config):
             if matches is not None:
                 print(matches)
         else:
-            repl_loop(f)
+            if isinstance(f.matcher, facet.matcher.BaseSimstring):
+                repl_loop(f)
+            else:
+                repl_loop(f, enable_cmds=False)
 
 
 @click.command('server-shutdown', context_settings=CONTEXT_SETTINGS)

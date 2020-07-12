@@ -18,10 +18,7 @@ from typing import (
 )
 
 
-__all__ = [
-    'ElasticsearchDatabase',
-    'ElasticsearchKVDatabase',
-]
+__all__ = ['ElasticsearchDatabase']
 
 
 class Elasticsearchx(Elasticsearch):
@@ -131,6 +128,12 @@ class Elasticsearchx(Elasticsearch):
 class ElasticsearchDatabase(BaseDatabase):
     """Elasticsearch database interface.
 
+    Elasticsearch database interface with limited key/value related
+    methods.
+
+    Notes:
+        * In special methods, key = document ID, and value = document.
+
     Args:
         host (Any): Elasticsearch host(s).
 
@@ -188,6 +191,18 @@ class ElasticsearchDatabase(BaseDatabase):
     def __contains__(self, id):
         return NotImplemented
 
+    def __getitem__(self, id):
+        return NotImplemented
+
+    def __setitem__(self, id, body):
+        self.set(body, id=id)
+
+    def __delitem__(self, id):
+        self._db.delete(index=self._index, id=id)
+
+    def __iter__(self):
+        return self.ids()
+
     def get_config(self, **kwargs):
         return {
             'host': self._host,
@@ -231,6 +246,24 @@ class ElasticsearchDatabase(BaseDatabase):
     def scan(self, **kwargs):
         return self._db.scan({}, index=self._index, **kwargs)
 
+    def ids(self, **kwargs):
+        return map(
+            lambda x: x['_id'],
+            self._db.scan({}, index=self._index, **kwargs),
+        )
+
+    def items(self, **kwargs):
+        return map(
+            lambda x: (x['_id'], x['_source']),
+            self._db.scan({}, index=self._index, **kwargs),
+        )
+
+    def documents(self, **kwargs):
+        return map(
+            lambda x: x['_source'],
+            self._db.scan({}, index=self._index, **kwargs),
+        )
+
     def delete(self, id, **kwargs):
         self._db.delete(index=self._index, id=id, **kwargs)
 
@@ -258,41 +291,3 @@ class ElasticsearchDatabase(BaseDatabase):
     def clear(self, **kwargs):
         self._db.indices.delete(index=self._index, **kwargs)
         self._dbp = []
-
-
-class ElasticsearchKVDatabase(ElasticsearchDatabase):
-    """Elasticsearch database interface with limited key/value related
-    methods.
-
-    Notes:
-        * In special methods, key = document ID, and value = document.
-    """
-    def __getitem__(self, id):
-        return NotImplemented
-
-    def __setitem__(self, id, body):
-        self.set(body, id=id)
-
-    def __delitem__(self, id):
-        self._db.delete(index=self._index, id=id)
-
-    def __iter__(self):
-        return self.ids()
-
-    def ids(self, **kwargs):
-        return map(
-            lambda x: x['_id'],
-            self._db.scan({}, index=self._index, **kwargs),
-        )
-
-    def items(self, **kwargs):
-        return map(
-            lambda x: (x['_id'], x['_source']),
-            self._db.scan({}, index=self._index, **kwargs),
-        )
-
-    def documents(self, **kwargs):
-        return map(
-            lambda x: x['_source'],
-            self._db.scan({}, index=self._index, **kwargs),
-        )

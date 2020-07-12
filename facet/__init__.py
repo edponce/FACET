@@ -45,7 +45,6 @@ from .database import (
     SQLiteDatabase,
     MongoDatabase,
     ElasticsearchDatabase,
-    ElasticsearchKVDatabase,
 )
 from .serializer import (
     NullSerializer,
@@ -59,6 +58,7 @@ from .matcher import (
     Simstring,
     MongoSimstring,
     ElasticsearchSimstring,
+    ElasticsearchFuzzy,
 )
 from .matcher.ngram import (
     WordNgram,

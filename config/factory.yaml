@@ -143,6 +143,24 @@ FacetMongo:
         cols: 14
 
 
+FacetESFuzzy:
+    class: facet
+    matcher:
+        class: elasticsearch-fuzzy
+        db:
+            index: facet
+            host: localhost:9200
+            use_pipeline: true
+            access_mode: c
+        cache_db: null
+    tokenizer: ws
+    formatter: json
+    install:
+        data: data/umls/MRCONSO.RRF
+        delimiter: "|"
+        cols: 14
+
+
 UMLSMemory:
     class: umlsfacet
     conso_db: dict
@@ -322,7 +340,7 @@ UMLSESR:
     install: data/umls
 
 
-FacetMongoS:
+UMLSMongo:
     class: umlsfacet
     conso_db:
         class: sqlite
