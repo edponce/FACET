@@ -141,7 +141,6 @@ FacetMongo:
         data: data/umls/MRCONSO.RRF
         delimiter: "|"
         cols: 14
-        nrows: 30000
 
 
 UMLSMemory:
