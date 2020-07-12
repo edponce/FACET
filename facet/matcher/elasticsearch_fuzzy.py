@@ -6,7 +6,6 @@ from typing import (
     Dict,
     Tuple,
     Union,
-    Iterable,
 )
 
 
@@ -132,7 +131,10 @@ class ElasticsearchFuzzy(BaseMatcher):
                 query_in_cache = True
 
         if not query_in_cache:
-            query = self._prepare_query(string, **{**self._search_opts, **kwargs})
+            query = self._prepare_query(
+                string,
+                **{**self._search_opts, **kwargs},
+            )
             strings_and_similarities = [
                 (document['_source']['term'], document['_score'])
                 for document in self.db.get(query)['hits']['hits']
