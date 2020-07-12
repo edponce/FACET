@@ -80,9 +80,9 @@ class SQLiteDatabase(BaseKVDatabase):
 
     def __init__(
         self,
+        table: str,
         filename: str = ':memory:',
         *,
-        table: str = 'facet',
         access_mode: str = 'c',
         key_type=str,
         value_type=None,

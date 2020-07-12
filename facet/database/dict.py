@@ -39,9 +39,9 @@ class FileDictKVDatabase(BaseKVDatabase):
 
     def __init__(
         self,
-        filename,
+        filename: str,
         *,
-        access_mode='c',
+        access_mode: str = 'c',
         use_pipeline: bool = False,
         protocol=pickle.HIGHEST_PROTOCOL,
     ):

@@ -13,10 +13,12 @@ from .ngram import (
 from .base import BaseMatcher
 from .base_simstring import BaseSimstring
 from .simstring import Simstring
+from .mongo_simstring import MongoSimstring
 from .elasticsearch_simstring import ElasticsearchSimstring
 
 
 matcher_map = {
     'simstring': Simstring,
+    'mongo-simstring': MongoSimstring,
     'elasticsearch-simstring': ElasticsearchSimstring,
 }
