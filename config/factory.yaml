@@ -104,9 +104,9 @@ FacetES:
     class: facet
     matcher:
         class: elasticsearch-simstring
-        index: facet
         db:
-            host: localhost
+            index: facet
+            host: localhost:9200
             use_pipeline: true
             access_mode: c
         cache_db: null
@@ -119,6 +119,29 @@ FacetES:
         data: data/umls/MRCONSO.RRF
         delimiter: "|"
         cols: 14
+
+
+FacetMongo:
+    class: facet
+    matcher:
+        class: mongo-simstring
+        db:
+            database: facet
+            host: localhost
+            port: 27017
+            use_pipeline: true
+            access_mode: c
+        cache_db: null
+        alpha: 0.7
+        similarity: jaccard
+        ngram: character
+    tokenizer: ws
+    formatter: json
+    install:
+        data: data/umls/MRCONSO.RRF
+        delimiter: "|"
+        cols: 14
+        nrows: 30000
 
 
 UMLSMemory:
@@ -253,9 +276,10 @@ UMLSESS:
         check_same_thread: false
     matcher:
         class: elasticsearch-simstring
-        index: umls
         db:
+            index: umls
             host: localhost
+            port: 9200
             use_pipeline: true
             access_mode: c
         cache_db: null
@@ -286,9 +310,43 @@ UMLSESR:
     matcher:
         class: elasticsearch-simstring
         db:
-            host: localhost
+            index: umls
+            port: localhost:9200
             use_pipeline: true
-        index: umls
+            access_mode: c
+        cache_db: null
+        alpha: 0.7
+        similarity: jaccard
+        ngram: character
+    tokenizer: ws
+    formatter: json
+    install: data/umls
+
+
+FacetMongoS:
+    class: umlsfacet
+    conso_db:
+        class: sqlite
+        filename: db/umls
+        table: conso
+        access_mode: c
+        serializer: json
+        check_same_thread: false
+    cuisty_db:
+        class: sqlite
+        filename: db/umls
+        table: cuisty
+        access_mode: c
+        serializer: json
+        check_same_thread: false
+    matcher:
+        class: mongo-simstring
+        db:
+            database: umls
+            host: localhost
+            port: 27017
+            use_pipeline: true
+            access_mode: c
         cache_db: null
         alpha: 0.7
         similarity: jaccard

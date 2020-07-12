@@ -6,10 +6,7 @@ from elasticsearch.helpers import (
     parallel_bulk,
     streaming_bulk,
 )
-from .base import (
-    BaseDatabase,
-    BaseKVDatabase,
-)
+from .base import BaseDatabase
 from typing import (
     Any,
     List,
@@ -79,8 +76,8 @@ class Elasticsearchx(Elasticsearch):
         """Bulk index and create documents.
 
         Args:
-            documents (Iterable[Dict[str, Any]]): List of document fields/values
-                to index.
+            documents (Iterable[Dict[str, Any]]): List of document
+                fields/values to index.
 
             index (str): Index name to search.
 
@@ -153,9 +150,9 @@ class ElasticsearchDatabase(BaseDatabase):
 
     def __init__(
         self,
-        host: Any = 'localhost',
+        index: str,
         *,
-        index: str = 'facet',
+        host: Any = 'localhost:9200',
         access_mode: str = 'c',
         use_pipeline: bool = False,
         **conn_info,
@@ -170,6 +167,8 @@ class ElasticsearchDatabase(BaseDatabase):
 
         self.connect()
 
+        # NOTE: Need to revise database 'connect' method, so that it
+        # works correctly with 'clear', etc.
         # Reset database based on access mode
         if access_mode == 'n':
             self.clear()
@@ -241,14 +240,14 @@ class ElasticsearchDatabase(BaseDatabase):
 
     def commit(self, **kwargs):
         if self._is_connected and self._use_pipeline:
-            response = self._db.bulk_index(
-                self._dbp,
-                index=self._index,
-                **kwargs,
-            )
-            self._dbp = []
-            # self._db.flush(index=self._index, **kwargs)
-            return response
+            if self._dbp:
+                self._db.bulk_index(
+                    self._dbp,
+                    index=self._index,
+                    **kwargs,
+                )
+                self._dbp = []
+            # self._db.indices.flush(index=self._index, **kwargs)
 
     def disconnect(self):
         if self._is_connected:

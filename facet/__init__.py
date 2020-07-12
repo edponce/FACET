@@ -43,6 +43,7 @@ from .database import (
     DictDatabase,
     RedisDatabase,
     SQLiteDatabase,
+    MongoDatabase,
     ElasticsearchDatabase,
     ElasticsearchKVDatabase,
 )
@@ -56,6 +57,7 @@ from .serializer import (
 )
 from .matcher import (
     Simstring,
+    MongoSimstring,
     ElasticsearchSimstring,
 )
 from .matcher.ngram import (

@@ -18,11 +18,7 @@ jobs:
         python -m pip install --upgrade pip
     - name: Install FACET and dependencies
       run: |
-        pip install .[extra]
-        # spaCy language support
-        python -m spacy download en
-        # NLTK NLP
-        python scripts/setup_nltk.py
+        pip install .
     - name: Lint with flake8
       run: |
         tox -e lint
@@ -32,4 +28,5 @@ jobs:
     - name: Run FACET
       run: |
         source scripts/shell_completion.sh
-        facet run -c config/factory.yaml:AutoMemory
+        facet run --config config/factory.yaml:SimpleMemory --query "beautiful window in Apollo spacecraft"
+        # python facet/scripts/facet.py run --config config/factory.yaml:SimpleMemory --query "beautiful window in Apollo spacecraft"
