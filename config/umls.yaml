@@ -1,0 +1,62 @@
+UMLSES_INSTALL:
+    class: umlsfacet
+    conso_db:
+        class: sqlite
+        filename: db/umls
+        table: conso
+        access_mode: c
+        serializer: json
+    cuisty_db:
+        class: sqlite
+        filename: db/umls
+        table: cuisty
+        access_mode: c
+        serializer: json
+    matcher:
+        class: elasticsearch-simstring
+        db:
+            # Options for Elasticsearch()
+            index: umls
+            hosts: localhost:9200
+            use_pipeline: true
+            access_mode: c
+            thread_count: 4
+            settings:
+                number_of_shards: 1
+                number_of_replicas: 0
+                max_result_window: 10000
+        ngram: character
+
+
+UMLSES_SEARCH:
+    class: umlsfacet
+    conso_db:
+        class: sqlite
+        filename: db/umls
+        table: conso
+        access_mode: r
+        serializer: json
+        check_same_thread: false
+    cuisty_db:
+        class: sqlite
+        filename: db/umls
+        table: cuisty
+        access_mode: r
+        serializer: json
+        check_same_thread: false
+    matcher:
+        class: elasticsearch-simstring
+        db:
+            # Options for Elasticsearch()
+            index: umls
+            hosts: localhost:9200
+            access_mode: r
+            settings:
+                number_of_shards: 1
+                number_of_replicas: 0
+                max_result_window: 10000
+        alpha: 0.7
+        similarity: jaccard
+        ngram: character
+    tokenizer: alphanumeric
+    formatter: json
