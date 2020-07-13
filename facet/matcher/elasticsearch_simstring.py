@@ -41,7 +41,7 @@ class ElasticsearchSimstring(BaseSimstring):
         },
     }
 
-    _MAPPING = {
+    _MAPPINGS = {
         'mappings': {
             'properties': {
                 'term': {
@@ -78,7 +78,7 @@ class ElasticsearchSimstring(BaseSimstring):
                     if 'settings' in db
                     else type(self)._SETTINGS
                 ),
-                **type(self)._MAPPING,
+                **type(self)._MAPPINGS,
             },
             **db,
         )
@@ -94,16 +94,16 @@ class ElasticsearchSimstring(BaseSimstring):
 
         Args:
             size (int, Tuple[int, int]): Size (or range) to search for strings.
+                For range, search on [size[0], size[1]).
 
-            features (Iterable[str]): String features for search. If None, then
-                search only based on size.
+            features (str, Iterable[str]): String features for search.
+                If None, then search only based on size.
         """
         if isinstance(size, int):
             bool_body = {'must': {'match': {'sz': size}}}
         else:
             bool_body = {'must': {'range': {
-                # NOTE: Does ES has 'lt'? If so, remove -1.
-                'sz': {'gte': size[0], 'lte': size[1] - 1}
+                'sz': {'gte': size[0], 'lt': size[1]}
             }}}
 
         if features is not None:
@@ -117,8 +117,14 @@ class ElasticsearchSimstring(BaseSimstring):
             query = {'query': {'bool': bool_body}}
         return query
 
-    def get_strings(self, size: int, feature: str) -> List[str]:
+    def get_strings(
+        self,
+        size: Union[int, Tuple[int, int]],
+        feature: Union[str, Iterable[str]] = None,
+    ) -> List[str]:
         """Get strings corresponding to feature size and query feature."""
+        # NOTE: Can Elasticsearch return a response that does not includes
+        # all these fields (hits x2, _source)?
         query = self._prepare_query(size, feature)
         return [
             document['_source']['term']
