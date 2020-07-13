@@ -65,7 +65,6 @@ class BaseFacet(ABC):
             are: 'simstring', 'elasticsearch'.
 
         tokenizer (str, BaseTokenizer): Tokenizer instance or tokenizer name.
-            Valid tokenizers are: 'basic', 'ws', 'nltk', 'spacy'.
 
         formatter (str, BaseFormatter): Formatter instance or formatter name.
             Valid formatters are: 'json', 'yaml', 'xml', 'pickle', 'csv'.
@@ -78,7 +77,7 @@ class BaseFacet(ABC):
         self,
         *,
         matcher: Union[str, 'BaseMatcher'] = 'simstring',
-        tokenizer: Union[str, 'BaseTokenizer'] = 'ws',
+        tokenizer: Union[str, 'BaseTokenizer'] = 'alphanumeric',
         formatter: Union[str, 'BaseFormatter'] = None,
         use_proxy_install: bool = False,
     ):
@@ -156,15 +155,12 @@ class BaseFacet(ABC):
             best_match (bool): ?
 
             case (str, None): Controls string casing during insert/search.
-                Valid values are 'lL' (lower), 'uU' (upper), or None.
 
             normalize_unicode (bool): Enable Unicode normalization.
 
-            formatter (str): Formatter name. Valid formatters are: 'json',
-                'yaml', 'xml', 'pickle', 'csv'.
+            formatter (str): Formatter name.
 
-            tokenizer (str): Tokenizer name. Valid tokenizers are: 'basic',
-                'ws', 'nltk', 'spacy'.
+            tokenizer (str): Tokenizer name.
 
             output (str): Output file for match results.
 

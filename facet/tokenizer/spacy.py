@@ -12,18 +12,23 @@ class SpaCyTokenizer(BaseTokenizer):
     Args:
         language (str): Language to use for processing corpora.
             Default is 'en'.
+
+    Notes:
+        * Stopwords includes boolean words. If affirmation/negation is
+          desired, then these should be removed.
     """
 
-    def __init__(self, *, language: str = 'en'):
+    def __init__(self, *, language: str = 'en', **kwargs):
+        super().__init__(**kwargs)
+
         try:
             self._nlp = spacy.load(language)
         except KeyError:
-            err = f"Model for language '{language}' is not valid."
-            raise KeyError(err)
-        except OSError:
-            err = f"Please run 'python3 -m spacy download {language}'"
-            raise OSError(err)
-        self._stopwords = self._nlp.Defaults.stop_words
+            raise KeyError(f"Model for language '{language}' is not valid.")
+        except RuntimeError:
+            raise RuntimeError(f"Run 'python3 -m spacy download {language}'")
+
+        self.STOPWORDS = self._nlp.Defaults.stop_words
 
     def sentencize(self, text) -> Iterator['spacy.Span']:
         # len(Doc) == number of words
@@ -114,7 +119,7 @@ class SpaCyTokenizer(BaseTokenizer):
         return not(
             token.like_num
             or token.pos_ in {'ADP', 'DET', 'CONJ'}
-            or token.text in self._stopwords
+            or token.text in self.STOPWORDS
         )
 
     def _is_valid_middle_token(self, token) -> bool:
@@ -127,6 +132,6 @@ class SpaCyTokenizer(BaseTokenizer):
         return not(
             token.is_punct
             or token.is_space
-            or token.text in self._stopwords
+            or token.text in self.STOPWORDS
             or token.pos_ in {'ADP', 'DET', 'CONJ'}
         )

@@ -1,14 +1,17 @@
 from .base import BaseTokenizer
 from .nltk import NLTKTokenizer
+from .null import NullTokenizer
 from .spacy import SpaCyTokenizer
-from .basic import BasicTokenizer
+from .symbol import SymbolTokenizer
 from .whitespace import WhitespaceTokenizer
+from .alphanumeric import AlphaNumericTokenizer
 
 
 tokenizer_map = {
     'nltk': NLTKTokenizer,
     'spacy': SpaCyTokenizer,
-    'ws': WhitespaceTokenizer,
-    'basic': BasicTokenizer,
-    None: BasicTokenizer,
+    'whitespace': WhitespaceTokenizer,
+    'alphanumeric': AlphaNumericTokenizer,
+    None: NullTokenizer,
+    'symbol': SymbolTokenizer,
 }

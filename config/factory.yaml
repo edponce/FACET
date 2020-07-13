@@ -24,7 +24,7 @@ FacetMemory:
         alpha: 0.7
         similarity: jaccard
         ngram: character
-    tokenizer: ws
+    tokenizer: alphanumeric
     formatter: json
     install:
         data: data/umls/MRCONSO.RRF
@@ -43,7 +43,7 @@ FacetFile:
         alpha: 0.7
         similarity: jaccard
         ngram: character
-    tokenizer: ws
+    tokenizer: alphanumeric
     formatter: json
     use_proxy_install: true
     install:
@@ -67,7 +67,7 @@ FacetRedis:
         alpha: 0.7
         similarity: jaccard
         ngram: character
-    tokenizer: ws
+    tokenizer: alphanumeric
     formatter: json
     use_proxy_install: true
     install:
@@ -91,7 +91,7 @@ FacetSQL:
         alpha: 0.7
         similarity: jaccard
         ngram: character
-    tokenizer: ws
+    tokenizer: alphanumeric
     formatter: json
     use_proxy_install: true
     install:
@@ -113,7 +113,7 @@ FacetES:
         alpha: 0.7
         similarity: jaccard
         ngram: character
-    tokenizer: ws
+    tokenizer: alphanumeric
     formatter: json
     install:
         data: data/umls/MRCONSO.RRF
@@ -135,7 +135,7 @@ FacetMongo:
         alpha: 0.7
         similarity: jaccard
         ngram: character
-    tokenizer: ws
+    tokenizer: alphanumeric
     formatter: json
     install:
         data: data/umls/MRCONSO.RRF
@@ -153,7 +153,7 @@ FacetESFuzzy:
             use_pipeline: true
             access_mode: c
         cache_db: null
-    tokenizer: ws
+    tokenizer: alphanumeric
     formatter: json
     install:
         data: data/umls/MRCONSO.RRF
@@ -171,7 +171,7 @@ UMLSMemory:
         alpha: 0.7
         similarity: jaccard
         ngram: character
-    tokenizer: ws
+    tokenizer: alphanumeric
     formatter: json
     install:
         data: data/umls
@@ -196,7 +196,7 @@ UMLSFile:
         alpha: 0.7
         similarity: jaccard
         ngram: character
-    tokenizer: ws
+    tokenizer: alphanumeric
     formatter: json
     use_proxy_install: true
     install: data/umls
@@ -234,7 +234,7 @@ UMLSRedis:
         alpha: 0.7
         similarity: jaccard
         ngram: character
-    tokenizer: ws
+    tokenizer: alphanumeric
     formatter: json
     use_proxy_install: true
     install: data/umls
@@ -269,7 +269,7 @@ UMLSSQL:
         alpha: 0.7
         similarity: jaccard
         ngram: character
-    tokenizer: ws
+    tokenizer: alphanumeric
     formatter: json
     use_proxy_install: true
     install: data/umls
@@ -303,7 +303,7 @@ UMLSESS:
         alpha: 0.7
         similarity: jaccard
         ngram: character
-    tokenizer: ws
+    tokenizer: alphanumeric
     formatter: json
     install: data/umls
 
@@ -335,7 +335,7 @@ UMLSESR:
         alpha: 0.7
         similarity: jaccard
         ngram: character
-    tokenizer: ws
+    tokenizer: alphanumeric
     formatter: json
     install: data/umls
 
@@ -368,6 +368,6 @@ UMLSMongo:
         alpha: 0.7
         similarity: jaccard
         ngram: character
-    tokenizer: ws
+    tokenizer: alphanumeric
     formatter: json
     install: data/umls
