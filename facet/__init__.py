@@ -36,8 +36,9 @@ from .formatter import (
 from .tokenizer import (
     NLTKTokenizer,
     SpaCyTokenizer,
-    BasicTokenizer,
+    SymbolTokenizer,
     WhitespaceTokenizer,
+    AlphaNumericTokenizer,
 )
 from .database import (
     DictDatabase,

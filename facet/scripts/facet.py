@@ -111,7 +111,7 @@ def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
             + 'case        apply string casing, l/u\n'
             + 'normalize_unicode  0 = False, 1 = True\n'
             + 'formatter   json, yaml, csv, xml\n'
-            + 'tokenizer   nltk, spacy, ws, null\n'
+            + 'tokenizer   nltk, spacy, whitespace, symbol, null\n'
             + 'output      filename for results\n'
         )
 
@@ -216,8 +216,10 @@ def cli():
 )
 @click.option(
     '-t', '--tokenizer',
-    type=click.Choice(('basic', 'ws', 'nltk', 'spacy')),
-    default='ws',
+    type=click.Choice(
+        ('alphanumeric', 'whitespace', 'symbol', 'nltk', 'spacy', 'null')
+    ),
+    default='alphanumeric',
     show_default=True,
     help='Tokenizer for text procesing.',
 )
@@ -368,8 +370,10 @@ def run(
 )
 @click.option(
     '-t', '--tokenizer',
-    type=click.Choice(('basic', 'ws', 'nltk', 'spacy')),
-    default='ws',
+    type=click.Choice(
+        ('alphanumeric', 'whitespace', 'symbol', 'nltk', 'spacy', 'null',)
+    ),
+    default='alphanumeric',
     show_default=True,
     help='Tokenizer for text procesing.',
 )
