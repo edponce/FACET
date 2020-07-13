@@ -21,9 +21,9 @@ __all__ = ['FacetFactory']
 class FacetFactory:
     """Creates a FACET instance from a given configuration."""
 
-    DEFAULT_OBJ = 'facet'
+    _DEFAULT_OBJ = 'facet'
 
-    OBJTYPE_CLASSMAP_MAP = {
+    _OBJTYPE_CLASSMAP_MAP = {
         'tokenizer': tokenizer_map,
         'formatter': formatter_map,
         'database': database_map,
@@ -37,7 +37,7 @@ class FacetFactory:
     # associated object type. If the OBJ_CLASS_LABEL exists as an attribute
     # then it is considered as an object. Only parameters that have a different
     # name from the object type are listed here.
-    PARAM_OBJTYPE_MAP = {
+    _PARAM_OBJTYPE_MAP = {
         'db': 'database',         # Matcher database
         'cache_db': 'database',   # Matcher cache database
         'cuisty_db': 'database',  # (UMLSFacet) CUI-STY database
@@ -46,7 +46,7 @@ class FacetFactory:
 
     # NOTE: These are CLI parameters that should be removed so that factory
     # can be use programatically using the same CLI-based configuration files.
-    INVALID_KEYS = {
+    _INVALID_KEYS = {
         'query',
         'output',
         'install',
@@ -57,7 +57,7 @@ class FacetFactory:
 
     # Configuration keyword used to specify classes.
     # Keyword can be modified in case it is the same as a class parameter.
-    OBJ_CLASS_LABEL = 'class'
+    _OBJ_CLASS_LABEL = 'class'
 
     def __init__(
         self,
@@ -67,18 +67,31 @@ class FacetFactory:
     ):
         self._config = load_configuration(config, keys=section)
         # NOTE: Remove CLI-specific parameters
-        for key in type(self).INVALID_KEYS:
+        for key in type(self)._INVALID_KEYS:
             if key in self._config:
                 del self._config[key]
+
+    def get_config(self):
+        return self._config
+
+    def get_class(self):
+        """Returns the FACET class type.
+
+        Notes:
+            * Useful to set the 'target_class' parameter for
+              facet.network.SocketClient
+        """
+        if 'class' in self._config:
+            return facet_map[self._config['class']]
 
     def create(self):
         """Create a new FACET instance."""
         # NOTE: Copy configuration because '_parse_config_map()' modifies it.
         config = copy.deepcopy(self._config)
         obj_class = (
-            config.pop(type(self).OBJ_CLASS_LABEL).lower()
-            if type(self).OBJ_CLASS_LABEL in config
-            else type(self).DEFAULT_OBJ
+            config.pop(type(self)._OBJ_CLASS_LABEL).lower()
+            if type(self)._OBJ_CLASS_LABEL in config
+            else type(self)._DEFAULT_OBJ
         )
         return facet_map[obj_class](**self._parse_config_map(config))
 
@@ -98,19 +111,19 @@ class FacetFactory:
             # It is an object, with class and parameters
             if isinstance(v, dict):
                 # If parameter is a dictionary representing an object.
-                if type(self).OBJ_CLASS_LABEL in v:
+                if type(self)._OBJ_CLASS_LABEL in v:
                     # NOTE: If a parameter name matches a key in
                     # PARAM_OBJTYPE_MAP but it is not actually an
                     # object-based parameter.
-                    obj_type = type(self).PARAM_OBJTYPE_MAP.get(k, k)
-                    obj_class = v.pop(type(self).OBJ_CLASS_LABEL).lower()
+                    obj_type = type(self)._PARAM_OBJTYPE_MAP.get(k, k)
+                    obj_class = v.pop(type(self)._OBJ_CLASS_LABEL).lower()
                     if (
-                        obj_type in type(self).OBJTYPE_CLASSMAP_MAP
+                        obj_type in type(self)._OBJTYPE_CLASSMAP_MAP
                         and
-                        obj_class in type(self).OBJTYPE_CLASSMAP_MAP[obj_type]
+                        obj_class in type(self)._OBJTYPE_CLASSMAP_MAP[obj_type]
                     ):
                         obj_params = self._parse_config_map(v)
-                        v = type(self).OBJTYPE_CLASSMAP_MAP[
+                        v = type(self)._OBJTYPE_CLASSMAP_MAP[
                             obj_type
                         ][obj_class](**obj_params)
                 else:
@@ -121,13 +134,13 @@ class FacetFactory:
                 # NOTE: If a parameter name matches a key in
                 # PARAM_OBJTYPE_MAP but it is not actually an
                 # object-based parameter.
-                obj_type = type(self).PARAM_OBJTYPE_MAP.get(k, k)
+                obj_type = type(self)._PARAM_OBJTYPE_MAP.get(k, k)
                 obj_class = v.lower()
                 if (
-                    obj_type in type(self).OBJTYPE_CLASSMAP_MAP
-                    and obj_class in type(self).OBJTYPE_CLASSMAP_MAP[obj_type]
+                    obj_type in type(self)._OBJTYPE_CLASSMAP_MAP
+                    and obj_class in type(self)._OBJTYPE_CLASSMAP_MAP[obj_type]
                 ):
-                    v = type(self).OBJTYPE_CLASSMAP_MAP[obj_type][obj_class]()
+                    v = type(self)._OBJTYPE_CLASSMAP_MAP[obj_type][obj_class]()
 
             factory_config[k] = v
         return factory_config
