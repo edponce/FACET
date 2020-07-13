@@ -6,9 +6,14 @@
 #   source shell_completion.sh
 #   cat shell_completion.sh >> ~/.<shell>rc
 
-if [ "$(command -v readlink)" ]; then
-    shell=$(basename "$(readlink -n $SHELL)")
-else
+if [ "$(command -v realpath)" ]; then
+    shell=$(basename "$(realpath $SHELL)")
+elif [ "$(command -v readlink)" ]; then
+    shell=$(basename "$(readlink $SHELL)")
+fi
+
+# NOTE: Previous commands may return no value, so consider shell path as is.
+if [ -z "$shell" ]; then
     shell=$(basename "$SHELL")
 fi
 
