@@ -71,7 +71,15 @@ class ElasticsearchSimstring(BaseSimstring):
         super().__init__(**kwargs)
         self.db = ElasticsearchDatabase(
             index=db.pop('index', 'facet'),
-            body={**type(self)._SETTINGS, **type(self)._MAPPING},
+            index_body={
+                # NOTE: Check key, then pop, to allow forming {key: map}.
+                **(
+                    {'settings': db.pop('settings')}
+                    if 'settings' in db
+                    else type(self)._SETTINGS
+                ),
+                **type(self)._MAPPING,
+            },
             **db,
         )
 

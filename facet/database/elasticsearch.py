@@ -135,9 +135,12 @@ class ElasticsearchDatabase(BaseDatabase):
         * In special methods, key = document ID, and value = document.
 
     Args:
-        host (Any): Elasticsearch host(s).
+        hosts (Any): Elasticsearch host(s).
 
         index (str): Index name.
+
+        index_body (Dict[str, Any]): Mapping and settings for index.
+            Only used during index creation.
 
         access_mode (str): Access mode for database.
             Valid values are: 'r' = read-only, 'w' = read/write,
@@ -155,14 +158,15 @@ class ElasticsearchDatabase(BaseDatabase):
         self,
         index: str,
         *,
-        host: Any = 'localhost:9200',
+        index_body: Dict[str, Any] = None,
+        hosts: Any = 'localhost:9200',
         access_mode: str = 'c',
         use_pipeline: bool = False,
         **conn_info,
     ):
         self._db = None
         self._dbp = []
-        self._host = host
+        self._hosts = hosts
         self._index = index
         self._use_pipeline = use_pipeline
         self._is_connected = False
@@ -182,7 +186,7 @@ class ElasticsearchDatabase(BaseDatabase):
         ):
             self._db.indices.create(
                 index=index,
-                body=self._conn_info.pop('body', None),
+                body=index_body,
             )
 
     def __len__(self):
@@ -205,7 +209,7 @@ class ElasticsearchDatabase(BaseDatabase):
 
     def get_config(self, **kwargs):
         return {
-            'host': self._host,
+            'hosts': self._hosts,
             'index': self._index,
             'memory usage': (
                 self._db.indices.stats(
@@ -268,7 +272,7 @@ class ElasticsearchDatabase(BaseDatabase):
         self._db.delete(index=self._index, id=id, **kwargs)
 
     def connect(self):
-        self._db = Elasticsearchx(self._host, **self._conn_info)
+        self._db = Elasticsearchx(self._hosts, **self._conn_info)
         self._is_connected = True
 
     def commit(self, **kwargs):

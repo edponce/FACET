@@ -106,7 +106,7 @@ FacetES:
         class: elasticsearch-simstring
         db:
             index: facet
-            host: localhost:9200
+            hosts: localhost:9200
             use_pipeline: true
             access_mode: c
         cache_db: null
@@ -149,7 +149,7 @@ FacetESFuzzy:
         class: elasticsearch-fuzzy
         db:
             index: facet
-            host: localhost:9200
+            hosts: localhost:9200
             use_pipeline: true
             access_mode: c
         cache_db: null
@@ -295,8 +295,7 @@ UMLSESS:
         class: elasticsearch-simstring
         db:
             index: umls
-            host: localhost
-            port: 9200
+            hosts: localhost:9200
             use_pipeline: true
             access_mode: c
         cache_db: null
@@ -328,7 +327,7 @@ UMLSESR:
         class: elasticsearch-simstring
         db:
             index: umls
-            port: localhost:9200
+            hosts: localhost:9200
             use_pipeline: true
             access_mode: c
         cache_db: null
