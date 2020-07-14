@@ -34,6 +34,7 @@ from .formatter import (
     PickleFormatter,
 )
 from .tokenizer import (
+    NullTokenizer,
     NLTKTokenizer,
     SpaCyTokenizer,
     SymbolTokenizer,
