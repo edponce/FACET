@@ -13,7 +13,7 @@ FACET Command Line Interface
 FACET API
 ---------
 
-.. .. autoclass:: facet.facets.base.BaseFacet
+.. .. autoclass:: facet.facets.BaseFacet
 ..     :members:
 
 .. autoclass:: facet.Facet
@@ -33,7 +33,13 @@ Tokenizer
 .. autoclass:: facet.tokenizer.BaseTokenizer
     :members:
 
-.. autoclass:: facet.BasicTokenizer
+.. autoclass:: facet.NullTokenizer
+    :members:
+
+.. autoclass:: facet.SymbolTokenizer
+    :members:
+
+.. autoclass:: facet.AlphaNumericTokenizer
     :members:
 
 .. autoclass:: facet.WhitespaceTokenizer
