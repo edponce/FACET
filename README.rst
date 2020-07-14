@@ -34,7 +34,7 @@ Features
 * Easy to scale up, run locally, or containerize
 * Stores extracted annotations in serializable and/or human-readable formats
 
-.. figure:: figures/FACET.png
+.. figure:: doc/figures/FACET.png
    :scale: 70 %
    :alt: FACET client/server scheme
 
