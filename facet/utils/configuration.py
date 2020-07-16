@@ -1,4 +1,7 @@
 import os
+import re
+import sys
+import copy
 import yaml
 import json
 import urllib.parse
@@ -171,13 +174,79 @@ rawCSVToken = (
 )
 
 
-def parse_string(string, protect_numerics=False):
+def interpolate(obj: dict, *, regex: '_sre.SRE_MATCH' = None):
+    """Recursively interpolate dictionary values based on a regular expression.
+
+    Dictionary is traversed in a depth-first manner and supports out-of-order
+    chained interpolations.
+
+    Interpolation values are represented by keys enclosed in '${{...}}'.
+    An arbitrary number of consecutive keys can be specified by delimiting
+    them with a colon, ':'. Note that keys can be strings for dictionaries
+    or indices for indexable iterables.
+
+    Example:
+        ${{key}} - substitute current value with dict[key]
+        ${{key1:key2}} - substitute current value with dict[key1][key2]
+        ${{key:2}} - substitute current value with dict[key][2]
+    """
+    if not regex:
+        regex = re.compile(r'\${{([^}]+)}}')
+
+    # Get handle to root of object, so that we can do a forward search
+    # for interpolation.
+    root = obj
+
+    def _interpolate(obj: dict):
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                obj[k] = _interpolate(v)
+        elif isinstance(obj, (list, tuple, set)):
+            obj = type(obj)([_interpolate(v) for v in obj])
+        elif isinstance(obj, str):
+            match = regex.fullmatch(obj)
+            if match:
+                # Do not modify handle to root
+                value = root
+                for key in match.group(1).split(':'):
+                    if isinstance(value, dict):
+                        value = value[key]
+                    else:
+                        value = value[int(key)]
+                obj = copy.deepcopy(_interpolate(value))
+        return obj
+    return _interpolate(obj)
+
+
+def expand_envvars(obj):
+    """Recursively parse user and environment variables in data structures."""
+    # NOTE: To support values of the forms key:value and key=value pairs,
+    # 'parse_string' does not recurses, so we let the result data to be
+    # checked for instances of data structures that need subsequent parsing.
+    if isinstance(obj, str):
+        obj = os.path.expandvars(os.path.expanduser(obj))
+
+    if isinstance(obj, dict):
+        # NOTE: Keys are not modified
+        obj = {k: expand_envvars(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple, set)):
+        obj = type(obj)([expand_envvars(v) for v in obj])
+
+    return obj
+
+
+def parse_string(string, protect_numerics=True):
+    """Parse string based on a grammar and resolve environment variables.
+
+    Args:
+        protect_numerics (bool): If set, numbers are not parsed. Used only
+            for YAML/JSON file configurations because their loaders parse
+            numeric data.
+    """
     # Get copy of original string, to return it in case of invalid/error
     orig_string = string
 
-    # Case: Protect string numerics --> Do not parse
-    # NOTE: Used only for YAML/JSON file configurations because their loaders
-    # parse the data.
+    # Case: Protect string numerics (do not parse)
     if protect_numerics:
         try:
             float(string)
@@ -185,6 +254,12 @@ def parse_string(string, protect_numerics=False):
             pass
         else:
             return string
+
+    # Case: Expand user and environment variables
+    # NOTE: Even though environment variables should have been resolved
+    # prior to these parsing actions, for values with composite line values
+    # (e.g., CSV of key=value pairs), we resolve those internal values as well.
+    string = expand_envvars(string)
 
     # Case: Non-enclosed CSV --> Convert to a tuple
     try:
@@ -195,26 +270,62 @@ def parse_string(string, protect_numerics=False):
         string = '(' + string + ')'
 
     try:
+        # NOTE: Parser does not parses correctly a value that begins with
+        # numbers followed by other characters, e.g., value=2a.
         return pyparser.parseString(string, parseAll=True)[0]
     except pyparsing.ParseException:
         return orig_string
 
 
 def parse(obj, **kwargs):
-    """Parse arbitrary objects."""
+    """Recursively parse data structures."""
+    # NOTE: Given that ConfigParser may be applied before this parsing and
+    # ConfigParser only allows a single level of key/value pairs, nested
+    # structures are stringified, and 'parse_string' does not recurses, so
+    # we let the result data to be checked for instances of data structures
+    # that need subsequent parsing.
     if isinstance(obj, str):
-        return parse_string(obj, **kwargs)
-    elif isinstance(obj, dict):
+        obj = parse_string(obj, **kwargs)
+
+    if isinstance(obj, dict):
         # NOTE: Keys are not modified
-        return {k: parse(v, **kwargs) for k, v in obj.items()}
+        obj = {k: parse(v, **kwargs) for k, v in obj.items()}
     elif isinstance(obj, (list, tuple, set)):
-        return type(obj)([parse(v, **kwargs) for v in obj])
-    else:
-        return obj
+        obj = type(obj)([parse(v, **kwargs) for v in obj])
+
+    return obj
+
+
+def fix_configparser(obj, **kwargs):
+    """Recursively parse data structures previously parsed by ConfigParser."""
+    # NOTE: Given that ConfigParser only allows a single level of
+    # key/value pairs, nested structures are stringified, so we apply regex
+    # transformations to conform those strings for 'parse_string()'.
+    if isinstance(obj, str):
+        # Fix first nested element in mulitline values
+        obj = re.sub(r'=\s*', '=', obj.strip())
+
+        # Change nested elements in same level to be a CSV string
+        obj = re.sub(r'\n', ',', obj.strip())
+
+        # Quote interpolation strings
+        obj = re.sub(r'["\']?(\${{[^}]+}})["\']?', r'"\1"', obj)
+
+        obj = parse_string(obj, **kwargs)
+
+        # Enable numeric protection for subsequent 'parse_string()'
+        kwargs['protect_numerics'] = True
+
+    if isinstance(obj, dict):
+        obj = {k: fix_configparser(v, **kwargs) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple, set)):
+        obj = type(obj)([fix_configparser(v, **kwargs) for v in obj])
+
+    return obj
 
 
 def parse_with_configparser(config):
-    """Parse using configparser.
+    """Parse with ConfigParser.
 
     Args:
         config (str, Dict[str, Any]): Configuration data/file to parse.
@@ -223,31 +334,39 @@ def parse_with_configparser(config):
         delimiters=('=',),
         # Support None type produced by JSON/YAML parsers
         allow_no_value=True,
-        interpolation=configparser.ExtendedInterpolation(),
     )
 
     # Leave options (keys) unchanged, do not lowercase
     parser.optionxform = lambda option: option
 
+    # Expand environment variables
+    config = expand_envvars(config)
+
     # Parse data
     if isinstance(config, str):
         if os.path.isfile(config):
-            with open(config) as fd:
-                parser.read_file(fd, source=config)
-        else:
-            parser.read_string(config)
+            filename = config
+            with open(filename) as fd:
+                config = fd.read()
+            # NOTE: Expand environment variables from loaded data
+            config = expand_envvars(config)
+
+        parser.read_string(config)
     elif isinstance(config, dict):
         parser.read_dict(config)
     else:
-        raise ValueError('invalid configuration data/file for configparser')
+        raise ValueError('invalid configuration file/data for ConfigParser')
 
-    # Convert ConfigParser to dict (if available, include defaults)
+    # Convert ConfigParser to dict (include defaults, if available)
     config = {
         section: dict(parser[section])
         for section in parser.sections()
     }
     if len(parser.defaults()) > 0:
         config[parser.default_section] = dict(parser.defaults())
+
+    # Fix multiline options
+    config = fix_configparser(config, protect_numerics=False)
 
     return config
 
@@ -266,12 +385,11 @@ def load_configuration_from_string(data):
         try:
             config = yaml.safe_load(data)
         except yaml.parser.ParserError:
-            config = data
-
-    try:
-        return parse_with_configparser(config)
-    except Exception:
-        return config
+            try:
+                config = parse_with_configparser(data)
+            except Exception:
+                raise ValueError('invalid configuration string')
+    return config
 
 
 def load_configuration_from_file(filename, file_type=None):
@@ -284,7 +402,7 @@ def load_configuration_from_file(filename, file_type=None):
         dict[str:Any]: Configuration mapping
         None: If error/invalid occurs during parsing
     """
-    # Get file extension/format
+    filename = expand_envvars(filename)
     if not file_type:
         _, ext = os.path.splitext(filename)
         file_type = ext[1:]
@@ -297,20 +415,24 @@ def load_configuration_from_file(filename, file_type=None):
         with open(filename) as fd:
             config = json.load(fd)
     elif file_type in ('ini', 'cfg', 'conf'):
-        config = filename
+        config = parse_with_configparser(filename)
     else:
-        raise ValueError('invalid configuration file')
+        raise ValueError(f"invalid configuration file type, '{file_type}'")
+    return config
 
-    return parse_with_configparser(config)
 
+def load_configuration(config, *, keys=None, file_type=None, delimiter=':'):
+    """Load/parse configuration from a file/string/mapping into a mapping.
 
-def load_configuration(data, keys=None, file_type=None, delimiter=':'):
-    """Load configuration from file/string.
+    Note:
+        * The transformations are idempotent with regards to the resulting
+          configuration mapping.
 
     Args:
-        data (str, dict): Configuration file/data to parse.
+        config (str, dict): Configuration file/data to parse.
             File can embed keys via format: 'file.conf:key1:key2:...'
-            Embedded keys supersede parameter keys.
+            Embedded keys supersede parameter keys. String formats can be
+            dictionary-like or comma-delimited key=value pairs.
 
         keys (str, list[str]): Extract only data from configuration
             corresponding to key. If multiple keys are provided, they
@@ -323,35 +445,54 @@ def load_configuration(data, keys=None, file_type=None, delimiter=':'):
     Returns:
         dict[str:Any]: Configuration mapping
     """
-    if isinstance(data, str):
-        file_keys = data.split(delimiter)
-        if os.path.isfile(file_keys[0]):
-            data, *tmp_keys = file_keys
+    if isinstance(config, str):
+        config = expand_envvars(config)
+        filename, *tmp_keys = config.split(delimiter)
+        if os.path.isfile(filename):
             # Embedded keys supersede parameter keys
             if len(tmp_keys) > 0:
                 keys = tmp_keys
-            config = load_configuration_from_file(data, file_type=file_type)
+            config = load_configuration_from_file(
+                filename,
+                file_type=file_type,
+            )
+            # If only a single configuration block, then use it
+            if not keys and len(config) == 1:
+                keys = list(config.keys())
+
+        # NOTE: Consider a string with no data structure related symbols to
+        # be a filename. The symbols are based on the general parser.
+        elif filename and not any(x in filename for x in PUNCTUATIONS):
+            raise ValueError(
+                f"configuration file does not exists, '{filename}'"
+            )
         else:
-            config = load_configuration_from_string(data)
-    elif isinstance(data, dict):
-        config = data
-    elif data is None:
+            config = load_configuration_from_string(config)
+
+    elif isinstance(config, dict):
+        config = expand_envvars(config)
+    elif config is not None:
+        raise ValueError(f"invalid configuration data type, '{type(config)}'")
+
+    if not config:
+        print('Warning: no configuration detected', file=sys.stderr)
         return {}
-    else:
-        raise ValueError('invalid configuration data type')
 
     # Normalize strings and types based on a grammar
     config = parse(config)
 
-    # Filter data based on keys.
+    # Interpolate/substitute values
+    config = interpolate(config)
+
+    # Filter configuration based on keys
     if keys:
         if isinstance(keys, str):
             keys = [keys]
 
-        tmp_config = {}
+        filtered_config = {}
         for key in keys:
-            tmp_config.update(config[key])
-        config = tmp_config
+            filtered_config.update(config[key])
+        config = filtered_config
 
     return config
 
@@ -417,9 +558,3 @@ def parse_address_query(query: str):
 
 def unparse_address_query(query: dict):
     return '&'.join(map(lambda x: '='.join(x), query.items()))
-
-
-def parse_filename(filename):
-    fdir, fname = os.path.split(filename)
-    fdir = os.path.abspath(fdir) if fdir else os.getcwd()
-    return fdir, fname

@@ -5,7 +5,10 @@ from abc import (
     abstractmethod,
 )
 from unidecode import unidecode
-from ..utils import corpus_generator
+from ..utils import (
+    corpus_generator,
+    expand_envvars,
+)
 from ..matcher import (
     matcher_map,
     BaseMatcher,
@@ -234,11 +237,11 @@ class BaseFacet(ABC):
 
         return formatter(matches, output=output)
 
-    def install(self, data, **kwargs):
+    def install(self, filename, **kwargs):
         """Install data.
 
         Args:
-            data (str): File with data to install.
+            filename (str): File with data to install.
 
         Kwargs:
             Options passed directly to '*load_data()' function method via
@@ -248,7 +251,7 @@ class BaseFacet(ABC):
             prof = cProfile.Profile(subcalls=True, builtins=True)
             prof.enable()
 
-        self._install(data, **kwargs)
+        self._install(expand_envvars(filename), **kwargs)
 
         if PROFILE:
             prof.disable()

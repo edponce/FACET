@@ -3,7 +3,7 @@ import sys
 import shelve
 import pickle
 from .base import BaseKVDatabase
-from ..utils import parse_filename
+from ..utils import expand_envvars
 
 
 __all__ = [
@@ -53,7 +53,7 @@ class FileDictKVDatabase(BaseKVDatabase):
         self._protocol = protocol
         self._is_connected = False
 
-        db_dir, db_base = parse_filename(filename)
+        db_dir, db_base = os.path.split(expand_envvars(filename))
         if access_mode in ('c', 'n'):
             os.makedirs(db_dir, exist_ok=True)
         self._name = filename

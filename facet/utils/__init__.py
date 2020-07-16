@@ -10,5 +10,5 @@ from .configuration import (
     unparse_address,
     parse_address_query,
     unparse_address_query,
-    parse_filename,
+    expand_envvars,
 )

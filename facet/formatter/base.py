@@ -2,6 +2,7 @@ from abc import (
     ABC,
     abstractmethod,
 )
+from ..utils import expand_envvars
 from typing import (
     Any,
     List,
@@ -24,13 +25,13 @@ class BaseFormatter(ABC):
     ) -> Any:
         formatted_data = self._format(data)
 
-        if not output:
+        if output:
+            with open(expand_envvars(output), 'w') as fd:
+                # NOTE: Explicit conversion to string, if format is None we
+                # want to return the data as is and be able to write to file.
+                fd.write(str(formatted_data))
+        else:
             return formatted_data
-
-        with open(output, 'w') as fd:
-            # NOTE: Explicit conversion to string, if format is None we
-            # want to return the data as is and be able to write to file.
-            fd.write(str(formatted_data))
 
     @abstractmethod
     def _format(self, data) -> Union[str, bytes]:

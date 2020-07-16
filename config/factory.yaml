@@ -27,7 +27,7 @@ FacetMemory:
     tokenizer: alphanumeric
     formatter: json
     install:
-        data: data/umls/MRCONSO.RRF
+        filename: data/umls/MRCONSO.RRF
         delimiter: "|"
         cols: 14
 
@@ -47,7 +47,7 @@ FacetFile:
     formatter: json
     use_proxy_install: true
     install:
-        data: data/umls/MRCONSO.RRF
+        filename: data/umls/MRCONSO.RRF
         delimiter: "|"
         cols: 14
 
@@ -71,7 +71,7 @@ FacetRedis:
     formatter: json
     use_proxy_install: true
     install:
-        data: data/umls/MRCONSO.RRF
+        filename: data/umls/MRCONSO.RRF
         delimiter: "|"
         cols: 14
 
@@ -95,7 +95,7 @@ FacetSQL:
     formatter: json
     use_proxy_install: true
     install:
-        data: data/umls/MRCONSO.RRF
+        filename: data/umls/MRCONSO.RRF
         delimiter: "|"
         cols: 14
 
@@ -116,7 +116,7 @@ FacetES:
     tokenizer: alphanumeric
     formatter: json
     install:
-        data: data/umls/MRCONSO.RRF
+        filename: data/umls/MRCONSO.RRF
         delimiter: "|"
         cols: 14
 
@@ -138,7 +138,7 @@ FacetMongo:
     tokenizer: alphanumeric
     formatter: json
     install:
-        data: data/umls/MRCONSO.RRF
+        filename: data/umls/MRCONSO.RRF
         delimiter: "|"
         cols: 14
 
@@ -156,7 +156,7 @@ FacetESFuzzy:
     tokenizer: alphanumeric
     formatter: json
     install:
-        data: data/umls/MRCONSO.RRF
+        filename: data/umls/MRCONSO.RRF
         delimiter: "|"
         cols: 14
 
@@ -173,8 +173,7 @@ UMLSMemory:
         ngram: character
     tokenizer: alphanumeric
     formatter: json
-    install:
-        data: data/umls
+    install: data/umls
 
 
 UMLSFile:

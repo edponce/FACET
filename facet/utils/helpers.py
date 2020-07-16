@@ -1,6 +1,7 @@
 import os
 import pandas
 import collections
+from .configuration import expand_envvars
 from typing import (
     Any,
     List,
@@ -415,7 +416,7 @@ def unpack_dir(
     files = []
     for file_or_dir in os.listdir(adir):
         fd = os.path.join(adir, file_or_dir)
-        if os.path.isdir(fd) and recursive:
+        if recursive and os.path.isdir(fd):
             files.extend(unpack_dir(fd))
         elif os.path.isfile(fd):
             if not hidden and os.path.basename(fd).startswith('.'):
@@ -437,7 +438,7 @@ def corpus_generator(
             * Directory
             * File
             * Raw text
-            * An iterable with two parts: (filename, text)
+            * An iterable with two parts: (filename_or_id, text)
             * An iterable of any combination of the above
 
         phony (bool): If set, attr:`corpora` items are not considered
@@ -457,12 +458,13 @@ def corpus_generator(
     # Convert corpus into iterable of iterables [(filename1, text), (...), ...]
     # File format: (filename, None)
     # Raw text format: (None, text)
-    # Filename and raw text format: (filename, text)
+    # Filename and raw text format: (filename_or_id, text)
     # Directory format: (dir, None)
 
     if not phony:
         _corpora = []
         for corpus in corpora:
+            corpus = expand_envvars(corpus)
             if os.path.isdir(corpus):
                 _corpora.extend(unpack_dir(corpus, **kwargs))
             else:
@@ -471,6 +473,7 @@ def corpus_generator(
         _corpora = corpora
 
     for corpus in _corpora:
+        corpus = expand_envvars(corpus)
         # Assume corpus is raw text if it is not a file system object.
         if phony or not os.path.exists(corpus):
             yield '__text__', corpus

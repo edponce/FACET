@@ -23,7 +23,7 @@ class Facet(BaseFacet):
 
     def _install(
         self,
-        data: str,
+        filename: str,
         *,
         cols: Union[int, Iterable[int]] = 0,
         **kwargs,
@@ -31,7 +31,7 @@ class Facet(BaseFacet):
         """Install.
 
         Args:
-            data (str): File with data to install.
+            filename (str): File with data to install.
 
         Kwargs:
             Options passed directly to '*load_data()' function.
@@ -45,7 +45,7 @@ class Facet(BaseFacet):
         print('Loading/parsing data...')
         start = time.time()
         data = iload_data(
-            data,
+            filename,
             keys=cols,
             converters={cols[0]: [unidecode, str.lower]},
             **kwargs,

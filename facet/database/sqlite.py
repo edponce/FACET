@@ -4,9 +4,9 @@ import sqlite3
 import urllib.parse
 from .base import BaseKVDatabase
 from ..utils import (
-    parse_filename,
     parse_address_query,
     unparse_address_query,
+    expand_envvars,
     get_obj_map_key,
 )
 from ..serializer import (
@@ -130,7 +130,7 @@ class SQLiteDatabase(BaseKVDatabase):
 
         # Create path/file for persistent database
         if parsed.path != ':memory:' and mode != 'memory':
-            db_dir, db_base = parse_filename(parsed.path)
+            db_dir, db_base = os.path.split(expand_envvars(parsed.path))
             if access_mode == 'c':
                 os.makedirs(db_dir, exist_ok=True)
             elif access_mode == 'n':

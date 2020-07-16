@@ -5,7 +5,6 @@ import copy
 import click
 import signal
 import socket
-import functools
 import facet
 from typing import (
     Any,
@@ -24,11 +23,8 @@ CONTEXT_SETTINGS = {
 }
 
 
-DEFAULT_SECTION = 'FACET'
-
-
-def load_config(ctx, param, config: str, key=None):
-    return facet.utils.load_configuration(config, keys=key)
+def load_config(ctx, param, config: str):
+    return facet.utils.load_configuration(config)
 
 
 def parse_dump_configuration(output: str, format='yaml'):
@@ -169,7 +165,7 @@ def cli():
 @click.option(
     '-c', '--config',
     type=str,
-    callback=functools.partial(load_config, key=DEFAULT_SECTION),
+    callback=load_config,
     help=(
         'Configuration file of either "file" or "file:section" form. '
         'Default section is "FACET".'
@@ -285,7 +281,7 @@ def run(
     if dump_config:
         full_config.update(factory_config)
         dump_configuration(
-            {DEFAULT_SECTION: full_config},
+            {'FACET': full_config},
             dump_output,
             dump_format,
         )
@@ -314,7 +310,7 @@ def run(
 @click.option(
     '-c', '--config',
     type=str,
-    callback=functools.partial(load_config, key=DEFAULT_SECTION),
+    callback=load_config,
     help=(
         'Configuration file of either "file" or "file:section" form. '
         'Default section is "FACET".'
@@ -441,7 +437,7 @@ def server(
     if dump_config:
         full_config.update(factory_config)
         dump_configuration(
-            {DEFAULT_SECTION: full_config},
+            {'FACET_SERVER': full_config},
             dump_output,
             dump_format,
         )
@@ -467,7 +463,7 @@ def server(
 @click.option(
     '-c', '--config',
     type=str,
-    callback=functools.partial(load_config, key=DEFAULT_SECTION),
+    callback=load_config,
     help=(
         'Configuration file of either "file" or "file:section" form. '
         'Default section is "FACET".'
@@ -532,7 +528,7 @@ def client(config, host, port, query, formatter, output, dump_config):
     if dump_config:
         full_config.update(factory_config)
         dump_configuration(
-            {DEFAULT_SECTION: full_config},
+            {'FACET_CLIENT': full_config},
             dump_output,
             dump_format,
         )
