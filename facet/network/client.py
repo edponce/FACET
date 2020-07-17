@@ -2,7 +2,7 @@ import struct
 import pickle
 import socket
 import inspect
-from ..utils import parse_address
+from ..helpers import parse_address
 
 
 __all__ = ['SocketClient']

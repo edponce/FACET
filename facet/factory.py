@@ -7,7 +7,7 @@ from .serializer import serializer_map
 from .matcher import matcher_map
 from .matcher.similarity import similarity_map
 from .matcher.ngram import ngram_map
-from .utils import load_configuration
+from .configuration import Configuration
 from typing import (
     Any,
     Dict,
@@ -65,7 +65,7 @@ class FacetFactory:
         *,
         section: str = None,
     ):
-        self._config = load_configuration(config, keys=section)
+        self._config = Configuration().load(config, keys=section)
         # NOTE: Remove CLI-specific parameters
         for key in type(self)._INVALID_KEYS:
             if key in self._config:

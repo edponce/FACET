@@ -2,7 +2,7 @@ from abc import (
     ABC,
     abstractmethod,
 )
-from ..utils import expand_envvars
+from ..helpers import expand_envvars
 from typing import (
     Any,
     List,

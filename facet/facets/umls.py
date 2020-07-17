@@ -1,7 +1,7 @@
 import os
 import time
 from unidecode import unidecode
-from ..utils import load_data
+from ..helpers import load_data
 from ..database import (
     database_map,
     BaseDatabase,

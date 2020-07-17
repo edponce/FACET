@@ -1,7 +1,7 @@
 import os
 import pandas
 import collections
-from .configuration import expand_envvars
+import urllib.parse
 from typing import (
     Any,
     List,
@@ -25,6 +25,11 @@ __all__ = [
     'valid_items_from_dict',
     'filter_indices_and_values',
     'get_obj_map_key',
+    'parse_address',
+    'unparse_address',
+    'parse_address_query',
+    'unparse_address_query',
+    'expand_envvars',
 ]
 
 
@@ -425,6 +430,11 @@ def unpack_dir(
     return files
 
 
+def expand_envvars(string: str):
+    """Exapnd user and environment variables."""
+    return os.path.expandvars(os.path.expanduser(string))
+
+
 def corpus_generator(
     corpora: Union[str, Iterable[str], Iterable[Iterable[str]]],
     *,
@@ -493,3 +503,66 @@ def get_obj_map_key(obj, class_map):
         if isinstance(obj, v):
             return k
     return obj
+
+
+def parse_address(address, port=None):
+    """Parses (in a best-effort manner) variants of hostnames and URLs,
+    to extract host and port.
+
+    Examples:
+        * localhost
+        * 127.0.0.1
+        * localhost:9020
+        * http://username@localhost:9020
+
+    Returns:
+        (host, port): Hostname and port.
+    """
+    # NOTE: urllib needs a scheme to identify 'netloc'.
+    # The 'path' attribute gets the value of address and 'netloc' is empty.
+    parsed = urllib.parse.urlsplit(address)
+    if not parsed.netloc:
+        parsed = urllib.parse.urlsplit('http://' + address)
+
+    host = parsed.hostname
+
+    # urllib may trigger error if 'port' value is not available.
+    # urllib does not trigger error always and returns None.
+    try:
+        _port = parsed.port
+    except ValueError:
+        _port = None
+
+    if _port is not None:
+        port = _port
+
+    return host, port
+
+
+def unparse_address(
+    host,
+    port=None,
+    scheme='http',
+    user=None,
+    password=None,
+):
+    """Build a qualified URL from individual parts."""
+    credentials = (
+        user + (':' + password if password else '') + '@' if user else ''
+    )
+    host, port = parse_address(host, port)
+    port = ':' + str(port) if port else ''  # port 0 is not allowed
+    netloc = credentials + host + port
+    return urllib.parse.urlunsplit((scheme, netloc, '', '', ''))
+
+
+def parse_address_query(query: str):
+    return dict(
+        filter(
+            lambda x: all(x),
+            map(lambda x: urllib.parse.splitvalue(x), query.split('&')))
+    )
+
+
+def unparse_address_query(query: dict):
+    return '&'.join(map(lambda x: '='.join(x), query.items()))

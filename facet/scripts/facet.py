@@ -23,8 +23,8 @@ CONTEXT_SETTINGS = {
 }
 
 
-def load_config(ctx, param, config: str):
-    return facet.utils.load_configuration(config)
+def load_configuration(ctx, param, config: str):
+    return facet.Configuration().load(config)
 
 
 def parse_dump_configuration(output: str, format='yaml'):
@@ -46,7 +46,7 @@ def parse_dump_configuration(output: str, format='yaml'):
 def dump_configuration(config: Dict[str, Any], output=None, format='yaml'):
     """Dump configuration data to a file or STDOUT."""
     # Run configuration through loader so that it gets parsed
-    parsed_config = facet.utils.load_configuration(config)
+    parsed_config = facet.Configuration().load(config)
 
     formatter = facet.formatter.formatter_map[format]()
     formatted_config = formatter(parsed_config, output=output)
@@ -82,18 +82,18 @@ def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
         # Current value of parameters
         params_values = {
             'alpha': obj.matcher.alpha,
-            'similarity': facet.utils.get_obj_map_key(
+            'similarity': facet.get_obj_map_key(
                 obj.matcher.similarity,
                 facet.matcher.similarity.similarity_map,
             ),
             'rank': True,
             'case': 'l',
             'normalize_unicode': False,
-            'formatter': facet.utils.get_obj_map_key(
+            'formatter': facet.get_obj_map_key(
                 obj.formatter,
                 facet.formatter.formatter_map,
             ),
-            'tokenizer': facet.utils.get_obj_map_key(
+            'tokenizer': facet.get_obj_map_key(
                 obj.tokenizer,
                 facet.tokenizer.tokenizer_map,
             ),
@@ -165,7 +165,7 @@ def cli():
 @click.option(
     '-c', '--config',
     type=str,
-    callback=load_config,
+    callback=load_configuration,
     help=(
         'Configuration file of either "file" or "file:section" form. '
         'Default section is "FACET".'
@@ -310,7 +310,7 @@ def run(
 @click.option(
     '-c', '--config',
     type=str,
-    callback=load_config,
+    callback=load_configuration,
     help=(
         'Configuration file of either "file" or "file:section" form. '
         'Default section is "FACET".'
@@ -463,7 +463,7 @@ def server(
 @click.option(
     '-c', '--config',
     type=str,
-    callback=load_config,
+    callback=load_configuration,
     help=(
         'Configuration file of either "file" or "file:section" form. '
         'Default section is "FACET".'
@@ -590,7 +590,7 @@ def server_shutdown(host, port, fileno, pid):
                 print('failed to close server socket:', ex, file=sys.stderr)
     elif host:
         # Port embedded with 'host' parameter has priority over 'port'
-        host, _port = facet.utils.parse_address(host)
+        host, _port = facet.parse_address(host)
         if _port:
             port = _port
 

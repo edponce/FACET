@@ -1,5 +1,5 @@
 import time
-from ..utils import iload_data
+from ..helpers import iload_data
 from .base import BaseFacet
 from unidecode import unidecode
 from typing import (

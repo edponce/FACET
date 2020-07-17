@@ -3,7 +3,7 @@ import copy
 import sqlite3
 import urllib.parse
 from .base import BaseKVDatabase
-from ..utils import (
+from ..helpers import (
     parse_address_query,
     unparse_address_query,
     expand_envvars,

@@ -5,7 +5,7 @@ from abc import (
     abstractmethod,
 )
 from unidecode import unidecode
-from ..utils import (
+from ..helpers import (
     corpus_generator,
     expand_envvars,
 )

@@ -3,7 +3,7 @@ import pickle
 import socket
 import socketserver
 import selectors
-from ..utils import parse_address
+from ..helpers import parse_address
 
 
 __all__ = [

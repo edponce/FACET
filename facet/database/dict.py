@@ -3,7 +3,7 @@ import sys
 import shelve
 import pickle
 from .base import BaseKVDatabase
-from ..utils import expand_envvars
+from ..helpers import expand_envvars
 
 
 __all__ = [

@@ -10,11 +10,13 @@ from meta import *
 __all__ = []
 
 
-from .utils import (
-    load_configuration,
+# NOTE: These imports are for CLI script
+from .configuration import Configuration
+from .helpers import (
     get_obj_map_key,
     parse_address,
 )
+
 from .network import (
     SocketClient,
     SocketServer,
