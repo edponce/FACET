@@ -263,7 +263,7 @@ def run(
     output = config.pop('output', output)
     install = config.pop('install', install)
     if isinstance(install, str):
-        install = {'data': install}
+        install = {'filename': install}
 
     # Prepare factory options from configuration
     factory_config = copy.deepcopy(config)
@@ -419,7 +419,7 @@ def server(
     query = config.pop('query', query)
     install = config.pop('install', install)
     if isinstance(install, str):
-        install = {'data': install}
+        install = {'filename': install}
 
     # Prepare factory options from configuration
     factory_config = copy.deepcopy(config)
