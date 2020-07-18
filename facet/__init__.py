@@ -1,6 +1,3 @@
-"""FACET package."""
-
-
 import os
 import sys
 sys.path.append(os.path.abspath('..'))
@@ -76,4 +73,3 @@ from .matcher.similarity import (
     OverlapSimilarity,
     HammingSimilarity,
 )
-from .scripts.facet import cli

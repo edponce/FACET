@@ -12,6 +12,7 @@ tokenizer_map = {
     'spacy': SpaCyTokenizer,
     'whitespace': WhitespaceTokenizer,
     'alphanumeric': AlphaNumericTokenizer,
-    None: NullTokenizer,
     'symbol': SymbolTokenizer,
+    'null': NullTokenizer,
+    None: NullTokenizer,
 }

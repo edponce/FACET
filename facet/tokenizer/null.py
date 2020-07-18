@@ -5,4 +5,8 @@ __all__ = ['NullTokenizer']
 
 
 class NullTokenizer(BaseTokenizer):
-    pass
+    def sentencize(self, text):
+        yield text
+
+    def tokenize(self, text):
+        yield (0, len(text) - 1, text)

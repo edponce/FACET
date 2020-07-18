@@ -1,4 +1,7 @@
-from abc import ABC
+from abc import (
+    ABC,
+    abstractmethod,
+)
 from typing import (
     Tuple,
     Iterator,
@@ -76,8 +79,10 @@ class BaseTokenizer(ABC):
             for token in self.tokenize(sentence):
                 yield token
 
+    @abstractmethod
     def sentencize(self, text: str) -> Iterator[str]:
-        yield text
+        pass
 
+    @abstractmethod
     def tokenize(self, text: str) -> Iterator[Tuple[int, int, str]]:
-        yield (0, len(text) - 1, text)
+        pass

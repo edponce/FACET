@@ -28,6 +28,9 @@ class SymbolTokenizer(BaseTokenizer):
         # Ensure right bracket does not closes regex in 'tokenize()'.
         self._symbols = re.sub(']', '\\]', symbols)
 
+    def sentencize(self, text):
+        yield text
+
     def tokenize(self, text):
         for match in re.finditer(rf'[^{self._symbols}]*', text):
             token = match.group(0)

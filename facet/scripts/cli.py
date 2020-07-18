@@ -106,8 +106,8 @@ def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
             + 'rank        ordered results, 0 = False, 1 = True\n'
             + 'case        apply string casing, l/u\n'
             + 'normalize_unicode  0 = False, 1 = True\n'
-            + 'formatter   json, yaml, csv, xml\n'
-            + 'tokenizer   nltk, spacy, whitespace, symbol, null\n'
+            + 'formatter   json, yaml, xml, csv, pickle, null\n'
+            + 'tokenizer   alphanumeric, whitespace, symbol, nltk, spacy, null\n'
             + 'output      filename for results\n'
         )
 
@@ -200,7 +200,7 @@ def cli():
 )
 @click.option(
     '-f', '--formatter',
-    type=click.Choice(('json', 'yaml', 'xml', 'pickle', 'csv')),
+    type=click.Choice(('json', 'yaml', 'xml', 'csv', 'pickle', 'null')),
     default='json',
     show_default=True,
     help='Format for match results.',
@@ -359,7 +359,7 @@ def run(
 )
 @click.option(
     '-f', '--formatter',
-    type=click.Choice(('json', 'yaml', 'xml', 'pickle', 'csv')),
+    type=click.Choice(('json', 'yaml', 'xml', 'csv', 'pickle', 'null')),
     default='json',
     show_default=True,
     help='Format for match results.',
@@ -490,7 +490,7 @@ def server(
 )
 @click.option(
     '-f', '--formatter',
-    type=click.Choice(('json', 'yaml', 'xml', 'pickle', 'csv')),
+    type=click.Choice(('json', 'yaml', 'xml', 'csv', 'pickle', 'null')),
     default='json',
     show_default=True,
     help='Format for match results.',

@@ -5,7 +5,7 @@ MODULES
 FACET Command Line Interface
 ----------------------------
 
-.. click:: facet:cli
+.. click:: facet.scripts.cli:cli
     :prog: facet
     :show-nested:
 
@@ -176,8 +176,8 @@ Formatter
 Helpers
 -------
 
-.. autofunction:: facet.utils.load_data
+.. autofunction:: facet.helpers.load_data
 
-.. autofunction:: facet.utils.iload_data
+.. autofunction:: facet.helpers.iload_data
 
-.. autofunction:: facet.utils.corpus_generator
+.. autofunction:: facet.helpers.corpus_generator

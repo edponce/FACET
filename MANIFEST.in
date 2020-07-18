@@ -1,8 +1,5 @@
-include setup.cfg
-include setup.py
 include *requirements.txt
 include tox.ini
-include LICENSE
 include *.rst
 include *.md
 include Makefile

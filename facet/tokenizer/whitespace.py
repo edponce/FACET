@@ -8,6 +8,9 @@ __all__ = ['WhitespaceTokenizer']
 class WhitespaceTokenizer(BaseTokenizer):
     """Simple whitespace tokenizer."""
 
+    def sentencize(self, text):
+        yield text
+
     def tokenize(self, text):
         for match in re.finditer(r'\S+', text):
             token = match.group(0)

@@ -101,7 +101,7 @@ setup(
     extras_require=extras_requirements,
     entry_points={
         'console_scripts': [
-            'facet=facet.scripts.facet:main',
+            'facet=facet.scripts.cli:cli',
         ],
     },
 )
