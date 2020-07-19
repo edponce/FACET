@@ -48,6 +48,7 @@ class SocketServerHandler(socketserver.StreamRequestHandler):
                     method_name
                 )(*args, **kwargs)
             except Exception as ex:
+                # NOTE: Should we extend exception message with server info?
                 response = ex
 
             data = pickle.dumps(response, protocol=self.server.protocol)

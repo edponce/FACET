@@ -543,10 +543,9 @@ def client(config, host, port, query, formatter, output, dump_config):
             if matches is not None:
                 print(matches)
         else:
-            if isinstance(f.matcher, facet.matcher.BaseSimstring):
-                repl_loop(f)
-            else:
-                repl_loop(f, enable_cmds=False)
+            # NOTE: Disable commands because a client should not control
+            # the server settings.
+            repl_loop(f, enable_cmds=False)
 
 
 @click.command('server-shutdown', context_settings=CONTEXT_SETTINGS)
