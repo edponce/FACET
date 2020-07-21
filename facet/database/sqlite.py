@@ -18,6 +18,7 @@ from typing import (
     Tuple,
     Union,
     Iterator,
+    Iterable,
 )
 
 
@@ -42,6 +43,9 @@ class SQLiteDatabase(BaseKVDatabase):
             Valid values are: 'r' = read-only, 'w' = read/write,
             'c' = read/write/create if not exists, 'n' = new read/write.
 
+        use_pipeline (bool): If set, queue 'set-related' commands to database.
+            Run 'commit' command to submit commands in pipe.
+
         key_type (type): Python-based type for keys in database.
             Valid values are: 'str', 'int', 'bool', 'float', 'bytes'.
             Internally, sqlite3 converts keys to the selected type.
@@ -55,18 +59,17 @@ class SQLiteDatabase(BaseKVDatabase):
         serializer (str, BaseSerializer): Serializer instance or serializer
             name.
 
-    Kwargs:
-        Options passed directly to 'sqlite3.connect()'.
-            timeout
-            detect_types
-            isolation_level
-            check_same_thread
-            cached_statements
+    Kwargs: Options forwarded to 'sqlite3.connect()'. For example,
+        timeout, detect_types, isolation_level, check_same_thread,
+        cached_statements.
 
     Notes:
         * After closing an in-memory database, re-connection creates
           a new database, so error is triggered because previous table
           does not exists.
+
+        * In pipeline mode, asides from 'set', only 'get' checks the
+          pipeline for uncommitted data.
     """
 
     PYTYPE_SQLTYPE_MAP = {
@@ -80,28 +83,31 @@ class SQLiteDatabase(BaseKVDatabase):
 
     def __init__(
         self,
-        table: str,
         filename: str = ':memory:',
         *,
+        table: str = 'facet',
         access_mode: str = 'c',
+        use_pipeline: bool = False,
         key_type=str,
         value_type=None,
         serializer: Union[str, 'BaseSerializer'] = 'json',
         **conn_info,
     ):
         self._conn = None
+        self._pipeline = None
         self._name = None
         self._table = table
         self._uri = None
+        self._access_mode = access_mode
+        self._use_pipeline = use_pipeline
         self._serializer = None
-        self._is_connected = False
-        self._conn_info = copy.deepcopy(conn_info)
-
         # Disable serializer if value type is supported by database
         self.serializer = (
             None if value_type in (str, int, bool, float, bytes)
             else serializer
         )
+        self._is_connected = False
+        self._conn_info = copy.deepcopy(conn_info)
 
         # Parse file name as if in URI format
         parsed = urllib.parse.urlsplit(filename)
@@ -112,13 +118,13 @@ class SQLiteDatabase(BaseKVDatabase):
         mode = query.get('mode')
         if mode:
             if mode == 'ro':
-                access_mode = 'r'
+                self._access_mode = access_mode = 'r'
             elif mode == 'rw':
-                access_mode = 'w'
+                self._access_mode = access_mode = 'w'
             elif mode == 'rwc':
-                access_mode = 'c'
+                self._access_mode = access_mode = 'c'
             else:
-                access_mode = mode
+                self._access_mode = access_mode = mode
         else:
             if access_mode == 'r':
                 query['mode'] = 'ro'
@@ -131,12 +137,7 @@ class SQLiteDatabase(BaseKVDatabase):
         # Create path/file for persistent database
         if parsed.path != ':memory:' and mode != 'memory':
             db_dir, db_base = os.path.split(expand_envvars(parsed.path))
-            if access_mode == 'c':
-                os.makedirs(db_dir, exist_ok=True)
-            elif access_mode == 'n':
-                # if os.path.isfile(parsed.path):
-                #     os.remove(parsed.path)
-                # else:
+            if db_dir and access_mode in ('c', 'n'):
                 os.makedirs(db_dir, exist_ok=True)
 
         # Convert file name to URI format
@@ -144,14 +145,11 @@ class SQLiteDatabase(BaseKVDatabase):
         if query:
             self._uri += '?' + unparse_address_query(query)
 
-        # Connect and create table
         self.connect()
 
-        # Reset table based on access mode
         if access_mode == 'n':
-            self._conn.execute(f"DROP TABLE IF EXISTS {self._table};")
+            self.clear()
 
-        # Create table
         self._conn.execute(
             f"CREATE TABLE IF NOT EXISTS {self._table} ("
             f"key {type(self).PYTYPE_SQLTYPE_MAP[key_type]} PRIMARY KEY, "
@@ -172,6 +170,10 @@ class SQLiteDatabase(BaseKVDatabase):
             raise ValueError(f'invalid serializer, {value}')
         self._serializer = obj
 
+    def __len__(self):
+        cur = self._conn.execute(f"SELECT COUNT(key) FROM {self._table};")
+        return cur.fetchone()[0]
+
     def __contains__(self, key: str) -> bool:
         cur = self._conn.execute(
             "SELECT EXISTS("
@@ -179,10 +181,6 @@ class SQLiteDatabase(BaseKVDatabase):
             "WHERE key=(?));", (key,)
         )
         return bool(cur.fetchone()[0])
-
-    def __len__(self):
-        cur = self._conn.execute(f"SELECT COUNT(key) FROM {self._table};")
-        return cur.fetchone()[0]
 
     def get_table_memsize(self):
         try:
@@ -193,13 +191,6 @@ class SQLiteDatabase(BaseKVDatabase):
             return cur.fetchone()[0]
         except sqlite3.ERROR:
             pass
-
-    def execute(self, cmd, *args):
-        if len(args) == 0:
-            cur = self._conn.execute(cmd)
-        else:
-            cur = self._conn.execute(cmd, args)
-        return cur.fetchall()
 
     def get_schema(self):
         cur = self._conn.execute(
@@ -213,15 +204,19 @@ class SQLiteDatabase(BaseKVDatabase):
             'name': self._name,
             'table': self._table,
             'uri': self._uri,
+            'schema': self.get_schema() if self._is_connected else '',
+            'access mode': self._access_mode,
             'memory usage': (
                 self.get_table_memsize() if self._is_connected else -1
             ),
             'item count': len(self) if self._is_connected else -1,
-            'schema': self.get_schema() if self._is_connected else '',
+            'use pipeline': self._use_pipeline,
             'serializer': get_obj_map_key(self._serializer, serializer_map),
         }
 
     def get(self, key):
+        if self._use_pipeline and key in self._pipeline:
+            return self._pipeline[key]
         cur = self._conn.execute(
             f"SELECT value FROM {self._table} "
             "WHERE key=(?);", (key,)
@@ -230,11 +225,34 @@ class SQLiteDatabase(BaseKVDatabase):
         return value if value is None else self._serializer.loads(value[0])
 
     def set(self, key, value):
-        _value = self._serializer.dumps(value)
-        self._conn.execute(
+        if self._use_pipeline:
+            self._pipeline[key] = value
+        else:
+            _value = self._serializer.dumps(value)
+            self._conn.execute(
+                f"INSERT INTO {self._table}(key, value) VALUES (?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value=(?);",
+                (key, _value, _value)
+            )
+
+    def bulk_set(self, data: Iterable[Tuple[str, Any]]):
+        # NOTE: If data needs serialization, iterate through data
+        # twice instead of serializing twice, then duplicate value for
+        # UPSERT conflict.
+        if isinstance(self._serializer, serializer_map[None]):
+            data = map(lambda x: (*x, x[1]), data.items())
+        else:
+            data = map(
+                lambda x: (*x, x[1]),
+                map(
+                    lambda x: (x[0], self._serializer.dumps(x[1])),
+                    data.items()
+                )
+            )
+
+        self._conn.executemany(
             f"INSERT INTO {self._table}(key, value) VALUES (?, ?) "
-            f"ON CONFLICT(key) DO UPDATE SET value=(?);",
-            (key, _value, _value)
+            "ON CONFLICT(key) DO UPDATE SET value=(?);", data
         )
 
     def keys(self):
@@ -257,19 +275,41 @@ class SQLiteDatabase(BaseKVDatabase):
             "WHERE key=(?));", (key,)
         )
 
+    def execute(self, cmd, *args):
+        if not args:
+            cur = self._conn.execute(cmd)
+        else:
+            cur = self._conn.execute(cmd, args)
+        return cur.fetchall()
+
     def connect(self):
+        if self._is_connected:
+            return
         self._conn_info.pop('uri', None)
-        self._conn = sqlite3.connect(self._uri, uri=True, **self._conn_info)
+        self._conn = sqlite3.connect(
+            self._uri,
+            uri=True,
+            **self._conn_info,
+        )
+        if self._use_pipeline:
+            self._pipeline = {}
         self._is_connected = True
 
     def commit(self):
-        if self._is_connected and self._conn.in_transaction:
-            self._conn.commit()
+        if self._is_connected:
+            if self._use_pipeline and self._pipeline:
+                self.bulk_set(self._pipeline)
+                self._pipeline = {}
+            if self._conn.in_transaction:
+                self._conn.commit()
 
     def disconnect(self):
         if self._is_connected:
-            self._conn.close()
+            self._pipeline = None
             self._is_connected = False
+            self._conn.close()
 
     def clear(self):
-        self._conn.execute(f"DELETE FROM {self._table};")
+        if self._use_pipeline:
+            self._pipeline = {}
+        self._conn.execute(f"DROP TABLE IF EXISTS {self._table};")

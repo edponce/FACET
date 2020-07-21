@@ -23,6 +23,11 @@ __all__ = ['BaseSimstring']
 class BaseSimstring(BaseMatcher):
     """Base class for Simstring implementations.
 
+    Okazaki, Naoaki, and Jun'ichi Tsujii. "Simple and efficient algorithm for
+    approximate dictionary matching." Proceedings of the 23rd International
+    Conference on Computational Linguistics. Association for Computational
+    Linguistics, 2010.
+
     Args:
         alpha (float): Similarity threshold in range (0,1].
 
@@ -59,6 +64,10 @@ class BaseSimstring(BaseMatcher):
 
     @abstractmethod
     def get_strings(self, size: int, features: str) -> List[str]:
+        pass
+
+    @abstractmethod
+    def insert(self, string: str):
         pass
 
     @property
@@ -202,7 +211,10 @@ class BaseSimstring(BaseMatcher):
             feature: self.get_strings(candidate_feature_size, feature)
             for feature in query_features
         }
-        query_features.sort(key=lambda feature: len(strings[feature]))
+        query_features = sorted(
+            query_features,
+            key=lambda feature: len(strings[feature]),
+        )
 
         # Use tau parameter to split sorted features
         tau_split = len(query_features) - tau + 1

@@ -1,5 +1,5 @@
 from .base import BaseNgram
-from typing import List
+from typing import Tuple
 
 
 __all__ = ['WordNgram']
@@ -20,9 +20,9 @@ class WordNgram(BaseNgram):
         self.delim = delimiter
         self.joiner = joiner
 
-    def _extract_features(self, text: str) -> List[str]:
+    def _extract_features(self, text: str) -> Tuple[str]:
         words = [x.strip() for x in text.split(self.delim) if x]
-        return [
+        return tuple(
             self.joiner.join(words[i:i + self.n])
             for i in range(len(words) - self.n + 1)
-        ]
+        )

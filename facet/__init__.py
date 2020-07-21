@@ -43,6 +43,7 @@ from .tokenizer import (
 from .database import (
     DictDatabase,
     RedisDatabase,
+    RediSearchDatabase,
     SQLiteDatabase,
     MongoDatabase,
     ElasticsearchDatabase,
@@ -58,6 +59,7 @@ from .serializer import (
 from .matcher import (
     Simstring,
     MongoSimstring,
+    RediSearchSimstring,
     ElasticsearchSimstring,
     ElasticsearchFuzzy,
 )

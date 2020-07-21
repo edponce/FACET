@@ -10,7 +10,6 @@ class NLTKTokenizer(BaseTokenizer):
 
     Args:
         language (str): Language to use for processing corpora.
-            Default is 'english'.
     """
 
     def __init__(self, *, language: str = 'english', **kwargs):

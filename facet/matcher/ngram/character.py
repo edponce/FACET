@@ -1,5 +1,5 @@
 from .base import BaseNgram
-from typing import List
+from typing import Tuple
 
 
 __all__ = ['CharacterNgram']
@@ -29,7 +29,7 @@ class CharacterNgram(BaseNgram):
         self.boundary_length = boundary_length
         self.boundary_symbol = boundary_symbol
 
-    def _extract_features(self, text: str) -> List[str]:
+    def _extract_features(self, text: str) -> Tuple[str]:
         text = text.strip()
         if self.boundary_length != 0:
             boundary = ' ' * (
@@ -38,4 +38,4 @@ class CharacterNgram(BaseNgram):
                 else self.boundary_length
             )
             text = boundary + text + boundary
-        return [text[i:i + self.n] for i in range(len(text) - self.n + 1)]
+        return tuple(text[i:i + self.n] for i in range(len(text) - self.n + 1))

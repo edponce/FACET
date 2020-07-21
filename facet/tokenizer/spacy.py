@@ -11,7 +11,6 @@ class SpaCyTokenizer(BaseTokenizer):
 
     Args:
         language (str): Language to use for processing corpora.
-            Default is 'en'.
 
     Notes:
         * Stopwords includes boolean words. If affirmation/negation is
@@ -48,13 +47,11 @@ class SpaCyTokenizer(BaseTokenizer):
             sentence (spacy.Span): Sentence to process.
 
             window (int): Window size for processing words.
-                Default value is 5.
 
             min_match_length (int): Minimum number of characters for matching
-                criterion. Default value is 3.
+                criterion.
 
             ignore_syntax (bool): Ignore token types when parsing text.
-                Default is False.
 
         Returns (Iterator[Tuple[int, int, str]]: Span start, span end,
             and text.

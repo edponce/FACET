@@ -16,13 +16,8 @@ __all__ = ['ElasticsearchSimstring']
 class ElasticsearchSimstring(BaseSimstring):
     """Elasticsearch implementation of Simstring algorithm.
 
-    Okazaki, Naoaki, and Jun'ichi Tsujii. "Simple and efficient algorithm for
-    approximate dictionary matching." Proceedings of the 23rd International
-    Conference on Computational Linguistics. Association for Computational
-    Linguistics, 2010.
-
     Args:
-        index (str): Elasticsearch database index for storage.
+        index (str): Elasticsearch index name for storage.
 
         db (Dict[str, Any]): Options passed directly to
             'ElasticsearchDatabase()'.
@@ -123,19 +118,27 @@ class ElasticsearchSimstring(BaseSimstring):
         feature: Union[str, Iterable[str]] = None,
     ) -> List[str]:
         """Get strings corresponding to feature size and query feature."""
-        # NOTE: Can Elasticsearch return a response that does not includes
-        # all these fields (hits x2, _source)?
         query = self._prepare_query(size, feature)
         return [
             document['_source']['term']
-            for document in self.db.get(query)['hits']['hits']
+            for document in self.db.get(
+                query,
+                # NOTE: Unique document key for 'get()' in database.
+                key=(size, feature),
+            )['hits']['hits']
         ]
 
     def insert(self, string: str):
         """Insert string into database."""
         features = self._ngram.get_features(string)
-        self.db.set({
-            'term': string,
-            'sz': len(features),
-            'ng': features,
-        })
+        # NOTE: Skip short strings that do not produce any features.
+        if features:
+            self.db.set(
+                {
+                    'term': string,
+                    'sz': len(features),
+                    'ng': features,
+                },
+                # NOTE: Unique document key for 'set()' in database.
+                key=(len(features), features),
+            )

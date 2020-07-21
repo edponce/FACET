@@ -166,10 +166,7 @@ def cli():
     '-c', '--config',
     type=str,
     callback=load_configuration,
-    help=(
-        'Configuration file of either "file" or "file:section" form. '
-        'Default section is "FACET".'
-    ),
+    help=("Configuration file of either 'file' or 'file:section' form."),
 )
 @click.option(
     '-q', '--query',
@@ -311,10 +308,7 @@ def run(
     '-c', '--config',
     type=str,
     callback=load_configuration,
-    help=(
-        'Configuration file of either "file" or "file:section" form. '
-        'Default section is "FACET".'
-    ),
+    help=("Configuration file of either 'file' or 'file:section' form."),
 )
 @click.option(
     '-h', '--host',
@@ -464,10 +458,7 @@ def server(
     '-c', '--config',
     type=str,
     callback=load_configuration,
-    help=(
-        'Configuration file of either "file" or "file:section" form. '
-        'Default section is "FACET".'
-    ),
+    help=("Configuration file of either 'file' or 'file:section' form."),
 )
 @click.option(
     '-h', '--host',

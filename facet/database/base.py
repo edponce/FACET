@@ -49,13 +49,10 @@ class BaseDatabase(ABC):
     def disconnect(self):
         pass
 
-    @abstractmethod
     def get_config(self):
         pass
 
-    @abstractmethod
-    def clear(self, **kwargs):
-        """Delete database table."""
+    def clear(self):
         pass
 
 
@@ -127,7 +124,7 @@ class BaseKVDatabase(BaseDatabase):
         pass
 
     @abstractmethod
-    def set(self, key, value, **kwargs):
+    def set(self, key, value):
         pass
 
     @abstractmethod

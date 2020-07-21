@@ -12,27 +12,21 @@ __all__ = ['MongoSimstring']
 
 
 class MongoSimstring(BaseSimstring):
-    """implementation of Simstring algorithm.
-
-    Okazaki, Naoaki, and Jun'ichi Tsujii. "Simple and efficient algorithm for
-    approximate dictionary matching." Proceedings of the 23rd International
-    Conference on Computational Linguistics. Association for Computational
-    Linguistics, 2010.
+    """MongoDB implementation of Simstring algorithm.
 
     Args:
-        index (str): Elasticsearch database index for storage.
+        database (str): MongoDB database name for storage.
 
         db (Dict[str, Any]): Options passed directly to
-            'ElasticsearchDatabase()'.
+            'MongoDatabase()'.
 
-    Kwargs:
-        Options passed directly to 'BaseSimstring()'.
+    Kwargs: Options passed directly to 'BaseSimstring()'.
     """
 
-    _INDICES = [
+    _KEYS = (
         ('ng', pymongo.TEXT),
         ('sz', pymongo.ASCENDING),
-    ]
+    )
 
     def __init__(
         self,
@@ -44,7 +38,7 @@ class MongoSimstring(BaseSimstring):
         super().__init__(**kwargs)
         self.db = MongoDatabase(
             database=db.pop('database', 'facet'),
-            index=type(self)._INDICES,
+            keys=type(self)._KEYS,
             **db,
         )
 
@@ -53,14 +47,24 @@ class MongoSimstring(BaseSimstring):
         query = {'sz': size, 'ng': feature}
         return [
             document['term']
-            for document in self.db.get(query)
+            for document in self.db.get(
+                query,
+                # NOTE: Unique document key for 'get()' in database.
+                key=(size, feature),
+            )
         ]
 
     def insert(self, string: str):
         """Insert string into database."""
         features = self._ngram.get_features(string)
-        self.db.set({
-            'term': string,
-            'sz': len(features),
-            'ng': features,
-        })
+        # NOTE: Skip short strings that do not produce any features.
+        if features:
+            self.db.set(
+                {
+                    'term': string,
+                    'sz': len(features),
+                    'ng': features,
+                },
+                # NOTE: Unique document key for 'set()' in database.
+                key=(len(features), features),
+            )

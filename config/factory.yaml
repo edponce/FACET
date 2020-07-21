@@ -1,6 +1,7 @@
-SimpleMemory:
-    install: data/install/american-english
-
+SmallInstall:
+    install:
+        filename: data/install/american-english
+        nrows: 10000
 
 AutoMemory:
     install: data/install/american-english
@@ -8,11 +9,60 @@ AutoMemory:
     formatter: json
     output: annotations.json
 
+SimpleMemory:
+    install: data/install/american-english
+
+SimpleFile:
+    matcher:
+        class: simstring
+        db:
+            class: dict
+            filename: db/testing
+            access_mode: n
+            use_pipeline: true
+    install: data/install/american-english
 
 SimpleRedis:
     matcher:
         class: simstring
-        db: redis
+        db:
+            class: redis
+            n: 3
+            access_mode: n
+            use_pipeline: true
+    install: data/install/american-english
+
+SimpleSQLite:
+    matcher:
+        class: simstring
+        db:
+            class: sqlite
+            access_mode: n
+            use_pipeline: true
+    install: data/install/american-english
+
+SimpleMongo:
+    matcher:
+        class: mongo-simstring
+        db:
+            use_pipeline: true
+    install: data/install/american-english
+
+SimpleElasticsearch:
+    matcher:
+        class: elasticsearch-simstring
+        db:
+            access_mode: n
+            use_pipeline: true
+            thread_count: 8
+    install: data/install/american-english
+
+SimpleMongo:
+    matcher:
+        class: mongo-simstring
+        db:
+            access_mode: n
+            use_pipeline: true
     install: data/install/american-english
 
 

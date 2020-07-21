@@ -10,7 +10,6 @@ class PickleSerializer(BaseSerializer):
 
     Args:
         protocol (int): Protocol version to use.
-            Default is pickle.HIGHEST_PROTOCOL.
     """
 
     def __init__(self, *, protocol=pickle.HIGHEST_PROTOCOL, **kwargs):

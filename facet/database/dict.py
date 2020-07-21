@@ -7,13 +7,13 @@ from ..helpers import expand_envvars
 
 
 __all__ = [
-    'FileDictKVDatabase',
-    'MemoryDictKVDatabase',
+    'FileDictDatabase',
+    'MemoryDictDatabase',
     'DictDatabase',
 ]
 
 
-class FileDictKVDatabase(BaseKVDatabase):
+class FileDictDatabase(BaseKVDatabase):
     """Persistent dictionary database.
 
     Args:
@@ -35,6 +35,9 @@ class FileDictKVDatabase(BaseKVDatabase):
 
     Notes:
         * Shelf automatically syncs when closing database.
+
+        * As a consequence to how writeback works, 'get' operations are
+          supported immediately after 'set' operations.
     """
 
     def __init__(
@@ -54,7 +57,7 @@ class FileDictKVDatabase(BaseKVDatabase):
         self._is_connected = False
 
         db_dir, db_base = os.path.split(expand_envvars(filename))
-        if access_mode in ('c', 'n'):
+        if db_dir and access_mode in ('c', 'n'):
             os.makedirs(db_dir, exist_ok=True)
         self._name = filename
         self._file = os.path.join(db_dir, db_base) + '.dat'
@@ -90,6 +93,8 @@ class FileDictKVDatabase(BaseKVDatabase):
         del self._conn[key]
 
     def connect(self):
+        if self._is_connected:
+            return
         # NOTE: Writeback allows natural operations on mutable entries,
         # but consumes more memory and makes sync/close operations take
         # longer. Writeback queues operations to a database cache. But
@@ -110,18 +115,21 @@ class FileDictKVDatabase(BaseKVDatabase):
 
     def disconnect(self):
         if self._is_connected:
-            self._conn.close()
             self._is_connected = False
+            self._conn.close()
 
     def clear(self):
         self._conn.clear()
 
 
-class MemoryDictKVDatabase(BaseKVDatabase):
+class MemoryDictDatabase(BaseKVDatabase):
     """In-memory key/value database."""
 
     def __init__(self):
-        self._conn = {}
+        self._conn = None
+        self._is_connected = False
+
+        self.connect()
 
     def __len__(self):
         return len(self._conn)
@@ -130,10 +138,13 @@ class MemoryDictKVDatabase(BaseKVDatabase):
         return key in self._conn
 
     def get_config(self):
-        return {
-            'memory usage': sys.getsizeof(self._conn),
-            'item count': len(self._conn),
-        }
+        if self._is_connected:
+            return {
+                'memory usage': sys.getsizeof(self._conn),
+                'item count': len(self._conn),
+            }
+        else:
+            return {}
 
     def get(self, key):
         return self._conn.get(key)
@@ -147,15 +158,26 @@ class MemoryDictKVDatabase(BaseKVDatabase):
     def delete(self, key):
         del self._conn[key]
 
+    def connect(self):
+        if self._is_connected:
+            return
+        self._conn = {}
+        self._is_connected = True
+
+    def disconnect(self):
+        if self._is_connected:
+            self._is_connected = False
+            self._conn = None
+
     def clear(self):
         self._conn = {}
 
 
-def DictDatabase(*args, filename=None, **kwargs):
+def DictDatabase(filename=None, **kwargs):
     """Factory function for dictionary-based database."""
     if filename:
-        cls = FileDictKVDatabase
         kwargs['filename'] = filename
+        cls = FileDictDatabase
     else:
-        cls = MemoryDictKVDatabase
-    return cls(*args, **kwargs)
+        cls = MemoryDictDatabase
+    return cls(**kwargs)

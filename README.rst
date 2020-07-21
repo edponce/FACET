@@ -207,3 +207,4 @@ Matchers with fuzzy string matching:
 
 * fuzzywuzzy
 * python-Levenshtein
+* snowball (stemmer)

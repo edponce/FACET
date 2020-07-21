@@ -64,6 +64,9 @@ Database
 .. autoclass:: facet.RedisDatabase
     :members:
 
+.. autoclass:: facet.RediSearchDatabase
+    :members:
+
 .. autoclass:: facet.SQLiteDatabase
     :members:
 
@@ -106,8 +109,8 @@ Similarity Measures
 .. autoclass:: facet.HammingSimilarity
 
 
-Database Serializer
--------------------
+Serializer
+----------
 
 .. autoclass:: facet.serializer.BaseSerializer
     :members:
