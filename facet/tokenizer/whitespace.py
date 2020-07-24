@@ -8,6 +8,8 @@ __all__ = ['WhitespaceTokenizer']
 class WhitespaceTokenizer(BaseTokenizer):
     """Simple whitespace tokenizer."""
 
+    NAME = 'whitespace'
+
     def sentencize(self, text):
         yield text
 

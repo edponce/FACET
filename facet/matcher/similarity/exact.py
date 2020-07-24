@@ -11,6 +11,8 @@ class ExactSimilarity(BaseSimilarity):
     #
     #     * exact(x,y) = x == y, [True, False] -> R
 
+    NAME = 'exact'
+
     def min_features(self, length, alpha):
         return int(length)
 

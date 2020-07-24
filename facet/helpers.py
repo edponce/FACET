@@ -431,7 +431,7 @@ def unpack_dir(
 
 
 def expand_envvars(string: str):
-    """Exapnd user and environment variables."""
+    """Expand user and environment variables."""
     return os.path.expandvars(os.path.expanduser(string))
 
 

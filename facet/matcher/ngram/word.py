@@ -15,6 +15,9 @@ class WordNgram(BaseNgram):
 
         joiner (str): Symbol to join feature words.
     """
+
+    NAME = 'word'
+
     def __init__(self, n: int = 3, *, delimiter: str = ' ', joiner: str = ' '):
         self.n = n
         self.delim = delimiter

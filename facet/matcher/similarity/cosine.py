@@ -15,6 +15,8 @@ class CosineSimilarity(BaseSimilarity):
     #     * ceil(a^2*|x||y|) <= |y|^2
     #     * ceil(a^2*|x|) <= |y| <= floor(|x|/a^2)
 
+    NAME = 'cosine'
+
     def min_features(self, length, alpha):
         return int(math.ceil(alpha * alpha * length))
 

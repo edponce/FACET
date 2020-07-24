@@ -1,17 +1,15 @@
 import os
-import copy
 import sqlite3
 import urllib.parse
 from .base import BaseKVDatabase
+from ..serializer import (
+    get_serializer,
+    BaseSerializer,
+)
 from ..helpers import (
     parse_address_query,
     unparse_address_query,
     expand_envvars,
-    get_obj_map_key,
-)
-from ..serializer import (
-    serializer_map,
-    BaseSerializer,
 )
 from typing import (
     Any,
@@ -46,12 +44,14 @@ class SQLiteDatabase(BaseKVDatabase):
         use_pipeline (bool): If set, queue 'set-related' commands to database.
             Run 'commit' command to submit commands in pipe.
 
+        connect (bool): If set, automatically connect during initialization.
+
         key_type (type): Python-based type for keys in database.
             Valid values are: 'str', 'int', 'bool', 'float', 'bytes'.
             Internally, sqlite3 converts keys to the selected type.
 
         value_type (type): Python-based type for values in database.
-            Valid values are: 'str', 'int', 'bool', 'float', 'bytes', None.
+            Valid values are: 'str', 'int', 'bool', 'float', 'bytes'.
             If None, then any type is allowed and the serializer is used for
             converting values to binary form. Use 'bytes' when you are already
             providing binary data.
@@ -59,116 +59,143 @@ class SQLiteDatabase(BaseKVDatabase):
         serializer (str, BaseSerializer): Serializer instance or serializer
             name.
 
-    Kwargs: Options forwarded to 'sqlite3.connect()'. For example,
-        timeout, detect_types, isolation_level, check_same_thread,
-        cached_statements.
+    Kwargs: Options forwarded to 'sqlite3.connect()'. See
+        https://docs.python.org/3/library/sqlite3.html#sqlite3.connect
 
     Notes:
-        * After closing an in-memory database, re-connection creates
-          a new database, so error is triggered because previous table
-          does not exists.
+        * By default, read-only mode disables database locks and thread
+          checks, and enables shared cache.
 
         * In pipeline mode, asides from 'set', only 'get' checks the
           pipeline for uncommitted data.
     """
 
-    PYTYPE_SQLTYPE_MAP = {
+    NAME = 'sqlite'
+
+    # Converts a SQLite URI mode into traditional access mode flags.
+    _SQLITEMODE_ACCESSMODE_MAP = {
+        'ro': 'r',
+        'rw': 'w',
+        'rwc': 'c',
+        'memory': 'w',
+    }
+
+    # Converts a traditional access mode flag into a SQLite URI mode.
+    _ACCESSMODE_SQLITEMODE_MAP = {
+        'r': 'ro',
+        'w': 'rw',
+        'c': 'rwc',
+        'n': 'rwc',
+    }
+
+    _PYTYPE_SQLTYPE_MAP = {
         str: 'VARCHAR',
         int: 'INTEGER',
         bool: 'BOOLEAN',
         float: 'REAL',
         bytes: 'BLOB',
-        None: 'BLOB',
     }
 
     def __init__(
         self,
-        filename: str = ':memory:',
+        uri: str = ':memory:',
         *,
-        table: str = 'facet',
+        table: str = 'test',
         access_mode: str = 'c',
         use_pipeline: bool = False,
+        connect: bool = True,
         key_type=str,
         value_type=None,
-        serializer: Union[str, 'BaseSerializer'] = 'json',
+        serializer: Union[str, 'BaseSerializer'] = 'pickle',
         **conn_info,
     ):
         self._conn = None
         self._pipeline = None
-        self._name = None
+        self._uri = uri
+        self._path = None
         self._table = table
-        self._uri = None
         self._access_mode = access_mode
         self._use_pipeline = use_pipeline
-        self._serializer = None
-        # Disable serializer if value type is supported by database
-        self.serializer = (
-            None if value_type in (str, int, bool, float, bytes)
-            else serializer
-        )
-        self._is_connected = False
-        self._conn_info = copy.deepcopy(conn_info)
+        self._key_type = key_type
+        self._value_type = value_type
+        self._serializer = serializer
+        self._conn_info = conn_info
+
+        if connect:
+            self.connect()
+        else:
+            self._pre_connect(make_dir=False)
+
+    def _pre_connect(self, make_dir: bool = True, **kwargs):
+        self._uri = expand_envvars(kwargs.pop('uri', self._uri))
+        self._table = expand_envvars(kwargs.pop('table', self._table))
+        self._access_mode = kwargs.pop('access_mode', self._access_mode)
+        self._use_pipeline = kwargs.pop('use_pipeline', self._use_pipeline)
+        self._key_type = kwargs.pop('key_type', self._key_type)
+        self._value_type = kwargs.pop('value_type', self._value_type)
+        self._serializer = kwargs.pop('serializer', self._serializer)
+        self._conn_info.update(kwargs)
 
         # Parse file name as if in URI format
-        parsed = urllib.parse.urlsplit(filename)
-        self._name = parsed.path
+        parsed = urllib.parse.urlsplit(self._uri)
+        self._path = parsed.path
+        query = parse_address_query(parsed.query)
 
         # Prioritize access mode in URI over argument value
-        query = parse_address_query(parsed.query)
-        mode = query.get('mode')
-        if mode:
-            if mode == 'ro':
-                self._access_mode = access_mode = 'r'
-            elif mode == 'rw':
-                self._access_mode = access_mode = 'w'
-            elif mode == 'rwc':
-                self._access_mode = access_mode = 'c'
-            else:
-                self._access_mode = access_mode = mode
+        if 'mode' in query:
+            self._access_mode = (
+                type(self)._SQLITEMODE_ACCESSMODE_MAP[query['mode']]
+            )
         else:
-            if access_mode == 'r':
-                query['mode'] = 'ro'
-                query['nolock'] = '1'
-            elif access_mode == 'w':
-                query['mode'] = 'rw'
-            elif access_mode in ('c', 'n'):
-                query['mode'] = 'rwc'
+            query['mode'] = (
+                type(self)._ACCESSMODE_SQLITEMODE_MAP[self._access_mode]
+            )
+
+        # Custom settings for read-only mode
+        if query['mode'] == 'ro':
+            query['nolock'] = query.get('nolock', '1')
+            query['cache'] = query.get('cache', 'shared')
+            self._conn_info['check_same_thread'] = (
+                self._conn_info.get('check_same_thread', False)
+            )
 
         # Create path/file for persistent database
-        if parsed.path != ':memory:' and mode != 'memory':
-            db_dir, db_base = os.path.split(expand_envvars(parsed.path))
-            if db_dir and access_mode in ('c', 'n'):
+        if self._path != ':memory:' and query['mode'] != 'memory':
+            db_dir, db_base = os.path.split(self._path)
+            if make_dir and db_dir and self._access_mode in ('c', 'n'):
                 os.makedirs(db_dir, exist_ok=True)
 
-        # Convert file name to URI format
-        self._uri = filename if parsed.scheme else 'file:' + parsed.path
-        if query:
-            self._uri += '?' + unparse_address_query(query)
-
-        self.connect()
-
-        if access_mode == 'n':
-            self.clear()
-
-        self._conn.execute(
-            f"CREATE TABLE IF NOT EXISTS {self._table} ("
-            f"key {type(self).PYTYPE_SQLTYPE_MAP[key_type]} PRIMARY KEY, "
-            f"value {type(self).PYTYPE_SQLTYPE_MAP[value_type]});"
+        # Convert configuration to URI format
+        self._uri = 'file:{}?{}'.format(
+            self._path,
+            unparse_address_query(query),
         )
 
-    @property
-    def serializer(self):
-        return self._serializer
+        # Disable serializer if value type is supported by database
+        self._serializer = get_serializer(
+            'null' if self._value_type in type(self)._PYTYPE_SQLTYPE_MAP
+            else self._serializer
+        )
 
-    @serializer.setter
-    def serializer(self, value: Union[str, 'BaseSerializer']):
-        if value is None or isinstance(value, str):
-            obj = serializer_map[value]()
-        elif isinstance(value, BaseSerializer):
-            obj = value
-        else:
-            raise ValueError(f'invalid serializer, {value}')
-        self._serializer = obj
+    def _post_connect(self):
+        if self._access_mode in ('c', 'n'):
+            if self._access_mode == 'n':
+                self.clear()
+
+            key_type = (
+                type(self)._PYTYPE_SQLTYPE_MAP.get(self._key_type, 'BLOB')
+            )
+            value_type = (
+                type(self)._PYTYPE_SQLTYPE_MAP.get(self._value_type, 'BLOB')
+            )
+            self._conn.execute(
+                f"CREATE TABLE IF NOT EXISTS {self._table} "
+                f"(key {key_type} PRIMARY KEY, "
+                f"value {value_type});"
+            )
+
+        if self._use_pipeline:
+            self._pipeline = {}
 
     def __len__(self):
         cur = self._conn.execute(f"SELECT COUNT(key) FROM {self._table};")
@@ -182,36 +209,39 @@ class SQLiteDatabase(BaseKVDatabase):
         )
         return bool(cur.fetchone()[0])
 
-    def get_table_memsize(self):
-        try:
-            cur = self._conn.execute(
-                "SELECT SUM(\"pgsize\") FROM \"dbstat\" "
-                "WHERE name=(?);", (self._table,)
-            )
-            return cur.fetchone()[0]
-        except sqlite3.ERROR:
-            pass
+    @property
+    def backend(self):
+        return self._conn
 
-    def get_schema(self):
+    def table_memsize(self):
+        cur = self._conn.execute(
+            "SELECT SUM(\"pgsize\") FROM \"dbstat\" "
+            "WHERE name=(?);", (self._table,)
+        )
+        return cur.fetchone()[0]
+
+    def schema(self):
         cur = self._conn.execute(
             "SELECT sql FROM sqlite_master "
             "WHERE type='table' AND tbl_name=(?);", (self._table,)
         )
         return cur.fetchone()[0]
 
-    def get_config(self):
+    def configuration(self):
+        is_connected = self.ping()
         return {
-            'name': self._name,
-            'table': self._table,
+            'connected': is_connected,
             'uri': self._uri,
-            'schema': self.get_schema() if self._is_connected else '',
+            'path': self._path,
+            'table': self._table,
+            'schema': self.schema() if is_connected else '',
             'access mode': self._access_mode,
-            'memory usage': (
-                self.get_table_memsize() if self._is_connected else -1
+            'pipelined': self._use_pipeline,
+            'serializer': type(self._serializer).NAME,
+            'nrows': len(self) if is_connected else -1,
+            'store': (
+                self.table_memsize() if is_connected else -1
             ),
-            'item count': len(self) if self._is_connected else -1,
-            'use pipeline': self._use_pipeline,
-            'serializer': get_obj_map_key(self._serializer, serializer_map),
         }
 
     def get(self, key):
@@ -239,16 +269,12 @@ class SQLiteDatabase(BaseKVDatabase):
         # NOTE: If data needs serialization, iterate through data
         # twice instead of serializing twice, then duplicate value for
         # UPSERT conflict.
-        if isinstance(self._serializer, serializer_map[None]):
+        if type(self._serializer).NAME == 'null':
             data = map(lambda x: (*x, x[1]), data.items())
         else:
-            data = map(
-                lambda x: (*x, x[1]),
-                map(
-                    lambda x: (x[0], self._serializer.dumps(x[1])),
-                    data.items()
-                )
-            )
+            data = map(lambda x: (*x, x[1]),
+                       map(lambda x: (x[0], self._serializer.dumps(x[1])),
+                           data.items()))
 
         self._conn.executemany(
             f"INSERT INTO {self._table}(key, value) VALUES (?, ?) "
@@ -276,40 +302,55 @@ class SQLiteDatabase(BaseKVDatabase):
         )
 
     def execute(self, cmd, *args):
-        if not args:
-            cur = self._conn.execute(cmd)
-        else:
-            cur = self._conn.execute(cmd, args)
+        cur = self._conn.execute(cmd, args)
         return cur.fetchall()
 
-    def connect(self):
-        if self._is_connected:
+    def connect(self, **kwargs):
+        if self.ping():
             return
+
+        self._pre_connect(**kwargs)
+
+        # NOTE: Discard 'uri' option because we always use URI format.
         self._conn_info.pop('uri', None)
-        self._conn = sqlite3.connect(
-            self._uri,
-            uri=True,
-            **self._conn_info,
-        )
-        if self._use_pipeline:
-            self._pipeline = {}
-        self._is_connected = True
+        self._conn = sqlite3.connect(self._uri, uri=True, **self._conn_info)
+
+        self._post_connect()
 
     def commit(self):
-        if self._is_connected:
-            if self._use_pipeline and self._pipeline:
-                self.bulk_set(self._pipeline)
-                self._pipeline = {}
-            if self._conn.in_transaction:
-                self._conn.commit()
+        if not self.ping():
+            return
+        if self._use_pipeline and self._pipeline:
+            self.bulk_set(self._pipeline)
+            self._pipeline = {}
+        if self._conn.in_transaction:
+            self._conn.commit()
 
     def disconnect(self):
-        if self._is_connected:
+        if self.ping():
             self._pipeline = None
-            self._is_connected = False
             self._conn.close()
 
     def clear(self):
+        if self._conn.execute(
+            "SELECT name FROM sqlite_master "
+            "WHERE type='table' AND tbl_name=(?);", (self._table,)
+        ).fetchall():
+            self._conn.execute(f"DELETE FROM {self._table};")
         if self._use_pipeline:
             self._pipeline = {}
+
+    def drop_table(self):
         self._conn.execute(f"DROP TABLE IF EXISTS {self._table};")
+        if self._use_pipeline:
+            self._pipeline = {}
+
+    def ping(self):
+        try:
+            if hasattr(self._conn, 'in_transaction'):
+                self._conn.in_transaction
+                return True
+            else:
+                return False
+        except sqlite3.ProgrammingError:
+            return False

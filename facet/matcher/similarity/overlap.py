@@ -18,6 +18,8 @@ class OverlapSimilarity(BaseSimilarity):
     #     * ceil(a*|y|) <= |y| <= floor(|y|/a)
     #     * ceil(a*|x|) <= |x| <= floor(|x|/a)
 
+    NAME = 'overlap'
+
     def min_features(self, length, alpha):
         return int(math.ceil(alpha * length))
 

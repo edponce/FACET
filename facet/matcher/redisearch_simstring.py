@@ -20,9 +20,10 @@ class RediSearchSimstring(BaseSimstring):
         db (Dict[str, Any]): Options passed directly to
             'RediSearchDatabase()'.
 
-    Kwargs:
-        Options passed directly to 'BaseSimstring()'.
+    Kwargs: Options forwarded to 'BaseSimstring()'.
     """
+
+    NAME = 'redisearch-simstring'
 
     _FIELDS = (
         redisearch.TextField('term', no_stem=True),
@@ -38,13 +39,13 @@ class RediSearchSimstring(BaseSimstring):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.db = RediSearchDatabase(
+        self._db = RediSearchDatabase(
             index=db.pop('index', 'facet'),
             fields=type(self)._FIELDS,
             **db,
         )
         # NOTE: Use document count as document IDs
-        self._doc_id = len(self.db)
+        self._doc_id = len(self._db)
 
     def get_strings(self, size: int, feature: str) -> List[str]:
         """Get strings corresponding to feature size and query feature."""
@@ -57,7 +58,7 @@ class RediSearchSimstring(BaseSimstring):
         )
         return [
             document.term
-            for document in self.db.get(query).docs
+            for document in self._db.get(query).docs
         ]
 
     def insert(self, string: str):
@@ -67,7 +68,7 @@ class RediSearchSimstring(BaseSimstring):
         # so we create a document for each feature. Downside is the high
         # redundancy of data and extra storage.
         for i, feature in enumerate(features):
-            self.db.set(
+            self._db.set(
                 str(self._doc_id + i),
                 {
                     'term': string,

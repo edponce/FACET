@@ -52,6 +52,7 @@ from .serializer import (
     NullSerializer,
     JSONSerializer,
     YAMLSerializer,
+    ArrowSerializer,
     PickleSerializer,
     StringSerializer,
     StringSJSerializer,

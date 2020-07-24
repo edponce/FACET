@@ -8,6 +8,8 @@ __all__ = ['SymbolTokenizer']
 class SymbolTokenizer(BaseTokenizer):
     """Symbol-based tokenizer."""
 
+    NAME = 'symbol'
+
     def __init__(
         self,
         symbols: str = '\t\n\r\f\v .,?!"\'-:;()[]{}',

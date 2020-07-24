@@ -16,6 +16,8 @@ class JaccardSimilarity(BaseSimilarity):
     #     * ceil(a*|x U y|) <= |y|
     #     * ceil(a*|x|) <= |y| <= floor(|x|/a)
 
+    NAME = 'jaccard'
+
     def min_features(self, length, alpha):
         return int(math.ceil(alpha * length))
 

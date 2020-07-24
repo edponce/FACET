@@ -8,6 +8,8 @@ __all__ = ['XMLFormatter']
 
 class XMLFormatter(BaseFormatter):
 
+    NAME = 'xml'
+
     def _format(self, data):
         return xml.dom.minidom.parseString(
             dicttoxml.dicttoxml(data, attr_type=False)

@@ -48,7 +48,7 @@ def dump_configuration(config: Dict[str, Any], output=None, format='yaml'):
     # Run configuration through loader so that it gets parsed
     parsed_config = facet.Configuration().load(config)
 
-    formatter = facet.formatter.formatter_map[format]()
+    formatter = facet.formatter.get_formatter(format)()
     formatted_config = formatter(parsed_config, output=output)
     if formatted_config is not None:
         print(formatted_config)
@@ -527,7 +527,7 @@ def client(config, host, port, query, formatter, output, dump_config):
 
     with facet.network.SocketClient(
         (host, port),
-        target_class=facet.facets.facet_map[factory_config['class']],
+        target_class=facet.facets.get_facet(factory_config['class']),
     ) as f:
         if query:
             matches = f.match(query)

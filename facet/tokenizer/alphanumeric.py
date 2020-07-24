@@ -8,6 +8,8 @@ __all__ = ['AlphaNumericTokenizer']
 class AlphaNumericTokenizer(BaseTokenizer):
     """Alphanumeric tokenizer."""
 
+    NAME = 'alphanumeric'
+
     def sentencize(self, text):
         yield text
 

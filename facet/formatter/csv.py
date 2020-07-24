@@ -8,6 +8,8 @@ __all__ = ['CSVFormatter']
 
 class CSVFormatter(BaseFormatter):
 
+    NAME = 'csv'
+
     def _format(self, data):
         # Find field names
         fieldnames = []

@@ -14,6 +14,8 @@ __all__ = [
 class StringSerializer(BaseSerializer):
     """Simple string serializer."""
 
+    NAME = 'string'
+
     def dumps(self, obj: str):
         return self.encode(obj)
 
@@ -27,6 +29,8 @@ class StringSJSerializer(BaseSerializer):
     Args:
         delimiter (str): Character to delimit strings.
     """
+
+    NAME = 'stringsj'
 
     def __init__(self, *, delimiter='|', **kwargs):
         super().__init__(**kwargs)

@@ -22,9 +22,10 @@ class ElasticsearchSimstring(BaseSimstring):
         db (Dict[str, Any]): Options passed directly to
             'ElasticsearchDatabase()'.
 
-    Kwargs:
-        Options passed directly to 'BaseSimstring()'.
+    Kwargs: Options forwarded to 'BaseSimstring()'.
     """
+
+    NAME = 'elasticsearch-simstring'
 
     _SETTINGS = {
         'settings': {
@@ -56,15 +57,9 @@ class ElasticsearchSimstring(BaseSimstring):
         },
     }
 
-    def __init__(
-        self,
-        *,
-        # NOTE: Hijack 'db' parameter from 'BaseMatcher'
-        db: Dict[str, Any] = {},
-        **kwargs,
-    ):
+    def __init__(self, *, db: Dict[str, Any] = {}, **kwargs):
         super().__init__(**kwargs)
-        self.db = ElasticsearchDatabase(
+        self._db = ElasticsearchDatabase(
             index=db.pop('index', 'facet'),
             index_body={
                 # NOTE: Check key, then pop, to allow forming {key: map}.
@@ -121,7 +116,7 @@ class ElasticsearchSimstring(BaseSimstring):
         query = self._prepare_query(size, feature)
         return [
             document['_source']['term']
-            for document in self.db.get(
+            for document in self._db.get(
                 query,
                 # NOTE: Unique document key for 'get()' in database.
                 key=(size, feature),
@@ -133,7 +128,7 @@ class ElasticsearchSimstring(BaseSimstring):
         features = self._ngram.get_features(string)
         # NOTE: Skip short strings that do not produce any features.
         if features:
-            self.db.set(
+            self._db.set(
                 {
                     'term': string,
                     'sz': len(features),

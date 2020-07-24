@@ -12,6 +12,8 @@ class NLTKTokenizer(BaseTokenizer):
         language (str): Language to use for processing corpora.
     """
 
+    NAME = 'nltk'
+
     def __init__(self, *, language: str = 'english', **kwargs):
         super().__init__(**kwargs)
 

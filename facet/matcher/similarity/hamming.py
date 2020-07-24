@@ -15,6 +15,8 @@ class HammingSimilarity(BaseSimilarity):
     #     * ceil(a*(|x|+|y|)) <= 1 <= min(|x|,|y|)
     #     * ceil(a*|y|) <= 1 <= floor(|y|/a)
 
+    NAME = 'hamming'
+
     def min_features(self, length, alpha):
         return int(math.ceil(alpha * length))
 

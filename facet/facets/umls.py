@@ -3,7 +3,7 @@ import time
 from unidecode import unidecode
 from ..helpers import load_data
 from ..database import (
-    database_map,
+    get_database,
     BaseDatabase,
 )
 from .base import BaseFacet
@@ -85,39 +85,16 @@ class UMLSFacet(BaseFacet):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self._conso_db = None
-        self._cuisty_db = None
-
-        self.conso_db = conso_db
-        self.cuisty_db = cuisty_db
+        self._conso_db = get_database(conso_db)
+        self._cuisty_db = get_database(cuisty_db)
 
     @property
     def conso_db(self):
         return self._conso_db
 
-    @conso_db.setter
-    def conso_db(self, value: Union[str, 'BaseDatabase']):
-        if isinstance(value, str):
-            obj = database_map[value]()
-        elif value is None or isinstance(value, BaseDatabase):
-            obj = value
-        else:
-            raise ValueError(f'invalid CONSO-CUI database, {value}')
-        self._conso_db = obj
-
     @property
     def cuisty_db(self):
         return self._cuisty_db
-
-    @cuisty_db.setter
-    def cuisty_db(self, value: Union[str, 'BaseDatabase']):
-        if isinstance(value, str):
-            obj = database_map[value]()
-        elif value is None or isinstance(value, BaseDatabase):
-            obj = value
-        else:
-            raise ValueError(f'invalid CUI-STY database, {value}')
-        self._cuisty_db = obj
 
     def _install(
         self,

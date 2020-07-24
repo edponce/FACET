@@ -10,19 +10,19 @@ from ..helpers import (
     expand_envvars,
 )
 from ..matcher import (
-    matcher_map,
+    get_matcher,
     BaseMatcher,
 )
 from ..tokenizer import (
-    tokenizer_map,
+    get_tokenizer,
     BaseTokenizer,
 )
 from ..formatter import (
-    formatter_map,
+    get_formatter,
     BaseFormatter,
 )
 from ..database import (
-    database_map,
+    get_database,
     BaseDatabase,
 )
 from typing import (
@@ -56,7 +56,7 @@ strcase_map = {
 
 
 def create_proxy_db():
-    return database_map['dict']()
+    return get_database('dict')
 
 
 class BaseFacet(ABC):
@@ -84,56 +84,22 @@ class BaseFacet(ABC):
         formatter: Union[str, 'BaseFormatter'] = None,
         use_proxy_install: bool = False,
     ):
-        self._matcher = None
-        self._tokenizer = None
-        self._formatter = None
+        self._matcher = get_matcher(matcher)
+        self._tokenizer = get_tokenizer(tokenizer)
+        self._formatter = get_formatter(formatter)
         self._use_proxy_install = use_proxy_install
-
-        self.matcher = matcher
-        self.tokenizer = tokenizer
-        self.formatter = formatter
 
     @property
     def matcher(self):
         return self._matcher
 
-    @matcher.setter
-    def matcher(self, value: Union[str, 'BaseMatcher']):
-        if isinstance(value, str):
-            obj = matcher_map[value]()
-        elif isinstance(value, BaseMatcher):
-            obj = value
-        else:
-            raise ValueError(f'invalid matcher, {value}')
-        self._matcher = obj
-
     @property
     def tokenizer(self):
         return self._tokenizer
 
-    @tokenizer.setter
-    def tokenizer(self, value: Union[str, 'BaseTokenizer']):
-        if value is None or isinstance(value, str):
-            obj = tokenizer_map[value]()
-        elif isinstance(value, BaseTokenizer):
-            obj = value
-        else:
-            raise ValueError(f'invalid tokenizer value, {value}')
-        self._tokenizer = obj
-
     @property
     def formatter(self):
         return self._formatter
-
-    @formatter.setter
-    def formatter(self, value: Union[str, 'BaseFormatter']):
-        if value is None or isinstance(value, str):
-            obj = formatter_map[value]()
-        elif isinstance(value, BaseFormatter):
-            obj = value
-        else:
-            raise ValueError(f'invalid formatter value, {value}')
-        self._formatter = obj
 
     def match(
         self,
@@ -185,18 +151,16 @@ class BaseFacet(ABC):
         >>>     for term in terms:
         >>>         print(term['concept'], term['cui'], term['semantic type'])
         """
-        # Resolve formatter
         formatter = (
             self._formatter
             if formatter == ''
-            else formatter_map[formatter]()
+            else get_formatter(formatter)
         )
 
-        # Resolve tokenizer
         tokenizer = (
             self._tokenizer
             if tokenizer == ''
-            else tokenizer_map[tokenizer]()
+            else get_tokenizer(tokenizer)
         )
 
         casefunc = strcase_map[case]
@@ -261,6 +225,10 @@ class BaseFacet(ABC):
 
     def close(self):
         self._matcher.db.close()
+        if self._matcher.cache_db is not None:
+            self._matcher.cache_db.close()
+        if self._matcher.db is not None:
+            self._matcher.db.close()
         self._close()
 
     def _dump_matcher(
@@ -279,7 +247,7 @@ class BaseFacet(ABC):
             status_step (int): Print status message after this number of
                 records is dumped to databases.
         """
-        # Set up proxy database
+        # Use a proxy database
         if self._use_proxy_install:
             orig_db = self._matcher.db
             proxy_db = create_proxy_db()
@@ -329,7 +297,7 @@ class BaseFacet(ABC):
             status_step (int): Print status message after this number of
                 records is dumped to databases.
         """
-        # Set up proxy database
+        # Use a proxy database
         if self._use_proxy_install:
             orig_db = db
             proxy_db = create_proxy_db()
@@ -380,7 +348,7 @@ class BaseFacet(ABC):
             status_step (int): Print status message after this number of
                 records is dumped to databases.
         """
-        # Set up proxy database
+        # Use a proxy database
         if self._use_proxy_install:
             orig_db = self._matcher.db
             proxy_db = create_proxy_db()
@@ -426,6 +394,7 @@ class BaseFacet(ABC):
             proxy_db2.clear()
 
     def _close(self):
+        """Placeholder for closing resources used by a FACET implementation."""
         pass
 
     @abstractmethod

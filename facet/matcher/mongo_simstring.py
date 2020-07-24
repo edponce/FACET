@@ -20,23 +20,19 @@ class MongoSimstring(BaseSimstring):
         db (Dict[str, Any]): Options passed directly to
             'MongoDatabase()'.
 
-    Kwargs: Options passed directly to 'BaseSimstring()'.
+    Kwargs: Options forwarded to 'BaseSimstring()'.
     """
+
+    NAME = 'mongo-simstring'
 
     _KEYS = (
         ('ng', pymongo.TEXT),
         ('sz', pymongo.ASCENDING),
     )
 
-    def __init__(
-        self,
-        *,
-        # NOTE: Hijack 'db' parameter from 'BaseMatcher'
-        db: Dict[str, Any] = {},
-        **kwargs,
-    ):
+    def __init__(self, *, db: Dict[str, Any] = {}, **kwargs):
         super().__init__(**kwargs)
-        self.db = MongoDatabase(
+        self._db = MongoDatabase(
             database=db.pop('database', 'facet'),
             keys=type(self)._KEYS,
             **db,
@@ -47,7 +43,7 @@ class MongoSimstring(BaseSimstring):
         query = {'sz': size, 'ng': feature}
         return [
             document['term']
-            for document in self.db.get(
+            for document in self._db.get(
                 query,
                 # NOTE: Unique document key for 'get()' in database.
                 key=(size, feature),
@@ -59,7 +55,7 @@ class MongoSimstring(BaseSimstring):
         features = self._ngram.get_features(string)
         # NOTE: Skip short strings that do not produce any features.
         if features:
-            self.db.set(
+            self._db.set(
                 {
                     'term': string,
                     'sz': len(features),

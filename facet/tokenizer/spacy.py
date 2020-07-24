@@ -17,6 +17,8 @@ class SpaCyTokenizer(BaseTokenizer):
           desired, then these should be removed.
     """
 
+    NAME = 'spacy'
+
     def __init__(self, *, language: str = 'en', **kwargs):
         super().__init__(**kwargs)
 

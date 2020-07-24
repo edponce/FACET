@@ -8,6 +8,8 @@ __all__ = ['YAMLSerializer']
 class YAMLSerializer(BaseSerializer):
     """YAML serializer."""
 
+    NAME = 'yaml'
+
     def dumps(self, obj):
         return yaml.dump(obj)
 

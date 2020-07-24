@@ -1,5 +1,4 @@
 import sys
-import copy
 import time
 import collections
 from elasticsearch import Elasticsearch
@@ -10,6 +9,7 @@ from elasticsearch.helpers import (
     streaming_bulk,
 )
 from .base import BaseDatabase
+from ..helpers import expand_envvars
 from typing import (
     Any,
     List,
@@ -54,16 +54,15 @@ class Elasticsearchx(Elasticsearch):
         """
         if stream:
             response = streaming_bulk(self, actions, **kwargs)
+        elif thread_count == 1:
+            response = bulk(self, actions, **kwargs)
         else:
-            if thread_count == 1:
-                response = bulk(self, actions, **kwargs)
-            else:
-                response = parallel_bulk(
-                    self,
-                    actions,
-                    thread_count=thread_count,
-                    **kwargs
-                )
+            response = parallel_bulk(
+                self,
+                actions,
+                thread_count=thread_count,
+                **kwargs
+            )
         return response
 
     def bulk_index(
@@ -140,7 +139,8 @@ class ElasticsearchDatabase(BaseDatabase):
         index (str): Index name.
 
         index_body (Dict[str, Any]): Mapping and settings for index.
-            Only used during index creation.
+            If None, the index uses dynamic mapping, see
+            https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping.html#_dynamic_mapping
 
         access_mode (str): Access mode for database.
             Valid values are: 'r' = read-only, 'w' = read/write,
@@ -148,6 +148,8 @@ class ElasticsearchDatabase(BaseDatabase):
 
         use_pipeline (bool): If set, queue 'set-related' commands to database.
             Run 'commit()' command to submit commands in pipe.
+
+        connect (bool): If set, automatically connect during initialization.
 
         stream (bool): If set, use streaming bulk instead of bulk API.
 
@@ -161,43 +163,66 @@ class ElasticsearchDatabase(BaseDatabase):
     Kwargs: Options forwarded to 'Elasticsearch()' via 'Elasticsearchx()'.
     """
 
+    NAME = 'elasticsearch'
+
     def __init__(
         self,
-        index: str = 'facet',
+        index: str = 'test',
         *,
-        index_body: Dict[str, Any],
+        index_body: Dict[str, Any] = None,
         hosts: Any = 'localhost:9200',
         access_mode: str = 'c',
         use_pipeline: bool = False,
+        connect: bool = True,
         stream: bool = False,
         thread_count: int = 1,
-        max_connect_attempts: int = 3,
+        max_connect_attempts: int = 1,
         **conn_info,
     ):
         self._conn = None
         self._pipeline = None
         self._hosts = hosts
         self._index = index
+        self._index_body = index_body
+        self._access_mode = access_mode
         self._use_pipeline = use_pipeline
         self._stream = stream
         self._thread_count = thread_count
         self._max_connect_attempts = max_connect_attempts
-        self._is_connected = False
-        self._conn_info = copy.deepcopy(conn_info)
+        self._conn_info = conn_info
 
-        self.connect()
+        if connect:
+            self.connect()
+        else:
+            self._pre_connect()
 
-        if access_mode == 'n':
-            self.clear()
+    def _pre_connect(self, **kwargs):
+        self._hosts = kwargs.pop('hosts', self._hosts)
+        self._index = expand_envvars(kwargs.pop('index', self._index))
+        self._index_body = kwargs.pop('index_body', self._index_body)
+        self._access_mode = kwargs.pop('access_mode', self._access_mode)
+        self._use_pipeline = kwargs.pop('use_pipeline', self._use_pipeline)
+        self._stream = kwargs.pop('stream', self._stream)
+        self._thread_count = kwargs.pop('thread_count', self._thread_count)
+        self._max_connect_attempts = kwargs.pop(
+            'max_connect_attempts',
+            self._max_connect_attempts,
+        )
+        self._conn_info.update(kwargs)
 
-        if (
-            access_mode in ('c', 'n')
-            and not self._conn.indices.exists(index=index)
-        ):
-            self._conn.indices.create(
-                index=index,
-                body=index_body,
-            )
+    def _post_connect(self):
+        if self._access_mode in ('c', 'n'):
+            if self._access_mode == 'n':
+                self.clear()
+
+            if not self._conn.indices.exists(index=self._index):
+                self._conn.indices.create(
+                    index=self._index,
+                    body=self._index_body,
+                )
+
+        if self._use_pipeline:
+            self._pipeline = {}
 
     def __len__(self):
         return self._conn.count(index=self._index)['count']
@@ -217,35 +242,45 @@ class ElasticsearchDatabase(BaseDatabase):
     def __iter__(self):
         return self.ids()
 
-    def get_config(self, **kwargs):
+    @property
+    def backend(self):
+        return self._conn
+
+    def configuration(self):
+        is_connected = self.ping()
         return {
+            'connected': is_connected,
             'hosts': self._hosts,
             'index': self._index,
-            'memory usage': (
+            'access mode': self._access_mode,
+            'pipelined': self._use_pipeline,
+            'stream': self._stream,
+            'thread count': self._thread_count,
+            'max connect attempts': self._max_connect_attempts,
+            'nrows': len(self) if is_connected else -1,
+            'store': (
                 self._conn.indices.stats(
                     index=self._index,
-                    **kwargs,
                 )['_all']['primaries']['store']['size_in_bytes']
-                if self._is_connected
+                if is_connected
                 else -1
             ),
-            'item count': len(self) if self._is_connected else -1,
             'mapping': (
-                self._conn.indices.get_mapping(index=self._index, **kwargs)
-                if self._is_connected
+                self._conn.indices.get_mapping(index=self._index)
+                if is_connected
                 else {}
             ),
             'settings': (
-                self._conn.indices.get_settings(index=self._index, **kwargs)
-                if self._is_connected
+                self._conn.indices.get_settings(index=self._index)
+                if is_connected
                 else {}
             ),
         }
 
-    def get_info(self, **kwargs):
+    def info(self, **kwargs):
         return self._conn.info(**kwargs)
 
-    def get_stats(self, **kwargs):
+    def index_stats(self, **kwargs):
         return self._conn.indices.stats(index=self._index, **kwargs)
 
     def get(self, query: Dict[str, Any], *, key=None, **kwargs):
@@ -293,9 +328,12 @@ class ElasticsearchDatabase(BaseDatabase):
     def delete(self, id, **kwargs):
         self._conn.delete(index=self._index, id=id, **kwargs)
 
-    def connect(self):
-        if self._is_connected:
+    def connect(self, **kwargs):
+        if self.ping():
             return
+
+        self._pre_connect(**kwargs)
+
         connect_attempts = 0
         while True:
             connect_attempts += 1
@@ -311,41 +349,46 @@ class ElasticsearchDatabase(BaseDatabase):
                   f'{connect_attempts} ...',
                   file=sys.stderr)
             time.sleep(1)
-        if self._use_pipeline:
-            self._pipeline = {}
-        self._is_connected = True
+
+        self._post_connect()
 
     def commit(self, **kwargs):
-        if self._is_connected and self._use_pipeline:
-            if self._pipeline:
-                # NOTE: deque consumes streaming/parallel bulk generators
-                # and discards its results.
-                collections.deque(
-                    self._conn.bulk_index(
-                        self._pipeline.values(),
-                        index=self._index,
-                        stream=kwargs.pop('stream', self._stream),
-                        thread_count=kwargs.pop(
-                            'thread_count',
-                            self._thread_count,
-                        ),
-                        **kwargs,
-                    ),
-                    maxlen=0,
-                )
-                self._pipeline = {}
-            # NOTE: Elasticsearch automatically triggers flushes as needed.
-            # These flushes store data in transaction log to Lucene index.
-            # self._conn.indices.flush(index=self._index)
+        if not self.ping():
+            return
+        if self._use_pipeline and self._pipeline:
+            # NOTE: deque consumes streaming/parallel bulk generators
+            # and discards its results.
+            collections.deque(
+                self._conn.bulk_index(
+                    self._pipeline.values(),
+                    index=self._index,
+                    stream=self._stream,
+                    thread_count=self._thread_count,
+                    **kwargs,
+                ),
+                maxlen=0,
+            )
+            self._pipeline = {}
+        # NOTE: Elasticsearch automatically triggers flushes as needed.
+        # These flushes store data in transaction log to Lucene index.
+        # self._conn.indices.flush(index=self._index)
 
     def disconnect(self):
-        if self._is_connected:
-            self._pipeline = None
-            self._is_connected = False
+        if self.ping():
             self._conn.close()
+            self._pipeline = None
 
     def clear(self, **kwargs):
+        # NOTE: Elasticsearch does not supports deleting index content,
+        # so we delete index and recreate it.
+        self.drop_index(**kwargs)
+        self._conn.indices.create(index=self._index, body=self._index_body)
         if self._use_pipeline:
             self._pipeline = {}
+
+    def drop_index(self, **kwargs):
         if self._conn.indices.exists(index=self._index):
             self._conn.indices.delete(index=self._index, **kwargs)
+
+    def ping(self):
+        return self._conn is not None and self._conn.ping()

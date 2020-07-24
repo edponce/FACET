@@ -1,5 +1,4 @@
 import sys
-import copy
 import time
 import redis
 import redisearch
@@ -8,12 +7,12 @@ from .base import (
     BaseKVDatabase,
 )
 from ..serializer import (
-    serializer_map,
+    get_serializer,
     BaseSerializer,
 )
 from ..helpers import (
     parse_address,
-    get_obj_map_key,
+    expand_envvars,
 )
 from typing import (
     Any,
@@ -37,7 +36,7 @@ class RedisDatabase(BaseKVDatabase):
 
         port (int): Port number of database connection.
 
-        n (int): Database number, see Redis documentation.
+        index (int): Database index, see Redis documentation.
 
         access_mode (str): Access mode for database.
             Valid values are: 'r' = read-only, 'w' = read/write,
@@ -45,6 +44,8 @@ class RedisDatabase(BaseKVDatabase):
 
         use_pipeline (bool): If set, queue 'set-related' commands to database.
             Run 'commit' command to submit commands in pipe.
+
+        connect (bool): If set, automatically connect during initialization.
 
         max_connect_attempts (int): Number of times to attempt connecting to
             database during object instantiation. There is no connection
@@ -69,47 +70,64 @@ class RedisDatabase(BaseKVDatabase):
           pipeline for uncommitted data.
     """
 
+    NAME = 'redis'
+
     def __init__(
         self,
-        n: int = 0,
+        index: int = 0,
         *,
         host: str = 'localhost',
         port: int = 6379,
         access_mode: str = 'c',
         use_pipeline: bool = False,
-        max_connect_attempts: int = 3,
-        serializer: Union[str, 'BaseSerializer'] = 'json',
+        connect: bool = True,
+        max_connect_attempts: int = 1,
+        serializer: Union[str, 'BaseSerializer'] = 'pickle',
         **conn_info,
     ):
         self._conn = None
         self._conn_pipe = None
-        self._host, self._port = parse_address(host, port)
-        self._n = n
+        self._pipeline = None
+        self._host = host
+        self._port = port
+        self._index = index
+        self._access_mode = access_mode
         self._use_pipeline = use_pipeline
         self._max_connect_attempts = max_connect_attempts
-        self._serializer = None
-        self.serializer = serializer
-        self._is_connected = False
-        self._conn_info = copy.deepcopy(conn_info)
+        self._serializer = serializer
+        self._conn_info = conn_info
 
-        self.connect()
+        if connect:
+            self.connect()
+        else:
+            self._pre_connect()
 
-        if access_mode == 'n':
+    def _pre_connect(self, **kwargs):
+        self._host, self._port = parse_address(
+            expand_envvars(kwargs.pop('host', self._host)),
+            kwargs.pop('port', self._port),
+        )
+        self._index = kwargs.pop('index', self._index)
+        self._access_mode = kwargs.pop('access_mode', self._access_mode)
+        self._use_pipeline = kwargs.pop('use_pipeline', self._use_pipeline)
+        self._max_connect_attempts = kwargs.pop(
+            'max_connect_attempts',
+            self._max_connect_attempts,
+        )
+        self._serializer = get_serializer(
+            kwargs.pop('serializer', self._serializer)
+        )
+        self._conn_info.update(kwargs)
+
+    def _post_connect(self):
+        if self._access_mode == 'n':
             self.clear()
 
-    @property
-    def serializer(self):
-        return self._serializer
-
-    @serializer.setter
-    def serializer(self, value: Union[str, 'BaseSerializer']):
-        if value is None or isinstance(value, str):
-            obj = serializer_map[value]()
-        elif isinstance(value, BaseSerializer):
-            obj = value
+        if self._use_pipeline:
+            self._conn_pipe = self._conn.pipeline()
+            self._pipeline = {}
         else:
-            raise ValueError(f'invalid serializer, {value}')
-        self._serializer = obj
+            self._conn_pipe = self._conn
 
     def __len__(self):
         return self._conn.dbsize()
@@ -117,20 +135,27 @@ class RedisDatabase(BaseKVDatabase):
     def __contains__(self, key):
         return bool(self._conn.exists(key))
 
-    def get_config(self):
+    @property
+    def backend(self):
+        return self._conn
+
+    def configuration(self):
+        is_connected = self.ping()
         return {
+            'connected': is_connected,
             'host': self._host,
             'port': self._port,
-            'db num': self._n,
-            'item count': len(self) if self._is_connected else -1,
-            'use pipeline': self._use_pipeline,
-            'serializer': get_obj_map_key(self._serializer, serializer_map),
+            'index': self._index,
+            'access mode': self._access_mode,
+            'pipelined': self._use_pipeline,
+            'max connect attempts': self._max_connect_attempts,
+            'serializer': type(self._serializer).NAME,
+            'store': self._conn.info()['used_memory'] if is_connected else -1,
+            'nrows': len(self) if is_connected else -1,
         }
 
-    def get_info(self):
-        info = copy.deepcopy(self._conn.info())
-        info.update(self._conn.config_get())
-        return info
+    def info(self):
+        return self._conn.info()
 
     def get(self, key):
         if self._use_pipeline and key in self._pipeline:
@@ -144,14 +169,17 @@ class RedisDatabase(BaseKVDatabase):
         self._conn_pipe.set(key, self._serializer.dumps(value))
 
     def keys(self):
-        return list(map(lambda k: k.decode(), self._conn.keys()))
+        return list(map(lambda x: x.decode(), self._conn.keys()))
 
     def delete(self, key):
         self._conn.delete(key)
 
-    def connect(self):
-        if self._is_connected:
+    def connect(self, **kwargs):
+        if self.ping():
             return
+
+        self._pre_connect(**kwargs)
+
         connect_attempts = 0
         while True:
             connect_attempts += 1
@@ -159,7 +187,7 @@ class RedisDatabase(BaseKVDatabase):
                 self._conn = redis.Redis(
                     host=self._host,
                     port=self._port,
-                    db=self._n,
+                    db=self._index,
                     **self._conn_info,
                 )
                 break
@@ -171,30 +199,29 @@ class RedisDatabase(BaseKVDatabase):
                       f'{connect_attempts} ...',
                       file=sys.stderr)
                 time.sleep(1)
-        if self._use_pipeline:
-            self._conn_pipe = self._conn.pipeline()
-            self._pipeline = {}
-        else:
-            self._conn_pipe = self._conn
-        self._is_connected = True
+
+        self._post_connect()
 
     def commit(self):
-        if self._is_connected and self._use_pipeline:
-            if self._pipeline:
-                self._pipeline = {}
+        if not self.ping():
+            return
+        if self._use_pipeline and self._pipeline:
             self._conn_pipe.execute()
+            self._pipeline = {}
 
     def disconnect(self):
-        if self._is_connected:
-            self._pipeline = None
-            self._is_connected = False
+        if self.ping():
             self._conn_pipe = None
             self._conn = None
+            self._pipeline = None
 
     def clear(self):
+        self._conn.flushdb()
         if self._use_pipeline:
             self._pipeline = {}
-        self._conn.flushdb()
+
+    def ping(self):
+        return self._conn is not None and self._conn.ping()
 
 
 class RediSearchDatabase(BaseDatabase):
@@ -229,6 +256,9 @@ class RediSearchDatabase(BaseDatabase):
         * (Alternative) Install RediSearch module, see
           https://redislabs.com/blog/mastering-redisearch-part
     """
+
+    NAME = 'redisearch'
+
     def __init__(
         self,
         index: str = 'facet',
@@ -248,7 +278,7 @@ class RediSearchDatabase(BaseDatabase):
         self._use_pipeline = use_pipeline
         self._max_connect_attempts = max_connect_attempts
         self._is_connected = False
-        self._conn_info = copy.deepcopy(conn_info)
+        self._conn_info = conn_info
 
         self.connect()
 
@@ -341,10 +371,11 @@ class RediSearchDatabase(BaseDatabase):
             self._conn_pipe.commit()
 
     def disconnect(self):
-        if self._is_connected:
-            self._conn = None
-            self._conn_pipe = None
-            self._is_connected = False
+        if not self._is_connected:
+            return
+        self._conn = None
+        self._conn_pipe = None
+        self._is_connected = False
 
     def clear(self):
         self._conn.drop_index()

@@ -7,6 +7,8 @@ __all__ = ['NullSerializer']
 class NullSerializer(BaseSerializer):
     """Dummy serializer with no effect."""
 
+    NAME = 'null'
+
     def dumps(self, obj):
         return obj
 

@@ -18,6 +18,8 @@ class CharacterNgram(BaseNgram):
             boundary features.
     """
 
+    NAME = 'character'
+
     def __init__(
         self,
         n: int = 3,

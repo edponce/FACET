@@ -2,11 +2,12 @@ from abc import abstractmethod
 from collections import defaultdict
 from .base import BaseMatcher
 from .similarity import (
-    similarity_map,
+    get_similarity,
+    get_alpha,
     BaseSimilarity,
 )
 from .ngram import (
-    ngram_map,
+    get_ngram,
     BaseNgram,
 )
 from typing import (
@@ -31,15 +32,11 @@ class BaseSimstring(BaseMatcher):
     Args:
         alpha (float): Similarity threshold in range (0,1].
 
-        similarity (str, BaseSimilarity): Instance of similarity measure or
-            similarity name. Valid measures are: 'cosine', 'jaccard', 'dice',
-            'exact', 'overlap', 'hamming'.
+        similarity (str, BaseSimilarity): Similarity measure instance or name.
 
-        ngram (str, BaseNgram): N-gram feature extractor instance
-            or n-gram name. Valid n-gram extractors are: 'word', 'character'.
+        ngram (str, BaseNgram): N-gram feature extractor instance or name.
 
-    Kwargs:
-        Options passed directly to 'BaseMatcher()'.
+    Kwargs: Options forwarded to 'BaseMatcher()'.
     """
 
     GLOBAL_MAX_FEATURES = 64
@@ -55,12 +52,11 @@ class BaseSimstring(BaseMatcher):
         super().__init__(**kwargs)
         self._alpha = None
         self._similarity = None
-        self._ngram = None
+        self._ngram = get_ngram(ngram)
         self.global_max_features = type(self).GLOBAL_MAX_FEATURES
 
         self.alpha = alpha
         self.similarity = similarity
-        self.ngram = ngram
 
     @abstractmethod
     def get_strings(self, size: int, features: str) -> List[str]:
@@ -76,36 +72,23 @@ class BaseSimstring(BaseMatcher):
 
     @alpha.setter
     def alpha(self, alpha: float):
-        # Bound alpha to range [0.01,1]
-        self._alpha = min(1, max(alpha, 0.01))
+        self._alpha = get_alpha(alpha)
 
     @property
     def similarity(self):
         return self._similarity
 
     @similarity.setter
-    def similarity(self, value: Union[str, 'BaseSimilarity']):
-        if isinstance(value, str):
-            obj = similarity_map[value]()
-        elif isinstance(value, BaseSimilarity):
-            obj = value
-        else:
-            raise ValueError(f'invalid similarity measure, {value}')
-        self._similarity = obj
+    def similarity(self, similarity):
+        # NOTE: Clear cache database if similarity measure changes because
+        # results may differ.
+        if self._cache_db is not None and self._cache_db.ping():
+            self._cache_db.clear()
+        self._similarity = get_similarity(similarity)
 
     @property
     def ngram(self):
         return self._ngram
-
-    @ngram.setter
-    def ngram(self, value: Union[str, 'BaseNgram']):
-        if isinstance(value, str):
-            obj = ngram_map[value]()
-        elif isinstance(value, BaseNgram):
-            obj = value
-        else:
-            raise ValueError(f'invalid n-gram feature extractor, {value}')
-        self._ngram = obj
 
     def search(
         self,
@@ -121,31 +104,36 @@ class BaseSimstring(BaseMatcher):
             alpha (float): Similarity threshold.
 
             similarity (str, BaseSimilarity): Instance of similarity measure or
-                similarity name. Valid measures are: 'cosine', 'jaccard',
-                'dice', 'exact', 'overlap', 'hamming'.
+                similarity name.
         """
-        if alpha is None:
-            alpha = self._alpha
-        else:
-            alpha = min(1, max(alpha, 0.01))
+        alpha = (
+            self._alpha
+            if alpha is None
+            else get_alpha(alpha)
+        )
+        similarity = (
+            self._similarity
+            if similarity is None
+            else get_similarity(similarity)
+        )
 
-        if similarity is None:
-            similarity = self._similarity
-        elif isinstance(similarity, str):
-            similarity = similarity_map[similarity]()
+        # NOTE: Cached data assumes Simstring parameters (ngram and
+        # similariy measure) are the same with the exception of 'alpha'
+        # because results may differ. Therefore, do not use cache database
+        # if similarity measure from argument differs from internal
+        # similarity measure.
+        use_cache = similarity.NAME == self._similarity.NAME
+
+        # Check if query string is in cache
+        query_in_cache = False
+        if use_cache and self._cache_db is not None:
+            cache_key = str(alpha) + string
+            candidate_strings = self._cache_db.get(cache_key)
+            if candidate_strings is not None:
+                query_in_cache = True
 
         # X = string_to_feature(x)
         query_features = self._ngram.get_features(string)
-
-        # Check if query string is in cache
-        # NOTE: Cached data assumes all Simstring parameters are the same with
-        # the exception of 'alpha'.
-        query_in_cache = False
-        if self.cache_db is not None:
-            cache_key = str(alpha) + string
-            candidate_strings = self.cache_db.get(cache_key)
-            if candidate_strings is not None:
-                query_in_cache = True
 
         if not query_in_cache:
             min_features = max(
@@ -178,9 +166,9 @@ class BaseSimstring(BaseMatcher):
 
             # Insert candidate strings into cache
             # NOTE: Need a way to limit database and only cache heavy hitters.
-            if self.cache_db is not None:
+            if use_cache and self._cache_db is not None:
                 cache_key = str(alpha) + string
-                self.cache_db.set(cache_key, candidate_strings)
+                self._cache_db.set(cache_key, candidate_strings)
 
         similarities = [
             similarity.similarity(

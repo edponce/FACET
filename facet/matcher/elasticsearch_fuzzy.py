@@ -21,9 +21,10 @@ class ElasticsearchFuzzy(BaseMatcher):
         db (Dict[str, Any]): Options passed directly to
             'ElasticsearchDatabase()'.
 
-    Kwargs:
-        Options passed directly to 'BaseMatcher()'.
+    Kwargs: Options forwarded to 'BaseMatcher()'.
     """
+
+    NAME = 'elasticsearch-fuzzy'
 
     _SETTINGS = {
         'settings': {
@@ -49,7 +50,6 @@ class ElasticsearchFuzzy(BaseMatcher):
     def __init__(
         self,
         *,
-        # NOTE: Hijack 'db' parameter from 'BaseMatcher'
         db: Dict[str, Any] = {},
         rank: bool = True,
         exact_match: bool = False,
@@ -72,7 +72,7 @@ class ElasticsearchFuzzy(BaseMatcher):
             'transpositions': transpositions,
         }
 
-        self.db = ElasticsearchDatabase(
+        self._db = ElasticsearchDatabase(
             index=db.pop('index', 'facet'),
             index_body={
                 # NOTE: Check key, then pop, to allow forming {key: map}.
@@ -122,7 +122,7 @@ class ElasticsearchFuzzy(BaseMatcher):
         return query
 
     def insert(self, string: str):
-        self.db.set({'term': string})
+        self._db.set({'term': string})
 
     def search(
         self,
@@ -133,8 +133,8 @@ class ElasticsearchFuzzy(BaseMatcher):
         # NOTE: Cached data assumes all Simstring parameters are the same with
         # the exception of 'alpha'.
         query_in_cache = False
-        if self.cache_db is not None:
-            strings_and_similarities = self.cache_db.get(string)
+        if self._cache_db is not None:
+            strings_and_similarities = self._cache_db.get(string)
             if strings_and_similarities is not None:
                 query_in_cache = True
 
@@ -145,12 +145,12 @@ class ElasticsearchFuzzy(BaseMatcher):
             )
             strings_and_similarities = [
                 (document['_source']['term'], document['_score'])
-                for document in self.db.get(query)['hits']['hits']
+                for document in self._db.get(query)['hits']['hits']
             ]
 
             # Insert candidate strings into cache
             # NOTE: Need a way to limit database and only cache heavy hitters.
-            if self.cache_db is not None:
-                self.cache_db.set(string, strings_and_similarities)
+            if self._cache_db is not None:
+                self._cache_db.set(string, strings_and_similarities)
 
         return strings_and_similarities

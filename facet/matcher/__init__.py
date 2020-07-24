@@ -17,12 +17,21 @@ from .mongo_simstring import MongoSimstring
 from .redisearch_simstring import RediSearchSimstring
 from .elasticsearch_simstring import ElasticsearchSimstring
 from .elasticsearch_fuzzy import ElasticsearchFuzzy
+from typing import Union
 
 
 matcher_map = {
-    'simstring': Simstring,
-    'mongo-simstring': MongoSimstring,
-    'redisearch-simstring': RediSearchSimstring,
-    'elasticsearch-simstring': ElasticsearchSimstring,
-    'elasticsearch-fuzzy': ElasticsearchFuzzy,
+    Simstring.NAME: Simstring,
+    MongoSimstring.NAME: MongoSimstring,
+    RediSearchSimstring.NAME: RediSearchSimstring,
+    ElasticsearchSimstring.NAME: ElasticsearchSimstring,
+    ElasticsearchFuzzy.NAME: ElasticsearchFuzzy,
 }
+
+
+def get_matcher(value: Union[str, 'BaseMatcher']):
+    if isinstance(value, str):
+        return matcher_map[value]()
+    elif isinstance(value, BaseMatcher):
+        return value
+    raise ValueError(f'invalid matcher, {value}')
