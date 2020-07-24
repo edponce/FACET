@@ -122,53 +122,48 @@ class BaseSimstring(BaseMatcher):
         # because results may differ. Therefore, do not use cache database
         # if similarity measure from argument differs from internal
         # similarity measure.
-        use_cache = similarity.NAME == self._similarity.NAME
+        use_cache = (
+            similarity.NAME == self._similarity.NAME
+            and self._cache_db is not None
+        )
 
         # Check if query string is in cache
-        query_in_cache = False
-        if use_cache and self._cache_db is not None:
+        if use_cache:
             cache_key = str(alpha) + string
-            candidate_strings = self._cache_db.get(cache_key)
-            if candidate_strings is not None:
-                query_in_cache = True
+            strings_and_similarities = self._cache_db.get(cache_key)
+            if strings_and_similarities is not None:
+                return strings_and_similarities
 
         # X = string_to_feature(x)
         query_features = self._ngram.get_features(string)
 
-        if not query_in_cache:
-            min_features = max(
-                1,
-                similarity.min_features(len(query_features), alpha)
-            )
-            max_features = min(
-                self.global_max_features,
-                similarity.max_features(len(query_features), alpha)
-            )
+        min_features = max(
+            1,
+            similarity.min_features(len(query_features), alpha)
+        )
+        max_features = min(
+            self.global_max_features,
+            similarity.max_features(len(query_features), alpha)
+        )
 
-            # Y = list of strings similar to the query
-            candidate_strings = [
-                candidate_string
-                # for l in range(min_y(|X|,a), max_y(|X|,a))
-                for candidate_feature_size in range(min_features,
-                                                    max_features + 1)
-                # t = min_overlap(|X|,l,a)
-                # for r in overlapjoin(X,t,V,l)
-                for candidate_string in self._overlap_join(
-                    query_features,
+        # Y = list of strings similar to the query
+        candidate_strings = [
+            candidate_string
+            # for l in range(min_y(|X|,a), max_y(|X|,a))
+            for candidate_feature_size in range(min_features,
+                                                max_features + 1)
+            # t = min_overlap(|X|,l,a)
+            # for r in overlapjoin(X,t,V,l)
+            for candidate_string in self._overlap_join(
+                query_features,
+                candidate_feature_size,
+                similarity.min_common_features(
+                    len(query_features),
                     candidate_feature_size,
-                    similarity.min_common_features(
-                        len(query_features),
-                        candidate_feature_size,
-                        alpha,
-                    ),
-                )
-            ]
-
-            # Insert candidate strings into cache
-            # NOTE: Need a way to limit database and only cache heavy hitters.
-            if use_cache and self._cache_db is not None:
-                cache_key = str(alpha) + string
-                self._cache_db.set(cache_key, candidate_strings)
+                    alpha,
+                ),
+            )
+        ]
 
         similarities = [
             similarity.similarity(
@@ -183,6 +178,12 @@ class BaseSimstring(BaseMatcher):
         )
         if rank:
             strings_and_similarities.sort(key=lambda ss: ss[1], reverse=True)
+
+        # Insert candidate strings into cache
+        # NOTE: Need a way to limit database and only cache heavy hitters.
+        if use_cache:
+            cache_key = str(alpha) + string
+            self._cache_db.set(cache_key, strings_and_similarities)
 
         return strings_and_similarities
 
