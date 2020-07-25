@@ -1,7 +1,7 @@
 from .base import BaseDatabase
 from .dict import DictDatabase
-from .redis import (
-    RedisDatabase,
+from .redis import RedisDatabase
+from .redisearch import (
     RediSearchDatabase,
     RediSearchAutoCompleterDatabase,
 )
