@@ -260,6 +260,6 @@ class MongoDatabase(BaseDatabase):
             try:
                 self._conn.admin.command('ismaster')
                 is_connected = True
-            except pymongo.errors.ConnectionFailure as ex:
-                pass
+            except pymongo.errors.ConnectionFailure as exc:
+                ex = exc
         return (is_connected, ex) if with_exception else is_connected

@@ -192,7 +192,8 @@ class RedisDatabase(BaseKVDatabase):
                 )
                 if self.ping():
                     break
-            except redis.exceptions.ConnectionError as ex:
+            except redis.exceptions.ConnectionError as exc:
+                ex = exc
                 print('Warning: failed connecting to Redis database at '
                       f'{self._host:self._port}, reconnection attempt '
                       f'{connect_attempt} ...',
@@ -405,7 +406,8 @@ class RediSearchDatabase(BaseDatabase):
                 self._conn = redisearch.Client(self._index, conn=conn)
                 if self.ping():
                     break
-            except redis.exceptions.ConnectionError as ex:
+            except redis.exceptions.ConnectionError as exc:
+                ex = exc
                 print('Warning: failed connecting to RediSearch database at '
                       f'{self._host:self._port}, reconnection attempt '
                       f'{connect_attempt} ...',
@@ -582,7 +584,8 @@ class RediSearchAutoCompleterDatabase(BaseDatabase):
                 self._conn = redisearch.AutoCompleter(self._key, conn=conn)
                 if self.ping():
                     break
-            except redis.exceptions.ConnectionError as ex:
+            except redis.exceptions.ConnectionError as exc:
+                ex = exc
                 print('Warning: failed connecting to RediSearch database at '
                       f'{self._host:self._port}, reconnection attempt '
                       f'{connect_attempt} ...',
