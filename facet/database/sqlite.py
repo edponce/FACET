@@ -328,8 +328,8 @@ class SQLiteDatabase(BaseKVDatabase):
 
     def disconnect(self):
         if self.ping():
-            self._pipeline = None
             self._conn.close()
+            self._pipeline = None
 
     def clear(self):
         if self._conn.execute(

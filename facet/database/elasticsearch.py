@@ -334,21 +334,19 @@ class ElasticsearchDatabase(BaseDatabase):
 
         self._pre_connect(**kwargs)
 
-        connect_attempts = 0
-        while True:
-            connect_attempts += 1
+        for connect_attempt in range(1, self._max_connect_attempts + 1):
             self._conn = Elasticsearchx(self._hosts, **self._conn_info)
             if self._conn.ping():
                 break
-            if connect_attempts >= self._max_connect_attempts:
-                raise ConnectionError(
-                    'failed to connect to Elasticsearch hosts'
-                )
             print('Warning: failed connecting to Elasticsearch at '
                   f'{self._hosts}, reconnection attempt '
-                  f'{connect_attempts} ...',
+                  f'{connect_attempt} ...',
                   file=sys.stderr)
             time.sleep(1)
+        else:
+            raise ConnectionError(
+                'failed to connect to Elasticsearch hosts'
+            )
 
         self._post_connect()
 
@@ -380,7 +378,7 @@ class ElasticsearchDatabase(BaseDatabase):
 
     def clear(self, **kwargs):
         # NOTE: Elasticsearch does not supports deleting index content,
-        # so we delete index and recreate it.
+        # so we delete the index and recreate it.
         self.drop_index(**kwargs)
         self._conn.indices.create(index=self._index, body=self._index_body)
         if self._use_pipeline:

@@ -13,19 +13,27 @@ from .ngram import (
 from .base import BaseMatcher
 from .base_simstring import BaseSimstring
 from .simstring import Simstring
-from .mongo_simstring import MongoSimstring
-from .redisearch_simstring import RediSearchSimstring
-from .elasticsearch_simstring import ElasticsearchSimstring
-from .elasticsearch_fuzzy import ElasticsearchFuzzy
+from .mongo import MongoSimstring
+from .redisearch import (
+    RediSearch,
+    RediSearchSimstring,
+    RediSearchAutoCompleter,
+)
+from .elasticsearch import (
+    ElasticsearchFuzzy,
+    ElasticsearchSimstring,
+)
 from typing import Union
 
 
 matcher_map = {
     Simstring.NAME: Simstring,
     MongoSimstring.NAME: MongoSimstring,
+    RediSearch.NAME: RediSearch,
     RediSearchSimstring.NAME: RediSearchSimstring,
-    ElasticsearchSimstring.NAME: ElasticsearchSimstring,
+    RediSearchAutoCompleter.NAME: RediSearchAutoCompleter,
     ElasticsearchFuzzy.NAME: ElasticsearchFuzzy,
+    ElasticsearchSimstring.NAME: ElasticsearchSimstring,
 }
 
 

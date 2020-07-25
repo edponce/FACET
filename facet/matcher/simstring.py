@@ -21,7 +21,14 @@ class Simstring(BaseSimstring):
 
     NAME = 'simstring'
 
-    def __init__(self, *, db: Union[str, 'BaseDatabase'] = 'dict', **kwargs):
+    def __init__(
+        self,
+        *,
+        # NOTE: Hijack 'db' parameter from 'BaseMatcher'
+        db: Union[str, 'BaseDatabase'] = 'dict',
+        **kwargs,
+    ):
+        # NOTE: Set default value for 'db' parameter
         super().__init__(db=db, **kwargs)
 
         # NOTE: Can track max number of n-gram features when inserting strings

@@ -172,7 +172,6 @@ class MemoryDictDatabase(BaseKVDatabase):
 
     def __init__(self, connect: bool = True):
         self._conn = None
-
         if connect:
             self.connect()
 

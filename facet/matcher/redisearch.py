@@ -1,0 +1,205 @@
+import redisearch
+from .base import BaseMatcher
+from .base_simstring import BaseSimstring
+from ..database import (
+    RediSearchDatabase,
+    RediSearchAutoCompleterDatabase,
+)
+from typing import (
+    Any,
+    List,
+    Dict,
+    Tuple,
+    Union,
+)
+
+
+__all__ = [
+    'RediSearchSimstring',
+    'RediSearch',
+    'RediSearchAutoCompleter',
+]
+
+
+class RediSearchSimstring(BaseSimstring):
+    """RediSearch implementation of Simstring algorithm.
+
+    Args:
+        index (str): RediSearch index name for storage.
+
+        db (Dict[str, Any]): Options passed directly to
+            'RediSearchDatabase()'.
+
+    Kwargs: Options forwarded to 'BaseSimstring()'.
+    """
+
+    NAME = 'redisearch-simstring'
+
+    _FIELDS = (
+        redisearch.TextField('term', no_stem=True),
+        redisearch.TextField('ng', no_stem=False),
+        redisearch.NumericField('sz', sortable=True),
+    )
+
+    def __init__(
+        self,
+        *,
+        # NOTE: Hijack 'db' parameter from 'BaseMatcher'
+        db: Dict[str, Any] = {},
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self._db = RediSearchDatabase(
+            index=db.pop('index', 'facet'),
+            fields=type(self)._FIELDS,
+            **db,
+        )
+        # NOTE: Use document count as document IDs
+        self._doc_id = len(self._db)
+
+    def get_strings(self, size: int, feature: str) -> List[str]:
+        """Get strings corresponding to feature size and query feature."""
+        query = (
+            redisearch.Query(feature)
+            .verbatim()
+            .limit_fields('ng')
+            .add_filter(redisearch.NumericFilter('sz', size, size))
+            .return_fields('term')
+        )
+        return [
+            document.term
+            for document in self._db.get(query).docs
+        ]
+
+    def insert(self, string: str):
+        """Insert string into database."""
+        features = self._ngram.get_features(string)
+        # NOTE: RediSearch does not supports storing lists in a field,
+        # so we create a document for each feature. Downside is the high
+        # redundancy of data and extra storage.
+        for i, feature in enumerate(features):
+            self._db.set(
+                str(self._doc_id + i),
+                {
+                    'term': string,
+                    'sz': len(features),
+                    'ng': feature,
+                },
+            )
+        self._doc_id += len(features)
+
+
+class RediSearch(BaseMatcher):
+    """RediSearch.
+
+    Args:
+        index (str): RediSearch index name for storage.
+
+        db (Dict[str, Any]): Options passed directly to
+            'RediSearchDatabase()'.
+
+    Kwargs: Options forwarded to 'BaseMatcher()'.
+    """
+
+    NAME = 'redisearch'
+
+    _FIELDS = (redisearch.TextField('term'),)
+
+    def __init__(
+        self,
+        *,
+        # NOTE: Hijack 'db' parameter from 'BaseMatcher'
+        db: Dict[str, Any] = {},
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self._db = RediSearchDatabase(
+            index=db.pop('index', 'facet'),
+            fields=type(self)._FIELDS,
+            **db,
+        )
+        # NOTE: Use document count as document IDs
+        self._doc_id = len(self._db)
+
+    def insert(self, string: str):
+        """Insert string into database."""
+        self._db.set(str(self._doc_id), {'term': string})
+        self._doc_id += 1
+
+    def search(self, string: str) -> Union[List[Tuple[str, float]], List[str]]:
+        # Check if query string is in cache
+        if self._cache_db is not None:
+            strings_and_similarities = self._cache_db.get(string)
+            if strings_and_similarities is not None:
+                return strings_and_similarities
+
+        strings_and_similarities = [
+            # NOTE: No matching score is provided by RediSearch, so we
+            # set to 1 to ensure that all matches are considered as valid.
+            (document.term, 1.0)
+            for document in self._db.get(string).docs
+        ]
+
+        # Insert candidate strings into cache
+        # NOTE: Need a way to limit database and only cache heavy hitters.
+        if self._cache_db is not None:
+            self._cache_db.set(string, strings_and_similarities)
+
+        return strings_and_similarities
+
+
+class RediSearchAutoCompleter(BaseMatcher):
+    """RediSearch AutoCompleter.
+
+    Args:
+        key (str): RediSearch index name for storage.
+
+        db (Dict[str, Any]): Options passed directly to
+            'RediSearchAutoCompleterDatabase()'.
+
+    Kwargs: Options forwarded to 'BaseMatcher()'.
+    """
+
+    NAME = 'redisearch-autocompleter'
+
+    def __init__(
+        self,
+        *,
+        # NOTE: Hijack 'db' parameter from 'BaseMatcher'
+        db: Dict[str, Any] = {},
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self._db = RediSearchAutoCompleterDatabase(
+            key=db.pop('key', 'facet-ac'),
+            **db,
+        )
+
+    def insert(self, suggestion: Union[str, redisearch.Suggestion], **kwargs):
+        """Insert string into database."""
+        self._db.set(suggestion, **kwargs)
+
+    def search(self, string: str) -> Union[List[Tuple[str, float]], List[str]]:
+        # Check if query string is in cache
+        if self._cache_db is not None:
+            strings_and_similarities = self._cache_db.get(string)
+            if strings_and_similarities is not None:
+                return strings_and_similarities
+
+        strings_and_similarities = [
+            # NOTE: No matching score is provided by RediSearch, so we
+            # set to 1 to ensure that all matches are considered as valid.
+            (suggestion.string, suggestion.score)
+            for suggestion in self._db.get(
+                string,
+                fuzzy=True,
+                with_scores=True,
+            )
+        ]
+
+        # Insert candidate strings into cache
+        # NOTE: Need a way to limit database and only cache heavy hitters.
+        if self._cache_db is not None:
+            self._cache_db.set(string, strings_and_similarities)
+
+        return strings_and_similarities

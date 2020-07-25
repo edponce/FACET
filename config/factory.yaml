@@ -1,16 +1,16 @@
-SmallInstall:
+# facet run -c config/factory.yaml:SimpleMemory:Install
+
+Install:
     install:
         filename: data/install/american-english
         nrows: 10000
 
 AutoMemory:
-    install: data/install/american-english
     query: data/sample.txt
     formatter: json
     output: annotations.json
 
-SimpleMemory:
-    install: data/install/american-english
+SimpleMemory: {}
 
 SimpleFile:
     matcher:
@@ -20,17 +20,50 @@ SimpleFile:
             filename: db/testing
             access_mode: n
             use_pipeline: true
-    install: data/install/american-english
 
 SimpleRedis:
     matcher:
         class: simstring
         db:
             class: redis
-            n: 3
+            index: 3
             access_mode: n
             use_pipeline: true
-    install: data/install/american-english
+
+SimpleRediSearch:
+    matcher:
+        class: redisearch
+        db:
+            host: localhost
+            port: 7001
+            n: 1
+            index: test
+            access_mode: n
+            use_pipeline: true
+        cache_db: dict
+
+SimpleRediSearchSimstring:
+    matcher:
+        class: redisearch-simstring
+        db:
+            host: localhost
+            port: 7001
+            index: facet
+            access_mode: n
+            use_pipeline: true
+        cache_db: dict
+
+SimpleRediSearchAC:
+    matcher:
+        class: redisearch-autocompleter
+        db:
+            host: localhost
+            port: 7001
+            n: 2
+            key: facet-ac
+            access_mode: n
+            use_pipeline: true
+        cache_db: dict
 
 SimpleSQLite:
     matcher:
@@ -39,14 +72,13 @@ SimpleSQLite:
             class: sqlite
             access_mode: n
             use_pipeline: true
-    install: data/install/american-english
 
 SimpleMongo:
     matcher:
         class: mongo-simstring
         db:
+            access_mode: n
             use_pipeline: true
-    install: data/install/american-english
 
 SimpleElasticsearch:
     matcher:
@@ -55,15 +87,6 @@ SimpleElasticsearch:
             access_mode: n
             use_pipeline: true
             thread_count: 8
-    install: data/install/american-english
-
-SimpleMongo:
-    matcher:
-        class: mongo-simstring
-        db:
-            access_mode: n
-            use_pipeline: true
-    install: data/install/american-english
 
 
 FacetMemory:
@@ -110,7 +133,7 @@ FacetRedis:
             class: redis
             host: localhost
             port: 6379
-            n: 3
+            index: 3
             access_mode: c
             use_pipeline: true
         cache_db: null
@@ -257,7 +280,7 @@ UMLSRedis:
         class: redis
         host: localhost
         port: 6379
-        n: 0
+        index: 0
         access_mode: c
         serializer: json
         use_pipeline: true
@@ -265,7 +288,7 @@ UMLSRedis:
         class: redis
         host: localhost
         port: 6379
-        n: 1
+        index: 1
         access_mode: c
         serializer: json
         use_pipeline: true
@@ -275,7 +298,7 @@ UMLSRedis:
             class: redis
             host: localhost
             port: 6379
-            n: 2
+            index: 2
             access_mode: c
             serializer: pickle
             use_pipeline: true
@@ -362,14 +385,14 @@ UMLSESR:
         class: redis
         host: localhost
         port: 6379
-        n: 0
+        index: 0
         access_mode: c
         use_pipeline: true
     cuisty_db:
         class: redis
         host: localhost
         port: 6379
-        n: 1
+        index: 1
         access_mode: c
         use_pipeline: true
     matcher:

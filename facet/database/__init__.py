@@ -3,6 +3,7 @@ from .dict import DictDatabase
 from .redis import (
     RedisDatabase,
     RediSearchDatabase,
+    RediSearchAutoCompleterDatabase,
 )
 from .mongo import MongoDatabase
 from .sqlite import SQLiteDatabase
@@ -15,6 +16,7 @@ database_map = {
     DictDatabase.NAME: DictDatabase(),
     RedisDatabase.NAME: RedisDatabase,
     RediSearchDatabase.NAME: RediSearchDatabase,
+    RediSearchAutoCompleterDatabase.NAME: RediSearchAutoCompleterDatabase,
     MongoDatabase.NAME: MongoDatabase,
     SQLiteDatabase.NAME: SQLiteDatabase,
     ElasticsearchDatabase.NAME: ElasticsearchDatabase,

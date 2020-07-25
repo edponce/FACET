@@ -30,7 +30,13 @@ class MongoSimstring(BaseSimstring):
         ('sz', pymongo.ASCENDING),
     )
 
-    def __init__(self, *, db: Dict[str, Any] = {}, **kwargs):
+    def __init__(
+        self,
+        *,
+        # NOTE: Hijack 'db' parameter from 'BaseMatcher'
+        db: Dict[str, Any] = {},
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self._db = MongoDatabase(
             database=db.pop('database', 'facet'),
@@ -43,11 +49,7 @@ class MongoSimstring(BaseSimstring):
         query = {'sz': size, 'ng': feature}
         return [
             document['term']
-            for document in self._db.get(
-                query,
-                # NOTE: Unique document key for 'get()' in database.
-                key=(size, feature),
-            )
+            for document in self._db.get(query)
         ]
 
     def insert(self, string: str):
@@ -61,6 +63,6 @@ class MongoSimstring(BaseSimstring):
                     'sz': len(features),
                     'ng': features,
                 },
-                # NOTE: Unique document key for 'set()' in database.
+                # NOTE: Unique document key for database with pipeline enabled.
                 key=(len(features), features),
             )

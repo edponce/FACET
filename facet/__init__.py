@@ -44,6 +44,7 @@ from .database import (
     DictDatabase,
     RedisDatabase,
     RediSearchDatabase,
+    RediSearchAutoCompleterDatabase,
     SQLiteDatabase,
     MongoDatabase,
     ElasticsearchDatabase,
@@ -60,7 +61,9 @@ from .serializer import (
 from .matcher import (
     Simstring,
     MongoSimstring,
+    RediSearch,
     RediSearchSimstring,
+    RediSearchAutoCompleter,
     ElasticsearchSimstring,
     ElasticsearchFuzzy,
 )

@@ -194,9 +194,8 @@ class MongoDatabase(BaseDatabase):
 
         self._pre_connect(**kwargs)
 
-        connect_attempts = 0
-        while True:
-            connect_attempts += 1
+        ex = ConnectionError
+        for connect_attempt in range(1, self._max_connect_attempts + 1):
             self._conn = pymongo.MongoClient(
                 host=self._host,
                 port=self._port,
@@ -205,13 +204,13 @@ class MongoDatabase(BaseDatabase):
             is_connected, ex = self.ping(with_exception=True)
             if is_connected:
                 break
-            if connect_attempts >= self._max_connect_attempts:
-                raise ex
             print('Warning: failed connecting to MongoDB at '
                   f'{self._host:self._port}, reconnection attempt '
-                  f'{connect_attempts} ...',
+                  f'{connect_attempt} ...',
                   file=sys.stderr)
             time.sleep(1)
+        else:
+            raise ex
 
         self._post_connect()
 
