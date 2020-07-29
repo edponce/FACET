@@ -4,6 +4,7 @@ from ..database import (
     BaseDatabase,
 )
 from typing import (
+    Any,
     List,
     Tuple,
     Union,
@@ -32,10 +33,32 @@ class BaseMatcher(ABC):
     ):
         self._db = get_database(db)
         self._cache_db = get_database(cache_db)
+        self._tmp_db = None
 
     @property
     def db(self):
         return self._db
+
+    # NOTE: Need to rethink these proxy database and transformations.
+    # Think about the case where database serializer does not supports
+    # a value type (e.g., YAML/JSON with sets), but sets provide improvements
+    # for Simstring database accesses. For now, only support pickle
+    # serializer.
+    def set_proxy_db(self, db: Union[None, 'BaseDatabase']):
+        """Toggle proxy database."""
+        if db is None:
+            if self._tmp_db is not None:
+                # self._transform_proxy_db()
+                self._db.copy(self._tmp_db)
+                self._db.clear()
+                self._db, self._tmp_db = self._tmp_db, None
+        else:
+            self._tmp_db, self._db = self._db, get_database(db)
+
+    def _transform_proxy_db(self, value: Any):
+        """Operations to perform to proxy database before copying into
+        matcher's database."""
+        pass
 
     @property
     def cache_db(self):

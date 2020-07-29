@@ -5,6 +5,13 @@ Install:
         filename: data/install/american-english
         nrows: 10000
 
+UMLSInstall:
+    install:
+        filename: data/umls/MRCONSO.RRF
+        delimiter: "|"
+        cols: 14
+        nrows: 38000
+
 AutoMemory:
     query: data/sample.txt
     formatter: json
@@ -88,6 +95,21 @@ SimpleElasticsearch:
             use_pipeline: true
             thread_count: 8
 
+Tokenizer:
+    matcher:
+        class: redisearch
+        db:
+            port: 7001
+            use_pipeline: true
+        similarity: levenshtein
+    tokenizer:
+        class: spacy
+        mode: noun_chunks
+        # window: 3
+        converters: lower
+        min_token_length: 2
+        use_stopwords: true
+
 
 FacetMemory:
     class: facet
@@ -155,10 +177,10 @@ FacetSQL:
         class: simstring
         db:
             class: sqlite
-            filename: db/simstring
+            uri: db2/simstring
             table: facet
             access_mode: c
-            serializer: json
+            serializer: pickle
             check_same_thread: false
         cache_db: null
         alpha: 0.7
@@ -166,7 +188,7 @@ FacetSQL:
         ngram: character
     tokenizer: alphanumeric
     formatter: json
-    use_proxy_install: true
+    # use_proxy_install: true
     install:
         filename: data/umls/MRCONSO.RRF
         delimiter: "|"
@@ -282,7 +304,7 @@ UMLSRedis:
         port: 6379
         index: 0
         access_mode: c
-        serializer: json
+        serializer: pickle
         use_pipeline: true
     cuisty_db:
         class: redis
@@ -290,7 +312,7 @@ UMLSRedis:
         port: 6379
         index: 1
         access_mode: c
-        serializer: json
+        serializer: pickle
         use_pipeline: true
     matcher:
         class: simstring
@@ -316,23 +338,23 @@ UMLSSQL:
     class: umlsfacet
     conso_db:
         class: sqlite
-        filename: db/umls
+        uri: db/umls
         table: conso
         access_mode: c
-        serializer: json
+        serializer: pickle
         check_same_thread: false
     cuisty_db:
         class: sqlite
-        filename: db/umls
+        uri: db/umls
         table: cuisty
         access_mode: c
-        serializer: json
+        serializer: pickle
         check_same_thread: false
     matcher:
         class: simstring
         db:
             class: sqlite
-            filename: db/umls
+            uri: db/umls
             table: simstring
             access_mode: c
             serializer: pickle
@@ -354,14 +376,14 @@ UMLSESS:
         filename: db/umls
         table: conso
         access_mode: c
-        serializer: json
+        serializer: pickle
         check_same_thread: false
     cuisty_db:
         class: sqlite
         filename: db/umls
         table: cuisty
         access_mode: c
-        serializer: json
+        serializer: pickle
         check_same_thread: false
     matcher:
         class: elasticsearch-simstring
@@ -418,14 +440,14 @@ UMLSMongo:
         filename: db/umls
         table: conso
         access_mode: c
-        serializer: json
+        serializer: pickle
         check_same_thread: false
     cuisty_db:
         class: sqlite
         filename: db/umls
         table: cuisty
         access_mode: c
-        serializer: json
+        serializer: pickle
         check_same_thread: false
     matcher:
         class: mongo-simstring

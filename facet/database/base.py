@@ -155,9 +155,12 @@ class BaseKVDatabase(BaseDatabase):
             * Checks if database objects are the same but cannot detect if
               both objects refer to the same backend database.
         """
+        if nrows is None:
+            nrows = len(self)
+
         # Early exit to skip commit operation when self-referencing or
         # no rows are requested,
-        if self is database or nrows < 0:
+        if self is database or nrows < 1:
             return
 
         # NOTE: (Idea) If databases use the same serializers, then data

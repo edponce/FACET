@@ -27,13 +27,14 @@ class SQLiteDatabase(BaseKVDatabase):
     """SQLite database interface.
 
     Args:
-        filename (str): Path representing database directory and name for
-            persistent database. The path is created if it does not exists.
-            The database name is used as prefix for database files. If None
-            or empty string, a memory database is used.
-            For unnamed in-memory database, set filename as ':memory:'.
-            For named in-memory database, use URI format and set 'mode=memory'
-            in query part. Example: 'file:memdb?mode=memory&cache=shared'
+        uri (str): URI format or path representing database directory
+            and name for persistent database. The path is created if it
+            does not exists. The database name is used as prefix for
+            database files. If None or empty string, a memory database
+            is used. For unnamed in-memory database, set filename as
+            ':memory:'. For named in-memory database, use URI format and
+            set 'mode=memory'in query part.
+            Example: 'file:memdb?mode=memory&cache=shared'
 
         table (str): Name of database table.
 
