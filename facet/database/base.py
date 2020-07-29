@@ -135,7 +135,7 @@ class BaseKVDatabase(BaseDatabase):
         database: 'BaseKVDatabase',
         *,
         bulk_size: int = 1000,
-        nrows: int = None,
+        nrows: int = -1,
         **kwargs,
     ):
         """Copy rows from current database to another one.
@@ -146,8 +146,8 @@ class BaseKVDatabase(BaseDatabase):
 
             bulk_size (int): Number of rows to process before committing data.
 
-            nrows (int): Max number of rows to copy. If None, all rows are
-                copied.
+            nrows (int): Max number of rows to copy. If negative value,
+                all rows are copied.
 
         Kwargs: Options forwarded to 'database.commit()'.
 
@@ -155,20 +155,18 @@ class BaseKVDatabase(BaseDatabase):
             * Checks if database objects are the same but cannot detect if
               both objects refer to the same backend database.
         """
-        if nrows is None:
-            nrows = len(self)
-
         # Early exit to skip commit operation when self-referencing or
         # no rows are requested,
-        if self is database or nrows < 1:
+        if self is database:
             return
+
+        if nrows < 0:
+            nrows = len(self)
 
         # NOTE: (Idea) If databases use the same serializers, then data
         # could be copied as is. To support this, disable serializers
         # before copying data and enable them after copy completes.
-        for i, (k, v) in enumerate(self.items(), start=1):
-            if i > nrows:
-                break
+        for i, (k, v) in zip(range(1, nrows + 1), self.items()):
             database.set(k, v)
             if i % bulk_size == 0:
                 database.commit(**kwargs)

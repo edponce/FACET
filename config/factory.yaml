@@ -177,7 +177,7 @@ FacetSQL:
         class: simstring
         db:
             class: sqlite
-            uri: db2/simstring
+            uri: db/simstring
             table: facet
             access_mode: c
             serializer: pickle
@@ -188,7 +188,7 @@ FacetSQL:
         ngram: character
     tokenizer: alphanumeric
     formatter: json
-    # use_proxy_install: true
+    use_proxy_install: true
     install:
         filename: data/umls/MRCONSO.RRF
         delimiter: "|"

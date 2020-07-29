@@ -88,10 +88,10 @@ class Simstring(BaseSimstring):
     #             self._db.set(str(len(features)) + feature, list(strings))
     #
     #     # Track and store longest sequence of features
-    #     # NOTE: Too many database accesses. Probably it is best to estimate or
-    #     # fix a value or assume inserts occur during the same installation
-    #     # phase and keep track using class variables, then require a "closing"
-    #     # operation to store value into database.
+    #     # NOTE: Too many database accesses. Probably it is best to estimate
+    #     # or fix a value or assume inserts occur during the same
+    #     # installation phase and keep track using class variables, then
+    #     # require a "closing" operation to store value into database.
     #     if len(features) > self.global_max_features:
     #         self.global_max_features = len(features)
     #         self._db.set('__GLOBAL_MAX_FEATURES__', self.global_max_features)

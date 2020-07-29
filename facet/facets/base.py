@@ -365,9 +365,7 @@ class BaseFacet(ABC):
         """
         # Use a proxy database
         if self._use_proxy_install:
-            orig_db = self._matcher.db
-            proxy_db = create_proxy_db()
-            self._matcher.db = proxy_db
+            self._matcher.set_proxy_db(create_proxy_db())
 
             orig_db2 = db
             proxy_db2 = create_proxy_db()
@@ -400,9 +398,7 @@ class BaseFacet(ABC):
 
         # Copy proxy database
         if self._use_proxy_install:
-            proxy_db.copy(orig_db)
-            self._matcher.db = orig_db
-            proxy_db.clear()
+            self._matcher.set_proxy_db(None)
 
             proxy_db2.copy(orig_db2)
             db = orig_db2
