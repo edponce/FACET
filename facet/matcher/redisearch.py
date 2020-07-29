@@ -27,10 +27,9 @@ class RediSearchSimstring(BaseSimstring):
     """RediSearch implementation of Simstring algorithm.
 
     Args:
-        index (str): RediSearch index name for storage.
-
         db (Dict[str, Any]): Options passed directly to
             'RediSearchDatabase()'.
+            index (str): RediSearch index name for storage.
 
     Kwargs: Options forwarded to 'BaseSimstring()'.
     """
@@ -242,10 +241,9 @@ class RediSearchAutoCompleter(BaseMatcher):
     """RediSearch AutoCompleter.
 
     Args:
-        key (str): RediSearch index name for storage.
-
         db (Dict[str, Any]): Options passed directly to
             'RediSearchAutoCompleterDatabase()'.
+            key (str): RediSearch index name for storage.
 
     Kwargs: Options forwarded to 'BaseMatcher()'.
     """

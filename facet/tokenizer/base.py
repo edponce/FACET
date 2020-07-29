@@ -95,6 +95,14 @@ class BaseTokenizer(ABC):
         self._window = window
         self._min_token_length = min_token_length
 
+        self._stopwords = set()
+        if use_stopwords:
+            self._stopwords = (
+                copy.deepcopy(type(self)._STOPWORDS)
+                if stopwords is None
+                else stopwords
+            )
+
         # Make converters iterable and resolve strings to functions
         self._converters = []
         if converters is not None:
@@ -109,15 +117,6 @@ class BaseTokenizer(ABC):
                     )
                 elif callable(converter):
                     self._converters.append(converter)
-
-        if use_stopwords:
-            self._stopwords = (
-                copy.deepcopy(type(self)._STOPWORDS)
-                if stopwords is None
-                else stopwords
-            )
-        else:
-            self._stopwords = set()
 
     @property
     def stopwords(self):

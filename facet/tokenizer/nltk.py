@@ -45,11 +45,14 @@ class NLTKTokenizer(BaseTokenizer):
     }
 
     _TOKENIZER_MAP = {
-        'nltk': nltk.tokenize.NLTKWordTokenizer,
+        # NOTE: The following tokenizers raise 'NotImplementedError'
+        # for 'span_tokenize()'.
+        # 'nltk': nltk.tokenize.NLTKWordTokenizer,
+        # 'toktok': nltk.tokenize.ToktokTokenizer,
         'treebank': nltk.tokenize.TreebankWordTokenizer,
-        'repp': nltk.tokenize.ReppTokenizer,
-        'stanford': nltk.tokenize.StanfordSegmenter,
-        'toktok': nltk.tokenize.ToktokTokenizer,
+        # NOTE: Will be deprecated in v3.2.5, NLTK recommends
+        # nltk.parse.corenlp.CoreNLPTokenizer, but this does not exists.
+        # 'stanford': nltk.tokenize.StanfordSegmenter,
         'punctuation': nltk.tokenize.WordPunctTokenizer,
         'space': nltk.tokenize.SpaceTokenizer,
         'whitespace': nltk.tokenize.WhitespaceTokenizer,
@@ -72,7 +75,7 @@ class NLTKTokenizer(BaseTokenizer):
         mode: str = None,
         sentencizer: str = 'punctuation',
         lemmatizer: str = 'snowball',
-        tokenizer: str = 'nltk',
+        tokenizer: str = 'treebank',
         language: str = 'english',
         **kwargs,
     ):

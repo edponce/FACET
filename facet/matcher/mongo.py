@@ -15,10 +15,9 @@ class MongoSimstring(BaseSimstring):
     """MongoDB implementation of Simstring algorithm.
 
     Args:
-        database (str): MongoDB database name for storage.
-
         db (Dict[str, Any]): Options passed directly to
             'MongoDatabase()'.
+            database (str): MongoDB database name for storage.
 
     Kwargs: Options forwarded to 'BaseSimstring()'.
     """

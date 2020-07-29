@@ -23,6 +23,8 @@ class ElasticsearchSimstring(BaseSimstring):
     Args:
         index (str): Elasticsearch index name for storage.
 
+        settings (Dict[str, Any]): Elasticsearch index settings.
+
         db (Dict[str, Any]): Options passed directly to
             'ElasticsearchDatabase()'.
 
@@ -32,31 +34,27 @@ class ElasticsearchSimstring(BaseSimstring):
     NAME = 'elasticsearch-simstring'
 
     _SETTINGS = {
-        'settings': {
-            'number_of_shards': 1,
-            'number_of_replicas': 0,
-            'max_result_window': 10000,
-            # disable for bulk processing, enable for real-time
-            # 'refresh_interval': -1,
-        },
+        'number_of_shards': 1,
+        'number_of_replicas': 0,
+        'max_result_window': 10000,
+        # disable for bulk processing, enable for real-time
+        # 'refresh_interval': -1,
     }
 
     _MAPPINGS = {
-        'mappings': {
-            'properties': {
-                'term': {
-                   'type': 'text',
-                   'index': False,
-                },
-                'ng': {
-                   'type': 'text',
-                   'norms': False,
-                   'similarity': 'boolean',
-                },
-                'sz': {
-                   'type': 'integer',
-                   'similarity': 'boolean',
-                },
+        'properties': {
+            'term': {
+               'type': 'text',
+               'index': False,
+            },
+            'ng': {
+               'type': 'text',
+               'norms': False,
+               'similarity': 'boolean',
+            },
+            'sz': {
+               'type': 'integer',
+               'similarity': 'boolean',
             },
         },
     }
@@ -76,13 +74,8 @@ class ElasticsearchSimstring(BaseSimstring):
         self._db = ElasticsearchDatabase(
             index=db.pop('index', 'facet'),
             index_body={
-                # NOTE: Check key, then pop, to allow forming {key: map}.
-                **(
-                    {'settings': db.pop('settings')}
-                    if 'settings' in db
-                    else type(self)._SETTINGS
-                ),
-                **type(self)._MAPPINGS,
+                **{'settings': db.pop('settings', type(self)._SETTINGS)},
+                **{'mappings': type(self)._MAPPINGS},
             },
             **db,
         )
@@ -155,6 +148,8 @@ class ElasticsearchFuzzy(BaseMatcher):
     Args:
         index (str): Elasticsearch database index for storage.
 
+        settings (Dict[str, Any]): Elasticsearch index settings.
+
         db (Dict[str, Any]): Options passed directly to
             'ElasticsearchDatabase()'.
 
@@ -164,22 +159,18 @@ class ElasticsearchFuzzy(BaseMatcher):
     NAME = 'elasticsearch-fuzzy'
 
     _SETTINGS = {
-        'settings': {
-            'number_of_shards': 1,
-            'number_of_replicas': 0,
-            'max_result_window': 10000,
-            # disable for bulk processing, enable for real-time
-            # 'refresh_interval': -1,
-        },
+        'number_of_shards': 1,
+        'number_of_replicas': 0,
+        'max_result_window': 10000,
+        # disable for bulk processing, enable for real-time
+        # 'refresh_interval': -1,
     }
 
     _MAPPINGS = {
-        'mappings': {
-            'properties': {
-                'term': {
-                   'type': 'text',
-                   'index': True,
-                },
+        'properties': {
+            'term': {
+               'type': 'text',
+               'index': True,
             },
         },
     }
@@ -216,13 +207,8 @@ class ElasticsearchFuzzy(BaseMatcher):
         self._db = ElasticsearchDatabase(
             index=db.pop('index', 'facet'),
             index_body={
-                # NOTE: Check key, then pop, to allow forming {key: map}.
-                **(
-                    {'settings': db.pop('settings')}
-                    if 'settings' in db
-                    else type(self)._SETTINGS
-                ),
-                **type(self)._MAPPINGS,
+                **{'settings': db.pop('settings', type(self)._SETTINGS)},
+                **{'mappings': type(self)._MAPPINGS},
             },
             **db,
         )

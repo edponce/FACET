@@ -96,7 +96,7 @@ class SpaCyTokenizer(BaseTokenizer):
     def _is_valid_token(self, token: 'spacy.tokens.token.Token'):
         return (
             len(token) >= self._min_token_length
-            and token not in self._.stopwords
+            and token not in self._stopwords
         )
 
     def sentencize(

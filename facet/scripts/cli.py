@@ -1,5 +1,4 @@
 import os
-import re
 import sys
 import copy
 import click
@@ -54,103 +53,26 @@ def dump_configuration(config: Dict[str, Any], output=None, format='yaml'):
         print(formatted_config)
 
 
-def repl_loop(obj, *, enable_cmds: bool = True, prompt_symbol: str = '>'):
+def repl_loop(obj, prompt_symbol: str = '>'):
     """Read-Evaluate-Print-Loop.
 
     Args:
         obj (BaseFacet): FACET instance.
 
-        enable_cmds (bool): If set, get/set commands are supported alongside
-            matching queries. Commands allow changing some options from the
-            command prompt. A '=' symbol represents an option=value pair.
-
         prompt_symbol (str): Symbol for prompt.
     """
-    if enable_cmds:
-        # Parameters and type conversion
-        params_types = {
-            'alpha': float,
-            'similarity': str,
-            'rank': bool,
-            'case': str,
-            'normalize_unicode': bool,
-            'formatter': str,
-            'tokenizer': str,
-            'output': str,
-        }
-
-        # Current value of parameters
-        params_values = {
-            'alpha': obj.matcher.alpha,
-            'similarity': facet.get_obj_map_key(
-                obj.matcher.similarity,
-                facet.matcher.similarity.similarity_map,
-            ),
-            'rank': True,
-            'case': 'l',
-            'normalize_unicode': False,
-            'formatter': facet.get_obj_map_key(
-                obj.formatter,
-                facet.formatter.formatter_map,
-            ),
-            'tokenizer': facet.get_obj_map_key(
-                obj.tokenizer,
-                facet.tokenizer.tokenizer_map,
-            ),
-            'output': None,
-        }
-
-        params_help = (
-            'alpha       similarity threshold, (0,1]\n'
-            + 'similarity  jaccard, cosine, exact, dice, overlap, hamming\n'
-            + 'rank        ordered results, 0 = False, 1 = True\n'
-            + 'case        apply string casing, l/u\n'
-            + 'normalize_unicode  0 = False, 1 = True\n'
-            + 'formatter   json, yaml, xml, csv, pickle, null\n'
-            + 'tokenizer   alphanumeric, whitespace, symbol, nltk, spacy, null\n'
-            + 'output      filename for results\n'
-        )
-
     prompt = prompt_symbol + ' '
     try:
         while True:
-            query_or_cmd = input(prompt)
-            if not enable_cmds:
-                print(obj.match(query_or_cmd))
-                continue
-
-            if query_or_cmd == 'exit()':
+            query = input(prompt)
+            if query == 'exit()':
                 break
 
-            try:
-                if '()' in query_or_cmd:
-                    cmd = re.sub(r'\(()\)$', '', query_or_cmd)
-                    if cmd == 'help':
-                        print('-------------------------')
-                        print('Commands:')
-                        print('  Get value: cmd()')
-                        print('  Set value: cmd = value')
-                        print()
-                        print(params_help)
-                        print('exit()')
-                        print('-------------------------')
-                    elif cmd in params_values:
-                        print(params_values[cmd])
-                    else:
-                        print(obj.match(cmd, **params_values))
-                elif '=' in query_or_cmd:
-                    option, value = query_or_cmd.split('=')
-                    option = option.strip()
-                    if option in params_values:
-                        value = value.strip('\'" ')
-                        params_values[option] = params_types[option](value)
-                        print(f'Set value: {option} = {value}')
-                    else:
-                        print(obj.match(query_or_cmd, **params_values))
-                else:
-                    print(obj.match(query_or_cmd, **params_values))
-            except AttributeError:
-                print('Current mode does not supports commands')
+            # Allow escaping exit command
+            if query == '\\exit()':
+                query = 'exit()'
+
+            print(obj.match(query))
     except (KeyboardInterrupt, EOFError):
         print()
 
@@ -277,11 +199,7 @@ def run(
 
     if dump_config:
         full_config.update(factory_config)
-        dump_configuration(
-            {'FACET': full_config},
-            dump_output,
-            dump_format,
-        )
+        dump_configuration({'FACET': full_config}, dump_output, dump_format)
         return
 
     f = facet.FacetFactory(factory_config).create()
@@ -294,10 +212,7 @@ def run(
         if matches is not None:
             print(matches)
     else:
-        if isinstance(f.matcher, facet.matcher.BaseSimstring):
-            repl_loop(f, enable_cmds=False)
-        else:
-            repl_loop(f, enable_cmds=False)
+        repl_loop(f)
 
     f.close()
 
@@ -430,11 +345,7 @@ def server(
 
     if dump_config:
         full_config.update(factory_config)
-        dump_configuration(
-            {'FACET_SERVER': full_config},
-            dump_output,
-            dump_format,
-        )
+        dump_configuration({'SERVER': full_config}, dump_output, dump_format)
         return
 
     f = facet.FacetFactory(factory_config).create()
@@ -518,11 +429,7 @@ def client(config, host, port, query, formatter, output, dump_config):
 
     if dump_config:
         full_config.update(factory_config)
-        dump_configuration(
-            {'FACET_CLIENT': full_config},
-            dump_output,
-            dump_format,
-        )
+        dump_configuration({'CLIENT': full_config}, dump_output, dump_format)
         return
 
     with facet.network.SocketClient(
@@ -534,9 +441,7 @@ def client(config, host, port, query, formatter, output, dump_config):
             if matches is not None:
                 print(matches)
         else:
-            # NOTE: Disable commands because a client should not control
-            # the server settings.
-            repl_loop(f, enable_cmds=False)
+            repl_loop(f)
 
 
 @click.command('server-shutdown', context_settings=CONTEXT_SETTINGS)
