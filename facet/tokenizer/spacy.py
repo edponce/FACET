@@ -1,6 +1,10 @@
 import spacy
 from .base import BaseTokenizer
-from typing import Iterator
+from typing import (
+    Tuple,
+    Union,
+    Iterator,
+)
 
 
 __all__ = ['SpaCyTokenizer']
@@ -10,6 +14,14 @@ class SpaCyTokenizer(BaseTokenizer):
     """SpaCy-based tokenizer.
 
     Args:
+        mode (str): Tokenization mode. 'noun' uses nouns only, 'noun_chunks'
+            uses basic noun chunking, 'pos_chunks' uses parts-of-speech
+            for chunking, None uses window-based tokenization. If chunking
+            is enabled then 'window', 'stopwords', and 'min_token_length'
+            parameters are not used.
+
+        lemmatizer (bool): If set use the lemma form of tokens.
+
         language (str): Language to use for processing corpora.
 
     Notes:
@@ -19,118 +31,213 @@ class SpaCyTokenizer(BaseTokenizer):
 
     NAME = 'spacy'
 
-    def __init__(self, *, language: str = 'en', **kwargs):
-        super().__init__(**kwargs)
+    # For reference only, these are the universal POS tags.
+    # https://spacy.io/api/annotation#pos-universal
+    _UNIVERSAL_POS_TAGS = {
+        'ADJ', 'ADP', 'ADV', 'AUX', 'CONJ', 'CCONJ', 'DET', 'INTJ',
+        'NOUN', 'NUM', 'PART', 'PRON', 'PROPN', 'PUNCT', 'SCONJ',
+        'SYM', 'VERB', 'X', 'SPACE',
+    }
 
+    def __init__(
+        self,
+        *,
+        mode: str = None,
+        lemmatizer: bool = True,
+        language: str = 'en',
+        **kwargs,
+    ):
         try:
-            self._nlp = spacy.load(language)
-        except KeyError:
-            raise KeyError(f"Model for language '{language}' is not valid.")
-        except RuntimeError:
-            raise RuntimeError(f"Run 'python3 -m spacy download {language}'")
+            nlp = spacy.load(language)
+        except KeyError as ex:
+            raise ex(f"Model for spaCy language '{language}' is invalid.")
+        except RuntimeError as ex:
+            raise ex(f"Run 'python -m spacy download {language}'")
 
-        self.STOPWORDS = self._nlp.Defaults.stop_words
+        # spacy.load('en') creates a model with 'tagger', 'parser', and 'NER',
+        # where 'parser' performs sentence segmentation. We can also create a
+        # model with empty pipeline via spacy.lang.en.English but this will
+        # prevent using the 'language' parameter directly. Other languages
+        # might not be preconfigured with the same components, so this may
+        # fail. Solution is to check components existence via '*.pipeline'.
+        # If chunking mode is enabled then dependency parser is not removed,
+        # else we only need sentencizer and tagger (POS). The same pipeline
+        # is used for 'sentencize()' --> 'tokenize()' and 'tokenize()'.
+        nlp.remove_pipe('ner')
+        if mode is None:
+            nlp.remove_pipe('parser')
+            nlp.add_pipe(nlp.create_pipe('sentencizer'))
+        self._nlp = nlp
 
-    def sentencize(self, text) -> Iterator['spacy.Span']:
-        # len(Doc) == number of words
-        doc = self._nlp(text)
-        return doc.sents
+        # Set class stop words, then initialize base class to allow
+        # customization of stop words, then
+        # update spaCy's stop words based on user options but not sure
+        # if spaCy uses them internally. Nevertheless, we check tokens
+        # agains 'self._stopwords'.
+        type(self)._STOPWORDS = self._nlp.Defaults.stop_words
+        super().__init__(**kwargs)
+        self._nlp.Defaults.stop_words = self._stopwords
+
+        self._mode = mode
+        self._language = language
+        self._lemmatizer = lemmatizer
+        self._tokenize_func = self._get_tokenize_func(mode)
+
+    def _get_tokenize_func(self, mode: str):
+        tokenizer_func_map = {
+            'nouns': self._tokenize_with_nouns,
+            'noun_chunks': self._tokenize_with_noun_chunks,
+            'pos_chunks': self._tokenize_with_pos_chunks,
+            # Let base class handle tokenization window.
+            None: super().tokenize,
+        }
+        return tokenizer_func_map[mode]
+
+    def _is_valid_token(self, token: 'spacy.tokens.token.Token'):
+        return (
+            len(token) >= self._min_token_length
+            and token not in self._.stopwords
+        )
+
+    def sentencize(
+        self,
+        text: str,
+        as_tuple: bool = False,
+    ) -> Iterator[Union[Tuple[int, int, str], 'spacy.tokens.span.Span']]:
+        # spaCy uses an object-model for NLP, so to support invoking
+        # 'sentencize()' directly we convert the objects to span-text tuples.
+        if not as_tuple:
+            # NOTE: Converters are applied to the input text because
+            # we cannot modify spaCy objects and maintain consistency of
+            # attributes.
+            yield from self._sentencize(self.convert(text))
+        else:
+            for sentence in self._sentencize(text):
+                yield (
+                    sentence[0].idx,
+                    sentence[-1].idx + len(sentence[-1]) - 1,
+                    # NOTE: spaCy supports lemmatizing sentences, so we
+                    # take advantage of it.
+                    self.convert(self._lemmatize(sentence)),
+                )
 
     def tokenize(
         self,
-        text: 'spacy.Span',
-        *,
-        window: int = 5,
-        min_match_length: int = 3,
-        ignore_syntax: bool = False,
-    ):
-        """
-        Args:
-            sentence (spacy.Span): Sentence to process.
+        text: Union[str, 'spacy.tokens.span.Span'],
+    ) -> Iterator[Tuple[int, int, str]]:
+        # NOTE: Support raw strings to allow invoking directly, that is,
+        # it is not necessary to 'sentencize()' first.
+        yield from self._tokenize_func(
+            self._nlp(text)
+            if isinstance(text, str)
+            else text
+        )
 
-            window (int): Window size for processing words.
+    def _sentencize(self, text) -> Iterator['spacy.tokens.span.Span']:
+        yield from self._nlp(text).sents
 
-            min_match_length (int): Minimum number of characters for matching
-                criterion.
-
-            ignore_syntax (bool): Ignore token types when parsing text.
-
-        Returns (Iterator[Tuple[int, int, str]]: Span start, span end,
-            and text.
-        """
-        if ignore_syntax:
-            tokens = self._tokenize(text, window, min_match_length)
+    def _lemmatize(self, text: 'spacy.tokens.token.Token') -> str:
+        if self._lemmatizer:
+            # NOTE: spaCy's lemma for some pronouns/determinants is
+            # '-PRON-', so we skip these.
+            lemma = text.lemma_
+            return lemma if lemma != '-PRON-' else text.text
         else:
-            tokens = self._tokenize_syntax(text, window, min_match_length)
-        return tokens
+            return text.text
 
-    def _tokenize(self, sentence, window, min_match_length):
-        for i in range(len(sentence)):
-            for j in range(i + 1, min(i + window, len(sentence)) + 1):
-                span = sentence[i:j]
-                if span.end_char - span.start_char >= min_match_length:
-                    yield (span.start_char, span.end_char, span.text)
+    def _tokenize(self, text: 'spacy.tokens.span.Span'):
+        """Tokenizer with stop words."""
+        for token in filter(self._is_valid_token, text):
+            yield (
+                token.idx,
+                token.idx + len(token) - 1,
+                self._lemmatize(token),
+            )
 
-    def _tokenize_syntax(self, sentence, window, min_match_length):
-        for i, token in enumerate(sentence):
-            if not self._is_valid_token(token):
-                continue
+    def _tokenize_with_nouns(self, text: 'spacy.tokens.span.Span'):
+        """Tokenizer for single nouns."""
+        def is_valid_pos(token: 'spacy.tokens.token.Token'):
+            return token.pos_ in {'NOUN', 'PROPN', 'X'}
 
-            # We take a shortcut if the token is the last one in the sentence
-            if (
-                i + 1 == len(sentence)
-                and len(token) >= min_match_length
-                and self._is_valid_end_token(token)
-            ):
-                yield (token.idx, token.idx + len(token) - 1, token.text)
-            else:
-                span_start = i + 1 + int(not self._is_valid_begin_token(token))
-                span_end = min(len(sentence), i + window) + 1
-                for j in range(span_start, span_end):
-                    if not self._is_valid_middle_token(sentence[j - 1]):
-                        break
+        for token in filter(self._is_valid_token, filter(is_valid_pos, text)):
+            yield (
+                token.idx,
+                token.idx + len(token) - 1,
+                self._lemmatize(token),
+            )
 
-                    if not self._is_valid_end_token(sentence[j - 1]):
-                        continue
+    def _tokenize_with_noun_chunks(self, text: 'spacy.tokens.span.Span'):
+        """Tokenizer for noun chunks."""
+        for chunk in text.noun_chunks:
+            if len(chunk) > 1 or self._is_valid_token(chunk[0]):
+                yield (
+                    chunk[0].idx,
+                    chunk[-1].idx + len(chunk[-1]) - 1,
+                    ' '.join(map(lambda t: self._lemmatize(t), chunk)),
+                )
 
-                    span = sentence[i:j]
+    def _tokenize_with_pos_chunks(self, text: 'spacy.tokens.span.Span'):
+        """Phrase tokenizer with parts-of-speech tags for marking bounds."""
+        def is_valid_pos(token: 'spacy.tokens.token.Token'):
+            return token.pos_ in {
+                'ADJ', 'ADP', 'ADV', 'AUX', 'CONJ', 'DET', 'NOUN', 'PROPN',
+                'PART', 'VERB', 'X',
+            }
 
-                    if span.end_char - span.start_char < min_match_length:
-                        continue
+        def is_valid_begin_pos(token: 'spacy.tokens.token.Token'):
+            return token.pos_ in {
+                'ADJ', 'ADV', 'DET', 'NOUN', 'PROPN', 'VERB', 'X'
+            }
 
+        def is_valid_middle_pos(token: 'spacy.tokens.token.Token'):
+            return token.pos_ in {
+                'ADJ', 'ADP', 'ADV', 'AUX', 'CONJ', 'DET', 'NOUN', 'PROPN',
+                'PART', 'VERB', 'X',
+            }
+
+        def is_valid_end_pos(token: 'spacy.tokens.token.Token'):
+            return token.pos_ in {'NOUN', 'PROPN', 'VERB', 'X'}
+
+        chunk = []
+        for token in filter(is_valid_pos, text):
+            # Flag for not duplicating flush of a single token valid
+            # as both, end and begin POS.
+            is_end_token = False
+
+            # Check for end token first:
+            #   Handle single word tokens
+            #   An end token can also be a begin token of another phrase
+            if is_valid_end_pos(token):
+                # NOTE: Split based on chunk size to improve performance.
+                if len(chunk) == 0:
+                    if self._is_valid_token(token):
+                        is_end_token = True
+                        yield (
+                            token.idx,
+                            token.idx + len(token) - 1,
+                            self._lemmatize(token),
+                        )
+                else:
+                    is_end_token = True
+                    chunk.append(token)
                     yield (
-                        span.start_char, span.end_char - 1,
-                        ''.join(
-                            token.text_with_ws
-                            for token in span
-                            if token.pos_ != 'DET'
-                        ).strip()
+                        chunk[0].idx,
+                        token.idx + len(token) - 1,
+                        ' '.join(map(lambda t: self._lemmatize(t), chunk)),
                     )
+                    chunk = []
 
-    def _is_valid_token(self, token) -> bool:
-        return not(
-            token.is_punct
-            or token.is_space
-            or token.pos_ in {'ADP', 'DET', 'CONJ'}
-        )
+            if (
+                is_valid_begin_pos(token)
+                or (len(chunk) > 0 and is_valid_middle_pos(token))
+            ):
+                chunk.append(token)
 
-    def _is_valid_begin_token(self, token) -> bool:
-        return not(
-            token.like_num
-            or token.pos_ in {'ADP', 'DET', 'CONJ'}
-            or token.text in self.STOPWORDS
-        )
-
-    def _is_valid_middle_token(self, token) -> bool:
-        return (
-            not(token.is_punct or token.is_space)
-            or token.is_bracket
-        )
-
-    def _is_valid_end_token(self, token) -> bool:
-        return not(
-            token.is_punct
-            or token.is_space
-            or token.text in self.STOPWORDS
-            or token.pos_ in {'ADP', 'DET', 'CONJ'}
-        )
+        # Use remaining chunk span if not a single end token
+        if len(chunk) > 0 and not is_end_token:
+            yield (
+                chunk[0].idx,
+                chunk[-1].idx + len(chunk[-1]) - 1,
+                ' '.join(map(lambda t: self._lemmatize(t), chunk)),
+            )
+            # chunk = []

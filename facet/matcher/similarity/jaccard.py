@@ -6,15 +6,15 @@ __all__ = ['JaccardSimilarity']
 
 
 class JaccardSimilarity(BaseSimilarity):
-    """Jaccard similarity coefficient."""
+    """Jaccard similarity coefficient.
 
-    # Conditions:
-    #
-    #     * jaccard(x,y) = |x & y| / |x U y|, (0,1] -> R
-    #     * jaccard(x,y) >= a
-    #     * ceil(a*|x U y|) <= |x & y| <= min(|x|,|y|)
-    #     * ceil(a*|x U y|) <= |y|
-    #     * ceil(a*|x|) <= |y| <= floor(|x|/a)
+    Conditions:
+        >>> jaccard(x,y) = |x & y| / |x U y|, (0,1] -> R
+        >>> jaccard(x,y) >= a
+        >>> ceil(a*|x U y|) <= |x & y| <= min(|x|,|y|)
+        >>> ceil(a*|x U y|) <= |y|
+        >>> ceil(a*|x|) <= |y| <= floor(|x|/a)
+    """
 
     NAME = 'jaccard'
 

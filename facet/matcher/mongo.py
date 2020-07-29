@@ -34,10 +34,14 @@ class MongoSimstring(BaseSimstring):
         self,
         *,
         # NOTE: Hijack 'db' parameter from 'BaseMatcher'
-        db: Dict[str, Any] = {},
+        db: Dict[str, Any] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
+
+        if db is None:
+            db = {}
+
         self._db = MongoDatabase(
             database=db.pop('database', 'facet'),
             keys=type(self)._KEYS,

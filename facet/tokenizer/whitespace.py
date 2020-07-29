@@ -1,20 +1,16 @@
-import re
-from .base import BaseTokenizer
+from .regex import RegexTokenizer
 
 
 __all__ = ['WhitespaceTokenizer']
 
 
-class WhitespaceTokenizer(BaseTokenizer):
+class WhitespaceTokenizer(RegexTokenizer):
     """Simple whitespace tokenizer."""
 
     NAME = 'whitespace'
 
-    def sentencize(self, text):
-        yield text
+    def _sentencize(self, text):
+        yield from super()._sentencize(text, regex=r'[^\n]+')
 
-    def tokenize(self, text):
-        for match in re.finditer(r'\S+', text):
-            token = match.group(0)
-            if len(token) > 1 and token not in self.STOPWORDS:
-                yield (match.start(), match.end() - 1, token)
+    def _tokenize(self, text):
+        yield from super()._tokenize(text, regex=r'\S+')

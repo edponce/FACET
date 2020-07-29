@@ -1,14 +1,19 @@
-include *requirements.txt
+LICENSE
+README.rst
+CHANGELOG.rst
+CONTRIBUTING.rst
+CREDITS.rst
+CODE_OF_CONDUCT.md
+include extras_requirements.txt
+include requirements.txt
+include environment.yml
 include tox.ini
-include *.rst
-include *.md
 include Makefile
 include Dockerfile
-include environment.yml
-recursive-include meta *.py
-recursive-include doc *.py *.rst Makefile
-recursive-include scripts *.sh *.py
-recursive-include config *.cfg *.yaml *.json
-recursive-include examples *.py
-recursive-include tests *.py
+graft meta
+graft doc
+graft scripts
+graft config
+graft examples
+graft tests
 graft data

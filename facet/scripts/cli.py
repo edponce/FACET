@@ -13,7 +13,7 @@ from typing import (
 
 
 CONTEXT_SETTINGS = {
-    'max_content_width': 120,
+    'max_content_width': 90,
     'allow_extra_args': True,  # enabled allows '&' (background process)
     'ignore_unknown_options': False,
     # 'show_default': False,  # disabled globally to ignore trivial options
@@ -295,7 +295,7 @@ def run(
             print(matches)
     else:
         if isinstance(f.matcher, facet.matcher.BaseSimstring):
-            repl_loop(f)
+            repl_loop(f, enable_cmds=False)
         else:
             repl_loop(f, enable_cmds=False)
 

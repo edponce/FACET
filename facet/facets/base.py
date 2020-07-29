@@ -113,7 +113,7 @@ class BaseFacet(ABC):
         formatter: str = '',
         tokenizer: str = '',
         output: str = None,
-        corpus_kwargs: Dict[str, Any] = {},
+        corpus_kwargs: Dict[str, Any] = None,
         **kwargs,
     ) -> Dict[str, List[List[Dict[str, Any]]]]:
         """Match queries from corpora.
@@ -164,6 +164,9 @@ class BaseFacet(ABC):
         )
 
         casefunc = strcase_map[case]
+
+        if corpus_kwargs is None:
+            corpus_kwargs = {}
 
         if PROFILE:
             prof = cProfile.Profile(subcalls=True, builtins=True)
@@ -230,6 +233,22 @@ class BaseFacet(ABC):
         if self._matcher.db is not None:
             self._matcher.db.close()
         self._close()
+
+    def _close(self):
+        """Placeholder for closing resources used by a FACET implementation."""
+        pass
+
+    @abstractmethod
+    def _match(
+        self,
+        ngram_struct: Tuple[int, int, str],
+        **kwargs,
+    ) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    def _install(self, data, **kwargs):
+        pass
 
     def _dump_matcher(
         self,
@@ -392,19 +411,3 @@ class BaseFacet(ABC):
             proxy_db2.copy(orig_db2)
             db = orig_db2
             proxy_db2.clear()
-
-    def _close(self):
-        """Placeholder for closing resources used by a FACET implementation."""
-        pass
-
-    @abstractmethod
-    def _match(
-        self,
-        ngram_struct: Tuple[int, int, str],
-        **kwargs,
-    ) -> List[Dict[str, Any]]:
-        pass
-
-    @abstractmethod
-    def _install(self, data, **kwargs):
-        pass

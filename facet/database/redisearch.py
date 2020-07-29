@@ -170,6 +170,12 @@ class RediSearchDatabase(BaseDatabase):
         return self._conn.info()
 
     def get(self, query: Union[str, Any], **kwargs):
+        """
+        Notes:
+            * The following queries are invalid, RediSearch triggers syntax
+              error: unpaired/empty brackets/quotes, paired quotes with less
+              than 3 characters, and possibly others.
+        """
         return self._conn.search(query, **kwargs)
 
     def set(self, id, document: Dict[str, Any], **kwargs):
@@ -197,6 +203,8 @@ class RediSearchDatabase(BaseDatabase):
                 if self.ping():
                     break
             except redis.exceptions.ConnectionError as exc:
+                # NOTE: This variable set is to prevent linter errors because
+                # it does not recognizes 'name' in 'exception ... as name'.
                 ex = exc
                 print('Warning: failed connecting to RediSearch database at '
                       f'{self._host:self._port}, reconnection attempt '
@@ -378,6 +386,8 @@ class RediSearchAutoCompleterDatabase(BaseDatabase):
                 if self.ping():
                     break
             except redis.exceptions.ConnectionError as exc:
+                # NOTE: This variable set is to prevent linter errors because
+                # it does not recognizes 'name' in 'exception ... as name'.
                 ex = exc
                 print('Warning: failed connecting to RediSearch database at '
                       f'{self._host:self._port}, reconnection attempt '

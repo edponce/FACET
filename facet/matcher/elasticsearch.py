@@ -65,10 +65,14 @@ class ElasticsearchSimstring(BaseSimstring):
         self,
         *,
         # NOTE: Hijack 'db' parameter from 'BaseMatcher'
-        db: Dict[str, Any] = {},
+        db: Dict[str, Any] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
+
+        if db is None:
+            db = {}
+
         self._db = ElasticsearchDatabase(
             index=db.pop('index', 'facet'),
             index_body={
@@ -184,7 +188,7 @@ class ElasticsearchFuzzy(BaseMatcher):
         self,
         *,
         # NOTE: Hijack 'db' parameter from 'BaseMatcher'
-        db: Dict[str, Any] = {},
+        db: Dict[str, Any] = None,
         rank: bool = True,
         exact_match: bool = False,
         fuzziness: str = 'AUTO',
@@ -194,6 +198,9 @@ class ElasticsearchFuzzy(BaseMatcher):
         **kwargs,
     ):
         super().__init__(**kwargs)
+
+        if db is None:
+            db = {}
 
         # NOTE: Find a better way to set these parameters. Updating dict
         # for every search is not ideal.

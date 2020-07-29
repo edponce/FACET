@@ -17,6 +17,7 @@ class CSVFormatter(BaseFormatter):
             if len(v) > 0 and len(v[0]) > 0:
                 fieldnames = ['source'] + list(v[0][0].keys())
                 break
+
         # Write to in-memory stream
         fd = io.StringIO()
         writer = csv.DictWriter(fd, fieldnames, lineterminator='\n')

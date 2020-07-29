@@ -6,14 +6,14 @@ __all__ = ['HammingSimilarity']
 
 
 class HammingSimilarity(BaseSimilarity):
-    """Hamming distance."""
+    """Hamming distance.
 
-    # Conditions:
-    #
-    #     * hamming(x,y) = |(x-y) U (y-x)|, (0,1] -> R
-    #     * hamming(x,y) >= a
-    #     * ceil(a*(|x|+|y|)) <= 1 <= min(|x|,|y|)
-    #     * ceil(a*|y|) <= 1 <= floor(|y|/a)
+    Conditions:
+        >>> hamming(x,y) = |(x-y) U (y-x)|, (0,1] -> R
+        >>> hamming(x,y) >= a
+        >>> ceil(a*(|x|+|y|)) <= 1 <= min(|x|,|y|)
+        >>> ceil(a*|y|) <= 1 <= floor(|y|/a)
+    """
 
     NAME = 'hamming'
 

@@ -6,17 +6,17 @@ __all__ = ['OverlapSimilarity']
 
 
 class OverlapSimilarity(BaseSimilarity):
-    """Overlap coefficient (Szymkiewicz-Simpson coefficient)."""
+    """Overlap coefficient (Szymkiewicz-Simpson coefficient).
 
-    # Conditions:
-    #
-    #     * overlap(x,y) = |x & y| / min(|x|,|y|), (0,1] -> R
-    #     * overlap(x,y) >= a
-    #     * ceil(a*min(|x|,|y|)) <= |x & y| <= min(|x|,|y|)
-    #     * ceil(a*|y|) <= |y|
-    #     * ceil(a) <= 1 <= floor(1/a)
-    #     * ceil(a*|y|) <= |y| <= floor(|y|/a)
-    #     * ceil(a*|x|) <= |x| <= floor(|x|/a)
+    Conditions:
+        >>> overlap(x,y) = |x & y| / min(|x|,|y|), (0,1] -> R
+        >>> overlap(x,y) >= a
+        >>> ceil(a*min(|x|,|y|)) <= |x & y| <= min(|x|,|y|)
+        >>> ceil(a*|y|) <= |y|
+        >>> ceil(a) <= 1 <= floor(1/a)
+        >>> ceil(a*|y|) <= |y| <= floor(|y|/a)
+        >>> ceil(a*|x|) <= |x| <= floor(|x|/a)
+    """
 
     NAME = 'overlap'
 

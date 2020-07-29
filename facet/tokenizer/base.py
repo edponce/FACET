@@ -1,10 +1,15 @@
+import copy
+from unidecode import unidecode
 from abc import (
     ABC,
     abstractmethod,
 )
 from typing import (
     Tuple,
+    Union,
     Iterator,
+    Iterable,
+    Callable,
 )
 
 
@@ -69,20 +74,110 @@ class BaseTokenizer(ABC):
         "'re": 'are',   # [are, were]
     }
 
-    def __init__(self):
-        # NOTE: We should add options to enable/disable sentence segmentation
-        # and tokenization.
-        self.STOPWORDS = type(self)._STOPWORDS
+    _CONVERTERS_MAP = {
+        'unidecode': unidecode,
+        'lower': str.lower,
+        'upper': str.upper,
+    }
 
-    def __call__(self, text: str):
-        for sentence in self.sentencize(text):
-            for token in self.tokenize(sentence):
-                yield token
+    def __init__(
+        self,
+        *,
+        window: int = 1,
+        min_token_length: int = 2,
+        # NOTE: If token is not lowercased, it will not match stopwords,
+        # so default converters include lowercasing. Converters are applied
+        # at the sentence level for performance reasons.
+        converters: Union[str, Iterable[Callable]] = ('unidecode', 'lower'),
+        use_stopwords: bool = True,
+        stopwords: Iterable[str] = None,
+    ):
+        self._window = window
+        self._min_token_length = min_token_length
+
+        # Make converters iterable and resolve strings to functions
+        self._converters = []
+        if converters is not None:
+            if isinstance(converters, str):
+                converters = [type(self)._CONVERTERS_MAP[converters]]
+            elif callable(converters):
+                converters = [converters]
+            for converter in converters:
+                if isinstance(converter, str):
+                    self._converters.append(
+                        type(self)._CONVERTERS_MAP[converter]
+                    )
+                elif callable(converter):
+                    self._converters.append(converter)
+
+        if use_stopwords:
+            self._stopwords = (
+                copy.deepcopy(type(self)._STOPWORDS)
+                if stopwords is None
+                else stopwords
+            )
+        else:
+            self._stopwords = set()
+
+    @property
+    def stopwords(self):
+        return self._stopwords
+
+    def __call__(self, text: str) -> Iterator[str]:
+        return (
+            token
+            for sentence in self.sentencize(text)
+            for token in self.tokenize(sentence)
+        )
+
+    def convert(self, text):
+        for converter in self._converters:
+            text = converter(text)
+        return text
+
+    def sentencize(self, text: str) -> Iterator[Tuple[int, int, str]]:
+        if len(self._converters) == 0:
+            yield from self._sentencize(text)
+        else:
+            for begin, end, sentence in self._sentencize(text):
+                yield begin, end, self.convert(sentence)
+
+    def tokenize(
+        self,
+        text: Union[str, Tuple[int, int, str]],
+    ) -> Iterator[Tuple[int, int, str]]:
+        # NOTE: Support raw strings to allow invoking directly, that is,
+        # it is not necessary to 'sentencize()' first.
+        if isinstance(text, str):
+            text = (0, len(text) - 1, text)
+
+        if self._window == 1:
+            yield from self._tokenize(text)
+        else:
+            tokens = list(self._tokenize(text))
+            for i in range(len(tokens)):
+                for j in range(i + 1, min(i + self._window,
+                                          len(tokens)) + 1):
+                    span = tokens[i:j]
+                    yield (
+                        span[0][0],
+                        span[-1][1],
+                        ' '.join(map(lambda token: token[2], span)),
+                    )
 
     @abstractmethod
-    def sentencize(self, text: str) -> Iterator[str]:
+    def _sentencize(self, text: str) -> Iterator[Tuple[int, int, str]]:
+        """
+        Returns: span begin, span end, text.
+        """
         pass
 
     @abstractmethod
-    def tokenize(self, text: str) -> Iterator[Tuple[int, int, str]]:
+    def _tokenize(
+        self,
+        text: Union[str, Tuple[int, int, str]],
+    ) -> Iterator[Tuple[int, int, str]]:
+        """
+        Returns: span begin, span end, text.
+        """
         pass

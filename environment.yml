@@ -18,6 +18,8 @@ dependencies:
     - hiredis>=1.0.0
     - elasticsearch>=7.0.0,<8.0.0
     - pymongo>=3.10
+    - pyarrow>=0.17.1
+    - python-Levenshtein>=0.12
     - Sphinx[reST]>=3.0
     - sphinx_rtd_theme[reST]>=0.4.3
     - sphinx-click[reST]>=2.3

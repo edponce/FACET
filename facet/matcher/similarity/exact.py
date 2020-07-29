@@ -5,11 +5,11 @@ __all__ = ['ExactSimilarity']
 
 
 class ExactSimilarity(BaseSimilarity):
-    """Exact similarity."""
+    """Exact similarity.
 
-    # Conditions:
-    #
-    #     * exact(x,y) = x == y, [True, False] -> R
+    Conditions:
+        >>> exact(x,y) = x == y, [True, False] -> R
+    """
 
     NAME = 'exact'
 

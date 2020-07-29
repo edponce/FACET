@@ -153,7 +153,8 @@ def iload_data(
     headers: Iterable[Union[str, int]] = None,
     valids: Dict[Union[str, int], Iterable[Any]] = None,
     invalids: Dict[Union[str, int], Iterable[Any]] = None,
-    **kwargs
+    converters: Dict[Union[str, int], Iterable[Callable]] = None,
+    **kwargs,
 ) -> Iterator[Tuple[Any, Any]]:
     """Generator for data.
 
@@ -164,7 +165,6 @@ def iload_data(
         data (str): File or buffer.
             See Pandas 'filepath_or_buffer' option from 'read_csv()'.
 
-    Kwargs:
         keys (Iterable[str|int]): Columns to use as dictionary keys.
             Multiple keys are stored as tuples in same order as given.
             If str, then it corresponds to 'headers' names.
@@ -191,20 +191,12 @@ def iload_data(
 
         converters (Dict[Any:Callable|Iterable[Callable]]): Mapping between
             headers and (sequences of) converter functions to be applied after
-            row filtering (if 'valids' or 'invalids' are not provided, then
-            this is used as Pandas 'converters' option from 'read_csv()').
+            row filtering.
 
-    Kwargs (see Pandas 'read_csv()'):
-        delimiter
-        encoding
-        converters
-        skiprows
-        nrows
-        dtype
-        iterator
-        chunksize
-        memory_map
-        engine
+    Kwargs: Options forwarded to Pandas 'read_csv()', except for the
+        following options which are ignored because they are set by
+        internal decisions: filepath_or_buffer, names, usecols, header,
+        index_col.
     """
     if values is None:
         values = ()
@@ -212,7 +204,7 @@ def iload_data(
 
     # Get keys/values sizes into variables to prevent calling len()
     # for every iteration during processing.
-    # NOTE: Performance-wise, not sure if this is worth it, but makes
+    # NOTE: Performance-wise, not sure if this has any effect, but makes
     # code cleaner.
     num_keys = len(keys)
     num_values = len(values)
@@ -233,22 +225,16 @@ def iload_data(
     # as a no filtering request.
     # NOTE: Any iterable that supports the 'in' operator and has default
     # behavior using 'any()' is allowed.
-    # NOTE: For large data sets, this may help improve performance because
-    # when row filtering is enabled, converter functions are applied after
-    # filtering occurs.
     key_value_check = iterable_true(valids) or iterable_true(invalids)
 
-    # Check if converter functions need to be applied after row filtering.
-    post_converters = kwargs.pop('converters', None)
-
-    # Pre-compute indices and columns for post-converter functions.
+    # Pre-compute indices and columns for converter functions.
     # NOTE: This is a performance optimization because it allows operating
     # on deterministic items without incurring on hashing operations
     # nor indirect addressing.
-    if post_converters is not None:
-        post_converters_idxcols = tuple(filter_indices_and_values(
-                                        lambda x: x in post_converters,
-                                        usecols))
+    if converters is not None:
+        converters_idxcols = tuple(
+            filter_indices_and_values(lambda x: x in converters, usecols)
+        )
 
     # Extend the column headers with a dummy header (hopefully unique).
     # NOTE: UMLS files end with a bar at each line and Pandas assumes
@@ -257,30 +243,36 @@ def iload_data(
     if headers is not None and kwargs.get('engine') == 'python':
         headers = list(headers) + [' ']
 
+    # Remove preset options for 'read_csv()'.
+    for option in ('filepath_or_buffer', 'names', 'usecols', 'header',
+                   'index_col'):
+        if option in kwargs:
+            del kwargs[option]
+    # NOTE: 'delimiter' is an alias for 'sep' option.
+    if 'delimiter' in kwargs:
+        kwargs['sep'] = kwargs.pop('delimiter')
+
     # Data reader or iterator
     reader = pandas.read_csv(
         data,
         names=headers,
 
         # Constant-ish settings
-        delimiter=kwargs.get('delimiter', ','),
+        encoding=kwargs.pop('encoding', 'utf-8'),
+        sep=kwargs.pop('sep', ','),
         usecols=usecols,
         header=None,
         index_col=False,
-        na_filter=False,
-
-        # Extra parameters
-        encoding=kwargs.get('encoding', 'utf-8'),
-        converters=kwargs.get('converters'),
-        skiprows=kwargs.get('skiprows'),
-        nrows=kwargs.get('nrows'),
-        dtype=kwargs.get('dtype'),
+        na_filter=kwargs.pop('na_filter', False),
 
         # Performance parameters
-        iterator=kwargs.get('iterator', True),
-        chunksize=kwargs.get('chunksize', 100000),
-        memory_map=kwargs.get('memory_map', True),
-        engine=kwargs.get('engine', 'c'),
+        iterator=kwargs.pop('iterator', True),
+        chunksize=kwargs.pop('chunksize', 10000),
+        memory_map=kwargs.pop('memory_map', True),
+        engine=kwargs.pop('engine', 'c'),
+
+        # Other parameters
+        **kwargs,
     )
 
     # Place the dataframe into an iterable even if not iterating and
@@ -291,7 +283,7 @@ def iload_data(
 
     # Iterate through dataframes or TextFileReader:
     #   a) Row filtering based on valid/invalid keys/values
-    #   b) Apply post-converter functions
+    #   b) Apply converter functions
     #   c) Organize keys/values
     for df in reader:
 
@@ -299,7 +291,7 @@ def iload_data(
         usecols_values = (df[col] for col in usecols)
 
         # NOTE: Uses lists instead of tuples so that individual items
-        # can be modified with converter functions.
+        # can be replaced after applying converter functions.
         for kv in map(list, zip(*usecols_values)):
 
             # Filter valid/invalid keys/values
@@ -314,13 +306,13 @@ def iload_data(
             ):
                 continue
 
-            # Apply post-converter functions
-            if post_converters is not None:
-                for idx, key in post_converters_idxcols:
-                    if callable(post_converters[key]):
-                        kv[idx] = post_converters[key](kv[idx])
+            # Apply converter functions
+            if converters is not None:
+                for idx, key in converters_idxcols:
+                    if callable(converters[key]):
+                        kv[idx] = converters[key](kv[idx])
                     else:
-                        for f in post_converters[key]:
+                        for f in converters[key]:
                             kv[idx] = f(kv[idx])
 
             # Organize keys
@@ -372,8 +364,7 @@ def load_data(
         unique_values (bool): Control if values can be repeated or not.
             Only applies if 'multiple_values' is True.
 
-    Kwargs:
-        Options passed directly to 'iload_data()'.
+    Kwargs: Options forwarded to 'iload_data()'.
     """
     if kwargs.get('values') is None:
         if unique_keys:
@@ -454,8 +445,7 @@ def corpus_generator(
         phony (bool): If set, attr:`corpora` items are not considered
             as file system objects when name collisions occur.
 
-    Kwargs:
-        Options passed directory to 'unpack_dir'.
+    Kwargs: Options forwarded to 'unpack_dir()'.
 
     Returns (Tuple[str, str]): Corpus source and corpus content.
                      The source identifier for raw text is '__text__'.

@@ -47,7 +47,9 @@ class BaseDatabase(ABC):
     def open(self, *args, **kwargs):
         self.connect(*args, **kwargs)
 
-    def close(self, *args, commit_kwargs={}, **kwargs):
+    def close(self, *args, commit_kwargs=None, **kwargs):
+        if commit_kwargs is None:
+            commit_kwargs = {}
         self.commit(**commit_kwargs)
         self.disconnect(*args, **kwargs)
 

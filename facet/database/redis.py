@@ -180,6 +180,8 @@ class RedisDatabase(BaseKVDatabase):
                 if self.ping():
                     break
             except redis.exceptions.ConnectionError as exc:
+                # NOTE: This variable set is to prevent linter errors because
+                # it does not recognizes 'name' in 'exception ... as name'.
                 ex = exc
                 print('Warning: failed connecting to Redis database at '
                       f'{self._host:self._port}, reconnection attempt '

@@ -1,5 +1,9 @@
 import nltk
 from .base import BaseTokenizer
+from typing import (
+    Tuple,
+    Iterator,
+)
 
 
 __all__ = ['NLTKTokenizer']
@@ -9,54 +13,267 @@ class NLTKTokenizer(BaseTokenizer):
     """NLTK-based Treebank tokenizer.
 
     Args:
+        mode (str): Tokenization mode. 'noun' uses nouns only, 'noun_chunks'
+            uses basic noun chunking, 'pos_chunks' uses parts-of-speech
+            for chunking, None uses window-based tokenization. If chunking
+            is enabled then 'window' parameter is ignored, and 'stopwords'
+            and 'min_token_length' parameters are applied only to single
+            tokens.
+
+        sentencizer (str): Name of sentencizer for text.
+
+        lemmatizer (str): Name of lemmatizer for tokens. None = disabled.
+
+        tokenizer (str): Name of tokenizer for sentences.
+
         language (str): Language to use for processing corpora.
     """
 
     NAME = 'nltk'
 
-    def __init__(self, *, language: str = 'english', **kwargs):
+    # For reference only, these are the universal POS tags.
+    # https://spacy.io/api/annotation#pos-universal
+    _UNIVERSAL_POS_TAGS = {
+        'ADJ', 'ADP', 'ADV', 'AUX', 'CONJ', 'CCONJ', 'DET', 'INTJ',
+        'NOUN', 'NUM', 'PART', 'PRON', 'PROPN', 'PUNCT', 'SCONJ',
+        'SYM', 'VERB', 'X', 'SPACE',
+    }
+
+    _SENTENCIZER_MAP = {
+        'line': nltk.tokenize.LineTokenizer,
+        'punctuation': nltk.tokenize.PunktSentenceTokenizer,
+    }
+
+    _TOKENIZER_MAP = {
+        'nltk': nltk.tokenize.NLTKWordTokenizer,
+        'treebank': nltk.tokenize.TreebankWordTokenizer,
+        'repp': nltk.tokenize.ReppTokenizer,
+        'stanford': nltk.tokenize.StanfordSegmenter,
+        'toktok': nltk.tokenize.ToktokTokenizer,
+        'punctuation': nltk.tokenize.WordPunctTokenizer,
+        'space': nltk.tokenize.SpaceTokenizer,
+        'whitespace': nltk.tokenize.WhitespaceTokenizer,
+    }
+
+    _LEMMATIZER_MAP = {
+        'ci': nltk.stem.Cistem,
+        'isri': nltk.stem.ISRIStemmer,
+        'lancaster': nltk.stem.LancasterStemmer,
+        'porter': nltk.stem.PorterStemmer,
+        'snowball': nltk.stem.SnowballStemmer,
+        'rslps': nltk.stem.RSLPStemmer,
+        'wordnet': nltk.stem.WordNetLemmatizer,
+
+    }
+
+    def __init__(
+        self,
+        *,
+        mode: str = None,
+        sentencizer: str = 'punctuation',
+        lemmatizer: str = 'snowball',
+        tokenizer: str = 'nltk',
+        language: str = 'english',
+        **kwargs,
+    ):
+        # Set class stop words, then initialize base class to allow
+        # customization of stop words, then
+        try:
+            type(self)._STOPWORDS = set(nltk.corpus.stopwords.words(language))
+        except ValueError as ex:
+            raise ex(f"Model for NLTK language '{language}' is invalid.")
         super().__init__(**kwargs)
 
-        try:
-            self.STOPWORDS = set(nltk.corpus.stopwords.words(language))
-        except ValueError:
-            err = f"Model for language '{language}' is not valid."
-            raise ValueError(err)
-        self._sentencizer = nltk.tokenize.PunktSentenceTokenizer()
-        self._tokenizer = nltk.tokenize.TreebankWordTokenizer()
+        self._mode = mode
         self._language = language
+        self._sentencizer = type(self)._SENTENCIZER_MAP[sentencizer]()
+        self._lemmatizer = self._get_lemmatizer(lemmatizer)
+        self._tokenizer = type(self)._TOKENIZER_MAP[tokenizer]()
+        self._tokenize_func = self._get_tokenize_func(mode)
+        self._parser = nltk.RegexpParser('NP: {<ADJ>*<NOUN>}')
 
-    def sentencize(self, text):
-        for sentence in self._sentencizer.tokenize(text):
-            yield sentence
+    def _get_lemmatizer(self, lemmatizer: str):
+        if lemmatizer is None:
+            return lemmatizer
+        # NOTE: This may trigger a LookupError if the stemmer/lemmatizer
+        # resource is not found/installed.
+        elif lemmatizer == 'snowball':
+            _lemmatizer = (
+                type(self)._LEMMATIZER_MAP[lemmatizer](self._language)
+            )
+        else:
+            _lemmatizer = type(self)._LEMMATIZER_MAP[lemmatizer]()
 
-    def _tokenize(self, text):
-        for begin, end in self._tokenizer.span_tokenize(text):
-            token = text[begin:end]
-            # NOTE: If contractions are stopwords, then do one check only.
-            token = type(self)._CONTRACTIONS_MAP.get(token, token)
-            if len(token) > 1 and token not in self.STOPWORDS:
-                yield (begin, end, token)
+        # NOTE: In NLTK, WordNetLemmatizer API differs from stemmers.
+        if lemmatizer == 'wordnet':
+            _lemmatizer.stem = _lemmatizer.lemmatize
 
-    def tokenize(self, text):
-        """Use parts-of-speech tagger to filter tokens."""
+        # NOTE: This may trigger a LookupError if the stemmer/lemmatizer
+        # resource is not found/installed.
+        _lemmatizer.stem('testing')
+        return _lemmatizer
+
+    def _get_tokenize_func(self, mode: str):
+        tokenizer_func_map = {
+            'nouns': self._tokenize_with_nouns,
+            'noun_chunks': self._tokenize_with_noun_chunks,
+            'pos_chunks': self._tokenize_with_pos_chunks,
+            # Let base class handle tokenization window.
+            None: super().tokenize,
+        }
+        return tokenizer_func_map[mode]
+
+    def _pos_tag(
+        self,
+        text: Tuple[int, int, str],
+    ) -> Iterator[Tuple[Tuple[int, int], Tuple[str, str]]]:
+        """Parts-of-speech tagging."""
         spans = []
         tokens = []
-        for begin, end, token in self._tokenize(text):
-            spans.append((begin, end - 1))
-            tokens.append(token)
+        for begin, end in self._tokenizer.span_tokenize(text[2]):
+            spans.append((text[0] + begin, text[0] + end - 1))
+            tokens.append(text[2][begin:end])
 
         # NOTE: Language for nltk.pos_tag() is based on
         # ISO 639-2 (3 letter code). We take the first 3-letters of language
         # set for nltk.stopwords.words() although this is not always correct,
         # but we chose this approach for simplicity.
-        for span, token_pos in zip(
+        yield from zip(
             spans,
             nltk.pos_tag(tokens, tagset='universal', lang=self._language[:3])
-        ):
-            token, pos = token_pos
-            if self._is_valid_token(pos):
-                yield (*span, token)
+        )
 
-    def _is_valid_token(self, pos) -> bool:
-        return pos in {'NOUN', 'VERB', 'ADV', 'ADJ'}
+    def _is_valid_token(self, token: str):
+        return (
+            len(token) >= self._min_token_length
+            and token not in self._stopwords
+        )
+
+    def tokenize(self, text):
+        # NOTE: Support raw strings to allow invoking directly, that is,
+        # it is not necessary to 'sentencize()' first.
+        yield from self._tokenize_func(
+            (0, len(text) - 1, text)
+            if isinstance(text, str)
+            else text
+        )
+
+    def _sentencize(self, text):
+        # NOTE: NLTK does not lemmatizes sentences unless tokenized first.
+        for begin, end in self._sentencizer.span_tokenize(text):
+            yield begin, end - 1, text[begin:end]
+
+    def _lemmatize(self, text: str) -> str:
+        return (
+            text
+            if self._lemmatizer is None
+            else self._lemmatizer.stem(text)
+        )
+
+    def _tokenize(self, text: Tuple[int, int, str]):
+        for begin, end in self._tokenizer.span_tokenize(text[2]):
+            token = text[2][begin:end]
+            if self._is_valid_token(token):
+                yield (
+                    text[0] + begin,
+                    text[0] + end - 1,
+                    self._lemmatize(token),
+                )
+
+    def _tokenize_with_nouns(self, text: Tuple[int, int, str]):
+        """Tokenizer for single nouns."""
+        def is_valid_pos(pos: str):
+            return pos in {'NOUN', 'PROPN', 'X'}
+
+        for span, (token, pos) in self._pos_tag(text):
+            if is_valid_pos(pos) and self._is_valid_token(token):
+                yield (*span, self._lemmatize(token))
+
+    def _tokenize_with_noun_chunks(self, text: Tuple[int, int, str]):
+        """Tokenizer for noun chunks."""
+        def is_valid_pos(node: 'nltk.tree.Tree'):
+            return isinstance(node, nltk.tree.Tree) and node.label() == 'NP'
+
+        # Parser requires tags in an iterable, so we unpack them.
+        spans, tags = zip(*self._pos_tag(text))
+
+        # NOTE: Traverse parser tree assuming it has height = 3.
+        spans = iter(spans)
+        for node in self._parser.parse(tags):
+            span = next(spans)
+            if is_valid_pos(node):
+                begin = span[0]
+                for _ in range(len(node) - 1):
+                    span = next(spans)
+                yield (
+                    begin,
+                    span[1],
+                    ' '.join(map(lambda t: self._lemmatize(t[0]), node)),
+                )
+
+    def _tokenize_with_pos_chunks(self, text: Tuple[int, int, str]):
+        """Phrase tokenizer with parts-of-speech tags for marking bounds."""
+        def is_valid_pos(pos: str):
+            return pos in {
+                'ADJ', 'ADP', 'ADV', 'AUX', 'CONJ', 'DET', 'NOUN', 'PROPN',
+                'PART', 'VERB', 'X',
+            }
+
+        def is_valid_begin_pos(pos: str):
+            return pos in {'ADJ', 'ADV', 'DET', 'NOUN', 'PROPN', 'VERB', 'X'}
+
+        def is_valid_middle_pos(pos: str):
+            return pos in {
+                'ADJ', 'ADP', 'ADV', 'AUX', 'CONJ', 'DET', 'NOUN', 'PROPN',
+                'PART', 'VERB', 'X',
+            }
+
+        def is_valid_end_pos(pos: str):
+            return pos in {'NOUN', 'PROPN', 'VERB', 'X'}
+
+        spans = []
+        tokens = []
+        for span, (token, pos) in self._pos_tag(text):
+            if not is_valid_pos(pos):
+                continue
+
+            # Flag for not duplicating flush of a single token valid
+            # as both, end and begin POS.
+            is_end_token = False
+
+            # Check for end token first:
+            #   Handle single word tokens
+            #   An end token can also be a begin token of another phrase
+            if is_valid_end_pos(pos):
+                # NOTE: Split based on chunk size to improve performance.
+                if len(spans) == 0:
+                    if self._is_valid_token(token):
+                        is_end_token = True
+                        yield (*span, self._lemmatize(token))
+                else:
+                    is_end_token = True
+                    tokens.append(token)
+                    yield (
+                        spans[0][0],
+                        span[1],
+                        ' '.join(map(lambda t: self._lemmatize(t), tokens)),
+                    )
+                    spans = []
+                    tokens = []
+
+            if (
+                is_valid_begin_pos(pos)
+                or (len(tokens) > 0 and is_valid_middle_pos(pos))
+            ):
+                spans.append(span)
+                tokens.append(token)
+
+        # Use remaining chunk span if not a single end token
+        if len(spans) > 0 and not is_end_token:
+            yield (
+                spans[0][0],
+                spans[-1][1],
+                ' '.join(map(lambda t: self._lemmatize(t), tokens)),
+            )
+            # spans = []
+            # tokens = []
