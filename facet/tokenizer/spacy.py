@@ -14,11 +14,11 @@ class SpaCyTokenizer(BaseTokenizer):
     """SpaCy-based tokenizer.
 
     Args:
-        mode (str): Tokenization mode. 'noun' uses nouns only, 'noun_chunks'
-            uses basic noun chunking, 'pos_chunks' uses parts-of-speech
-            for chunking, None uses window-based tokenization. If chunking
-            is enabled then 'window', 'stopwords', and 'min_token_length'
-            parameters are not used.
+        chunker (str): Phrase chunker where 'noun' uses nouns only,
+            'noun_chunks' uses basic noun chunking, 'pos_chunks' uses
+            parts-of-speech for chunking, None uses window-based
+            tokenization. If chunking is enabled then 'window',
+            'stopwords', and 'min_token_length' parameters are not used.
 
         lemmatizer (bool): If set use the lemma form of tokens.
 
@@ -33,16 +33,16 @@ class SpaCyTokenizer(BaseTokenizer):
 
     # For reference only, these are the universal POS tags.
     # https://spacy.io/api/annotation#pos-universal
-    _UNIVERSAL_POS_TAGS = {
+    _UNIVERSAL_POS_TAGS = (
         'ADJ', 'ADP', 'ADV', 'AUX', 'CONJ', 'CCONJ', 'DET', 'INTJ',
         'NOUN', 'NUM', 'PART', 'PRON', 'PROPN', 'PUNCT', 'SCONJ',
         'SYM', 'VERB', 'X', 'SPACE',
-    }
+    )
 
     def __init__(
         self,
         *,
-        mode: str = None,
+        chunker: str = None,
         lemmatizer: bool = True,
         language: str = 'en',
         **kwargs,
@@ -54,6 +54,11 @@ class SpaCyTokenizer(BaseTokenizer):
         except RuntimeError as ex:
             raise ex(f"Run 'python -m spacy download {language}'")
 
+        # Set class's stop words, then initialize base class to allow
+        # customization of stop words.
+        type(self)._STOPWORDS = nlp.Defaults.stop_words
+        super().__init__(**kwargs)
+
         # spacy.load('en') creates a model with 'tagger', 'parser', and 'NER',
         # where 'parser' performs sentence segmentation. We can also create a
         # model with empty pipeline via spacy.lang.en.English but this will
@@ -64,34 +69,22 @@ class SpaCyTokenizer(BaseTokenizer):
         # else we only need sentencizer and tagger (POS). The same pipeline
         # is used for 'sentencize()' --> 'tokenize()' and 'tokenize()'.
         nlp.remove_pipe('ner')
-        if mode is None:
+        if chunker is None:
             nlp.remove_pipe('parser')
             nlp.add_pipe(nlp.create_pipe('sentencizer'))
         self._nlp = nlp
 
-        # Set class stop words, then initialize base class to allow
-        # customization of stop words, then
-        # update spaCy's stop words based on user options but not sure
-        # if spaCy uses them internally. Nevertheless, we check tokens
-        # agains 'self._stopwords'.
-        type(self)._STOPWORDS = self._nlp.Defaults.stop_words
-        super().__init__(**kwargs)
-        self._nlp.Defaults.stop_words = self._stopwords
-
-        self._mode = mode
-        self._language = language
-        self._lemmatizer = lemmatizer
-        self._tokenize_func = self._get_tokenize_func(mode)
-
-    def _get_tokenize_func(self, mode: str):
-        tokenizer_func_map = {
+        chunker_func_map = {
             'nouns': self._tokenize_with_nouns,
             'noun_chunks': self._tokenize_with_noun_chunks,
             'pos_chunks': self._tokenize_with_pos_chunks,
             # Let base class handle tokenization window.
             None: super().tokenize,
         }
-        return tokenizer_func_map[mode]
+
+        self._chunker = chunker_func_map[chunker]
+        self._lemmatizer = lemmatizer
+        self._language = language
 
     def _is_valid_token(self, token: 'spacy.tokens.token.Token'):
         return (
@@ -106,20 +99,22 @@ class SpaCyTokenizer(BaseTokenizer):
     ) -> Iterator[Union[Tuple[int, int, str], 'spacy.tokens.span.Span']]:
         # spaCy uses an object-model for NLP, so to support invoking
         # 'sentencize()' directly we convert the objects to span-text tuples.
-        if not as_tuple:
+        if as_tuple:
+            yield from (
+                (
+                    sentence[0].idx,
+                    sentence[-1].idx + len(sentence[-1]) - 1,
+                    # NOTE: spaCy lemmatizes sentences, so we take
+                    # advantage of it.
+                    self.convert(self._lemmatize(sentence)),
+                )
+                for sentence in self._sentencize(text)
+            )
+        else:
             # NOTE: Converters are applied to the input text because
             # we cannot modify spaCy objects and maintain consistency of
             # attributes.
             yield from self._sentencize(self.convert(text))
-        else:
-            for sentence in self._sentencize(text):
-                yield (
-                    sentence[0].idx,
-                    sentence[-1].idx + len(sentence[-1]) - 1,
-                    # NOTE: spaCy supports lemmatizing sentences, so we
-                    # take advantage of it.
-                    self.convert(self._lemmatize(sentence)),
-                )
 
     def tokenize(
         self,
@@ -127,7 +122,7 @@ class SpaCyTokenizer(BaseTokenizer):
     ) -> Iterator[Tuple[int, int, str]]:
         # NOTE: Support raw strings to allow invoking directly, that is,
         # it is not necessary to 'sentencize()' first.
-        yield from self._tokenize_func(
+        yield from self._chunker(
             self._nlp(text)
             if isinstance(text, str)
             else text
@@ -141,62 +136,71 @@ class SpaCyTokenizer(BaseTokenizer):
             # NOTE: spaCy's lemma for some pronouns/determinants is
             # '-PRON-', so we skip these.
             lemma = text.lemma_
-            return lemma if lemma != '-PRON-' else text.text
+            return lemma if lemma not in ('-PRON-', '-pron-') else text.text
         else:
             return text.text
 
     def _tokenize(self, text: 'spacy.tokens.span.Span'):
         """Tokenizer with stop words."""
-        for token in filter(self._is_valid_token, text):
-            yield (
+        yield from (
+            (
                 token.idx,
                 token.idx + len(token) - 1,
                 self._lemmatize(token),
             )
+            for token in filter(self._is_valid_token, text)
+        )
 
     def _tokenize_with_nouns(self, text: 'spacy.tokens.span.Span'):
         """Tokenizer for single nouns."""
         def is_valid_pos(token: 'spacy.tokens.token.Token'):
-            return token.pos_ in {'NOUN', 'PROPN', 'X'}
+            return token.pos_ in ('NOUN', 'PROPN', 'X')
 
-        for token in filter(self._is_valid_token, filter(is_valid_pos, text)):
-            yield (
+        yield from (
+            (
                 token.idx,
                 token.idx + len(token) - 1,
                 self._lemmatize(token),
             )
+            for token in filter(
+                self._is_valid_token,
+                filter(is_valid_pos, text),
+            )
+        )
 
     def _tokenize_with_noun_chunks(self, text: 'spacy.tokens.span.Span'):
         """Tokenizer for noun chunks."""
-        for chunk in text.noun_chunks:
-            if len(chunk) > 1 or self._is_valid_token(chunk[0]):
-                yield (
-                    chunk[0].idx,
-                    chunk[-1].idx + len(chunk[-1]) - 1,
-                    ' '.join(map(lambda t: self._lemmatize(t), chunk)),
-                )
+        yield from (
+            (
+                chunk[0].idx,
+                chunk[-1].idx + len(chunk[-1]) - 1,
+                ' '.join(map(lambda t: self._lemmatize(t), chunk)),
+            )
+            for chunk in text.noun_chunks
+            if len(chunk) > 1 or self._is_valid_token(chunk[0])
+        )
 
     def _tokenize_with_pos_chunks(self, text: 'spacy.tokens.span.Span'):
         """Phrase tokenizer with parts-of-speech tags for marking bounds."""
         def is_valid_pos(token: 'spacy.tokens.token.Token'):
-            return token.pos_ in {
+            return token.pos_ in (
                 'ADJ', 'ADP', 'ADV', 'AUX', 'CONJ', 'DET', 'NOUN', 'PROPN',
                 'PART', 'VERB', 'X',
-            }
+            )
 
         def is_valid_begin_pos(token: 'spacy.tokens.token.Token'):
-            return token.pos_ in {
+            return token.pos_ in (
                 'ADJ', 'ADV', 'DET', 'NOUN', 'PROPN', 'VERB', 'X'
-            }
+            )
 
         def is_valid_middle_pos(token: 'spacy.tokens.token.Token'):
-            return token.pos_ in {
+            return token.pos_ in (
                 'ADJ', 'ADP', 'ADV', 'AUX', 'CONJ', 'DET', 'NOUN', 'PROPN',
                 'PART', 'VERB', 'X',
-            }
+            )
 
         def is_valid_end_pos(token: 'spacy.tokens.token.Token'):
-            return token.pos_ in {'NOUN', 'PROPN', 'VERB', 'X'}
+            return token.pos_ in ('NOUN', 'PROPN', 'VERB', 'X')
 
         chunk = []
         for token in filter(is_valid_pos, text):

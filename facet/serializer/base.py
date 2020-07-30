@@ -20,7 +20,10 @@ class BaseSerializer(ABC):
     def __init__(self, **kwargs):
         """
         Args:
-            form (str): Valid values are 'NFC', 'NFKC', 'NFD', and 'NFKD'.
+            encoding (str): Text encoding.
+
+            form (str): Normalization form. Valid values are 'NFC',
+                'NFKC', 'NFD', and 'NFKD'.
         """
         # NOTE: Set encoding and normalization parameters as data members
         # to guarantee that an instance is able to operate on any object

@@ -12,6 +12,144 @@ UMLSInstall:
         cols: 14
         nrows: 38000
 
+###############################################################################
+
+Tokenizer:
+    tokenizer:
+        class: null
+        # class: whitespace
+        # class: alphanumeric
+        window: 1
+        min_token_length: 2
+        converters: lower
+        use_stopwords: true
+        stopwords: null
+
+SymbolTokenizer:
+    # Sentencizes in newlines
+    tokenizer:
+        class: symbol
+        window: 1
+        min_token_length: 2
+        converters: lower
+        use_stopwords: true
+        stopwords: null
+        # Symbols for tokenization
+        # symbols: "\t\n\r\f\v .,?!\"'-:;()[]{}",
+        # Symbols to include in addition to 'symbols'
+        include_symbols: null
+        # Symbols to exclude from 'symbols'
+        exclude_symbols: null
+
+SpaCyTokenizer:
+    tokenizer:
+        class: spacy
+        window: 1
+        min_token_length: 2
+        converters: lower
+        use_stopwords: true
+        stopwords: null
+        # Phrase chunker, 'noun' uses nouns only, 'noun_chunks'
+        # uses basic noun chunking, 'pos_chunks' uses parts-of-speech
+        # for chunking, None uses window-based tokenization. If chunking
+        # is enabled then 'window', 'stopwords', and 'min_token_length'
+        # parameters are not used.
+        chunker: null
+        # chunker: nouns
+        # chunker: noun_chunks
+        # chunker: pos_chunks
+        lemmatizer: True
+        language: en
+
+NLTKTokenizer:
+    tokenizer:
+        class: nltk
+        window: 1
+        min_token_length: 2
+        converters: lower
+        use_stopwords: true
+        stopwords: null
+        sentencizer: punctuation
+        # sentencizer: line
+        tokenizer: treebank
+        # tokenizer: punctuation
+        # tokenizer: space
+        # tokenizer: whitespace
+        # Phrase chunker, 'noun' uses nouns only, 'noun_chunks'
+        # uses basic noun chunking, 'pos_chunks' uses parts-of-speech
+        # for chunking, None uses window-based tokenization. If chunking
+        # is enabled then 'window', 'stopwords', and 'min_token_length'
+        # parameters are not used.
+        chunker: null
+        # chunker: nouns
+        # chunker: noun_chunks
+        # chunker: pos_chunks
+        lemmatizer: snowball
+        # lemmatizer: null
+        # lemmatizer: ci
+        # lemmatizer: isri
+        # lemmatizer: lancaster
+        # lemmatizer: porter
+        # lemmatizer: rslps
+        # lemmatizer: wordnet
+        language: english
+
+Serializer:
+    serializer:
+        class: null
+        # class: json
+        # class: yaml
+        # class: string
+        # class: arrow
+        encoding: utf-8
+        # Normalization form (NFC, NFKC, NFD, NFKD).
+        form: NFKD
+
+StringSJSerializer:
+    serializer:
+        class: stringsj
+        delimiter: "|"
+        encoding: utf-8
+        # Normalization form (NFC, NFKC, NFD, NFKD).
+        form: NFKD
+
+PickleSerializer:
+    serializer:
+        class: pickle
+        encoding: utf-8
+        # Normalization form (NFC, NFKC, NFD, NFKD).
+        form: NFKD
+        protocol: 4
+
+Formatter:
+    formatter:
+        class: null
+        # class: csv
+        # class: json
+        # class: yaml
+        # class: xml
+        # class: pickle
+        # data:
+        output: annotations.txt
+
+FACET:
+    class: facet
+    matcher: simstring
+    tokenizer: alphanumeric
+    formatter: null
+    use_proxy_install: False
+
+UMLSFACET:
+    class: umlsfacet
+    matcher: simstring
+    tokenizer: alphanumeric
+    formatter: null
+    use_proxy_install: False
+    conso_db: null
+    cuisty_db: null
+
+###############################################################################
+
 AutoMemory:
     query: data/sample.txt
     formatter: json
@@ -43,11 +181,13 @@ SimpleRediSearch:
         db:
             host: localhost
             port: 7001
-            n: 1
             index: test
-            access_mode: n
+            access_mode: c
             use_pipeline: true
         cache_db: dict
+    tokenizer:
+        class: spacy
+        mode: pos_chunks
 
 SimpleRediSearchSimstring:
     matcher:
@@ -77,7 +217,9 @@ SimpleSQLite:
         class: simstring
         db:
             class: sqlite
-            access_mode: n
+            access_mode: c
+            uri: db/umls
+            table: test
             use_pipeline: true
 
 SimpleMongo:
@@ -95,7 +237,7 @@ SimpleElasticsearch:
             use_pipeline: true
             thread_count: 8
 
-Tokenizer:
+RedisTokenizer:
     matcher:
         class: redisearch
         db:
@@ -103,7 +245,7 @@ Tokenizer:
             use_pipeline: true
         similarity: levenshtein
     tokenizer:
-        class: spacy
+        class: nltk #spacy
         mode: noun_chunks
         # window: 3
         converters: lower
@@ -295,6 +437,37 @@ UMLSFile:
     use_proxy_install: true
     install: data/umls
 
+UMLSRediSearch:
+    class: umlsfacet
+    conso_db:
+        class: redis
+        host: localhost
+        port: 6379
+        n: 0
+        access_mode: c
+        serializer: pickle
+        use_pipeline: true
+    cuisty_db:
+        class: redis
+        host: localhost
+        port: 6379
+        n: 1
+        access_mode: c
+        serializer: pickle
+        use_pipeline: true
+    matcher:
+        class: redisearch
+        db:
+            host: localhost
+            port: 7001
+            index: test
+            access_mode: n
+            use_pipeline: true
+        cache_db: dict
+    tokenizer: alphanumeric
+    formatter: json
+    use_proxy_install: true
+    install: data/umls
 
 UMLSRedis:
     class: umlsfacet

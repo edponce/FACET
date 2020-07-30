@@ -206,13 +206,11 @@ class RediSearch(BaseMatcher):
             and self._cache_db is not None
         )
 
-        # Check if query string is in cache
         if use_cache:
             strings_and_similarities = self._cache_db.get(string)
             if strings_and_similarities is not None:
                 return strings_and_similarities
 
-        # List of strings similar to the query
         candidate_strings = [
             document.term
             for document in self._db.get(string).docs
@@ -229,7 +227,6 @@ class RediSearch(BaseMatcher):
         if rank:
             strings_and_similarities.sort(key=lambda ss: ss[1], reverse=True)
 
-        # Insert candidate strings into cache
         # NOTE: Need a way to limit database and only cache heavy hitters.
         if use_cache:
             self._cache_db.set(string, strings_and_similarities)

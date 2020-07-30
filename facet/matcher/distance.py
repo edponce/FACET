@@ -5,10 +5,8 @@ from typing import (
 )
 
 
-# A 'distance' refers to a
-# callable/function that takes a pair of
-# strings as its first parameters and
-# calculates a distance metric in [0,1].
+# A 'distance' refers to a callable/function that takes a pair of
+# strings as its first parameters and calculates a distance metric in [0,1].
 distance_map = {
     # Distance ratio = (sum length of strings - Levenshtein distance) /
     #                  (sum length of strings)
@@ -24,7 +22,7 @@ distance_map = {
 
 
 def get_distance(value: Union[str, Callable]) -> Callable:
-    if isinstance(value, str):
+    if value is None or isinstance(value, str):
         return distance_map[value]
     elif callable(value):
         return value
