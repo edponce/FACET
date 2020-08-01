@@ -1,11 +1,18 @@
-import os
 import re
+import configparser
 import collections
 from setuptools import setup, find_packages
-import meta
 
 
-def get_text_from_files(*filenames, delimiter=os.linesep * 2):
+with open('project.cfg') as fd:
+    parser = configparser.ConfigParser(
+        interpolation=configparser.ExtendedInterpolation(),
+    )
+    parser.read_file(fd)
+    project_info = dict(parser['project'])
+
+
+def load_text(*filenames, delimiter='\n\n'):
     text = ''
     for i, fn in enumerate(filenames):
         try:
@@ -19,7 +26,7 @@ def get_text_from_files(*filenames, delimiter=os.linesep * 2):
     return text
 
 
-def get_requirements_from_files(*filenames):
+def load_requirements(*filenames):
     requirements = []
     for fn in filenames:
         try:
@@ -30,7 +37,7 @@ def get_requirements_from_files(*filenames):
     return requirements
 
 
-def get_extras_requirements_from_files(*filenames):
+def load_extras_requirements(*filenames):
     requirements = collections.defaultdict(list)
     for fn in filenames:
         try:
@@ -47,33 +54,26 @@ def get_extras_requirements_from_files(*filenames):
     return requirements
 
 
-long_description = get_text_from_files('README.rst', 'LICENSE')
-install_requirements = get_requirements_from_files('requirements.txt')
-extras_requirements = get_extras_requirements_from_files(
-    'extras_requirements.txt',
-)
-
-
 # For PyPI, the 'download_url' is a link to a hosted repository.
 # Github hosting creates tarballs for download at
-#   https://github.com/{username}/{package}/archive/{tag}.tar.gz.
+#   https://github.com/{username}/{project}/archive/{tag}.tar.gz.
 # To create a git tag
-#   git tag meta.__name__-meta.__version__ -m 'Adds a tag so that we can put
-#                                            package on PyPI'
+#   git tag {name}-{version} -m 'Add project tag for PyPI'
 #   git push --tags origin master
 setup(
-    name=meta.__name__,
-    version=meta.__version__,
-    description=meta.__description__,
-    long_description=long_description,
-    keywords=meta.__keywords__,
-    url=meta.__url__,
-    download_url=(
-        f'{meta.__url__}/archive/{meta.__name__}-{meta.__version__}.tar.gz'
-    ),
-    author=meta.__author__,
-    author_email=meta.__author_email__,
-    license=meta.__license__,
+    name=project_info.get('name'),
+    version=project_info.get('version'),
+    description=project_info.get('description'),
+    long_description=load_text('README.rst', 'LICENSE'),
+    keywords=list(filter(
+        None,
+        map(str.strip, re.split(r',|\n', project_info.get('keywords', '')))
+    )),
+    url=project_info.get('url'),
+    download_url=project_info.get('download_url'),
+    author=project_info.get('author'),
+    author_email=project_info.get('author_email'),
+    license=project_info.get('license'),
     classifiers=[
         'Framework :: FACET',
         'Topic :: Documentation :: Sphinx',
@@ -97,8 +97,8 @@ setup(
     python_requires='>=3.6,<=3.8',
     include_package_data=True,
     packages=find_packages(),
-    install_requires=install_requirements,
-    extras_require=extras_requirements,
+    install_requires=load_requirements('requirements.txt'),
+    extras_require=load_extras_requirements('extras_requirements.txt'),
     entry_points={
         'console_scripts': [
             'facet=facet.scripts.cli:cli',

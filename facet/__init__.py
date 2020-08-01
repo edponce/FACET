@@ -1,7 +1,5 @@
 import os
 import sys
-sys.path.append(os.path.abspath('..'))
-from meta import *
 
 
 __all__ = []

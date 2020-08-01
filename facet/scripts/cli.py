@@ -475,39 +475,35 @@ def server_shutdown(host, port, fileno, pid):
     if pid:
         os.kill(pid, signal.SIGKILL)
     elif fileno:
-        if sys.version_info < (3, 7):
-            print('To close server socket with file descriptor/number'
-                  'requires at least Python 3.7')
-        else:
-            try:
-                socket.close(fileno)
-            except OSError as ex:
-                print('failed to close server socket:', ex, file=sys.stderr)
+        try:
+            socket.close(fileno)
+        except AttributeError as ex:
+            raise ex(
+                'to close server socket with file descriptor/number'
+                'requires at least Python 3.7'
+            )
+        except OSError as ex:
+            raise ex('failed to close server socket')
     elif host:
-        # Port embedded with 'host' parameter has priority over 'port'
-        host, _port = facet.parse_address(host)
-        if _port:
-            port = _port
-
         client = socket.socket(
             family=socket.AF_INET,
-            type=socket.SOCK_STREAM,
-            # type=socket.SOCK_STREAM | socket.SOCK_CLOEXEC,
+            type=(
+                (socket.SOCK_STREAM | socket.SOCK_CLOEXEC)
+                if sys.platform.startswith('linux')
+                else socket.SOCK_STREAM
+            )
         )
         try:
-            client.connect((host, port))
-            try:
-                client.sendall(b'shutdown')
-            except OSError as ex:
-                print('failed to send shutdown command to server:', ex,
-                      file=sys.stderr)
+            client.connect(facet.parse_address(host, port))
         except OSError as ex:
-            print('failed to connect to server:', ex, file=sys.stderr)
-        finally:
-            try:
-                client.close()
-            except OSError as ex:
-                print('failed to close client socket:', ex, file=sys.stderr)
+            raise ex('failed to connect to server')
+
+        try:
+            client.sendall(b'shutdown')
+        except OSError as ex:
+            raise ex('failed to send shutdown command to server')
+
+        client.close()
 
 
 # Organize groups and commands
