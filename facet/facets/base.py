@@ -105,7 +105,6 @@ class BaseFacet(ABC):
         self,
         corpora: Union[str, Iterable[str]],
         *,
-        # best_match: bool = True,
         case: str = 'l',
         normalize_unicode: bool = False,
         # NOTE: The following default values are based on the corresponding
@@ -120,8 +119,6 @@ class BaseFacet(ABC):
 
         Args:
             corpora (Union[str, Iterable[str]]): Corpora items.
-
-            best_match (bool): ?
 
             case (str, None): Controls string casing during insert/search.
 
@@ -185,10 +182,6 @@ class BaseFacet(ABC):
                     ngram_matches = self._match(ngram_struct, **kwargs)
                     if len(ngram_matches) == 0:
                         continue
-
-                    # if best_match:
-                    #     ngram_matches = self._select_terms(ngram_matches)
-                    #     print(f'Num best matches: {len(ngram_matches)}')
 
                     # NOTE: Matches are not checked for duplication if placed
                     # in the same key.
