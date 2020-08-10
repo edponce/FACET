@@ -7,11 +7,7 @@ CODE_OF_CONDUCT.md
 include project.cfg
 include extras_requirements.txt
 include requirements.txt
-include environment.yml
 include tox.ini
-include Makefile
-include Dockerfile
-graft meta
 graft doc
 graft scripts
 graft config
