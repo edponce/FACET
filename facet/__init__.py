@@ -1,9 +1,5 @@
-import os
-import sys
-
-
-__all__ = []
-
+# NOTE: Changing order of some of these imports may trigger errors.
+# Need to verify the root cause and if it can be circumvented.
 
 # NOTE: These imports are for CLI script
 from .configuration import Configuration
@@ -20,6 +16,7 @@ from .network import (
 from .factory import FacetFactory
 from .facets import (
     Facet,
+    ParallelFacet,
     UMLSFacet,
 )
 from .formatter import (
@@ -77,3 +74,6 @@ from .matcher.similarity import (
     OverlapSimilarity,
     HammingSimilarity,
 )
+
+
+__all__ = []

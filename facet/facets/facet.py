@@ -21,6 +21,8 @@ VERBOSE = True
 class Facet(BaseFacet):
     """FACET text matcher."""
 
+    NAME = 'facet'
+
     def _install(
         self,
         filename: str,

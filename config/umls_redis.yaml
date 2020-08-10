@@ -1,0 +1,74 @@
+Install:
+    class: umlsfacet
+    conso_db:
+        class: redis
+        n: 0
+        host: localhost
+        port: 6379
+        access_mode: c
+        use_pipeline: true
+        connect: true
+        serializer: pickle
+    cuisty_db:
+        class: redis
+        n: 1
+        host: localhost
+        port: 6379
+        access_mode: c
+        use_pipeline: true
+        connect: true
+        serializer: pickle
+    matcher:
+        class: simstring
+        db:
+            class: redis
+            n: 2
+            host: localhost
+            port: 6379
+            access_mode: c
+            use_pipeline: true
+            connect: true
+            serializer: pickle
+        ngram: character
+    install:
+        filename: data/umls
+        nrows: 40000
+
+
+Search:
+    class: umlsfacet
+    conso_db:
+        class: redis
+        n: 0
+        host: localhost
+        port: 6379
+        access_mode: r
+        use_pipeline: true
+        connect: true
+        serializer: pickle
+    cuisty_db:
+        class: redis
+        n: 1
+        host: localhost
+        port: 6379
+        access_mode: r
+        use_pipeline: true
+        connect: true
+        serializer: pickle
+    matcher:
+        class: simstring
+        db:
+            class: redis
+            n: 2
+            host: localhost
+            port: 6379
+            access_mode: r
+            use_pipeline: true
+            connect: true
+            serializer: pickle
+        cache_db: dict
+        alpha: 0.7
+        similarity: jaccard
+        ngram: character
+    tokenizer: alphanumeric
+    formatter: json

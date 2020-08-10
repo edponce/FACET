@@ -77,6 +77,8 @@ class UMLSFacet(BaseFacet):
             'redis', 'elasticsearch'.
     """
 
+    NAME = 'umlsfacet'
+
     def __init__(
         self,
         *,

@@ -429,8 +429,9 @@ def expand_envvars(string: str):
 def corpus_generator(
     corpora: Union[str, Iterable[str], Iterable[Iterable[str]]],
     *,
-    phony=False,
-    **kwargs,
+    source_only: bool = False,
+    phony: bool = False,
+    recursive: bool = False,
 ) -> Tuple[str, str]:
     """Extracts text from corpora.
 
@@ -442,10 +443,13 @@ def corpus_generator(
             * An iterable with two parts: (filename_or_id, text)
             * An iterable of any combination of the above
 
+        source_only (bool): If set, only return the sources (file names).
+            Raw text is returned as is.
+
         phony (bool): If set, attr:`corpora` items are not considered
             as file system objects when name collisions occur.
 
-    Kwargs: Options forwarded to 'unpack_dir()'.
+        recursive (bool): If set, unpack files recursively.
 
     Returns (Tuple[str, str]): Corpus source and corpus content.
                      The source identifier for raw text is '__text__'.
@@ -466,7 +470,7 @@ def corpus_generator(
         for corpus in corpora:
             corpus = expand_envvars(corpus)
             if os.path.isdir(corpus):
-                _corpora.extend(unpack_dir(corpus, **kwargs))
+                _corpora.extend(unpack_dir(corpus, recursive=recursive))
             else:
                 _corpora.append(corpus)
     else:
@@ -476,7 +480,7 @@ def corpus_generator(
         corpus = expand_envvars(corpus)
         # Assume corpus is raw text if it is not a file system object.
         if phony or not os.path.exists(corpus):
-            yield '__text__', corpus
+            yield corpus if source_only else ('__text__', corpus)
         elif os.path.isfile(corpus):
             if os.path.basename(corpus).startswith('.'):
                 continue
@@ -484,7 +488,7 @@ def corpus_generator(
             # approach for large files, but there is no way of splitting by
             # sentences a priori (unless stated otherwise).
             with open(corpus) as fd:
-                yield corpus, fd.read()
+                yield corpus if source_only else (corpus, fd.read())
 
 
 def get_obj_map_key(obj, class_map):

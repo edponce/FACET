@@ -6,7 +6,7 @@ def generate_sources(n):
     return [source] * n
 
 
-factory = facet.FacetFactory('config/umls_sqlite.yaml:Search')
+factory = facet.FacetFactory('config/umls_redis.yaml:Search')
 
 host = 'localhost'
 port = 4444

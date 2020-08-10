@@ -134,7 +134,7 @@ class BaseFacet(ABC):
                 `corpus_generator`.
 
         Kwargs:
-            Options passed directly to `Matcher.search` via `_match`.
+            Options forwarded to `Matcher.search` via `_match`.
 
         Examples:
 

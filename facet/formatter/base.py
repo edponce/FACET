@@ -17,7 +17,7 @@ __all__ = ['BaseFormatter']
 class BaseFormatter(ABC):
     """Class supporting results formatting and writing to stream."""
 
-    def __call__(
+    def format(
         self,
         data: Dict[str, List[List[Dict[str, Any]]]],
         *,
@@ -32,6 +32,8 @@ class BaseFormatter(ABC):
                 fd.write(str(formatted_data))
         else:
             return formatted_data
+
+    __call__ = format
 
     @abstractmethod
     def _format(self, data) -> Union[str, bytes]:
