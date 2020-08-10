@@ -1,0 +1,32 @@
+version: "3.8"
+services:
+    redis:
+        image: redis:alpine
+        container_name: facet_redis
+        hostname: redis
+        networks:
+            - backend
+        expose:
+            - "6379"
+        ports:
+            - "7001:6379"
+        volumes:
+            - ./redis-data:/var/lib/redis
+            - ./redis.conf:/usr/local/etc/redis/redis.conf
+        command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    web:
+        container_name: facet
+        hostname: facet
+        build: .
+        networks:
+            - backend
+        ports:
+            - "4444:4444"
+        volumes:
+            - .:/FACET
+        depends_on:
+            - redis
+        command: ["./scripts/wait-for-it.sh", "redis:6379", "--", "python", "facet/scripts/cli.py", "server", "-c", "config/facet_docker.yaml:Install"]
+networks:
+    backend:
+        driver: "bridge"

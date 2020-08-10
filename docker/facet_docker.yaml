@@ -1,0 +1,14 @@
+Install:
+    matcher:
+        class: simstring
+        db:
+            class: redis
+            host: redis
+            port: 6379
+    install:
+        filename: data/install/american-english
+        nrows: 10000
+
+
+Search:
+    matcher: ${{Install:matcher}}
