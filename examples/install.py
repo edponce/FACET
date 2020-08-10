@@ -16,4 +16,4 @@ f = facet.UMLSFacet(
     matcher=ss,
 )
 
-f.install('data/umls')
+f.install('data/umls', nrows=40000)

@@ -32,6 +32,6 @@ f = facet.UMLSFacet(
     formatter='json',
 )
 
-query = ['acetate', 'data/sample.txt']
+query = ['acetate', 'cancer', 'ulna', 'data/sample.txt']
 matches = f.match(query, output=None)
 print(matches)
