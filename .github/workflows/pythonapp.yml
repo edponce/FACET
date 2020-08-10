@@ -27,4 +27,4 @@ jobs:
         tox
     - name: Run FACET
       run: |
-        python facet/scripts/cli.py run --config config/factory.yaml:SimpleMemory --query "beautiful window in Apollo spacecraft"
+        python facet/scripts/cli.py run --config config/factory.yaml:FACET:Install --query "beautiful window in Apollo spacecraft"
