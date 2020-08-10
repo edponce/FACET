@@ -1,639 +1,397 @@
-# facet run -c config/factory.yaml:SimpleMemory:Install
+# Usage: facet run -c config/factory.yaml:FACET:Install
+#
+# Configuration Help
+#
+# ${{key}} - interpolate value of 'key'
+# ${{key1:key2}} - interpolate value of 'key2' ('key2' is a value of 'key1')
+# $name or ${name} - interpolate value of environment variable 'name'
 
 Install:
     install:
         filename: data/install/american-english
         nrows: 10000
+        # Any additional key:value pairs are forwarded to pandas.read_csv()
+        encoding: utf-8
+        # skiprows: 0
 
-UMLSInstall:
+Install2:
     install:
         filename: data/umls/MRCONSO.RRF
         delimiter: "|"
         cols: 14
         nrows: 38000
+        # Any additional key:value pairs are forwarded to pandas.read_csv()
+        encoding: utf-8
+        # skiprows: 0
+
+UMLSInstall:
+    install:
+        filename: data/umls
+        nrows: 38000
+        # Any additional key:value pairs are forwarded to pandas.read_csv()
+        encoding: utf-8
+        # skiprows: 0
 
 ###############################################################################
 
-Tokenizer:
-    tokenizer:
-        class: null
-        # class: whitespace
-        # class: alphanumeric
-        window: 1
-        min_token_length: 2
-        converters: lower
-        use_stopwords: true
-        stopwords: null
-
-SymbolTokenizer:
-    # Sentencizes in newlines
-    tokenizer:
-        class: symbol
-        window: 1
-        min_token_length: 2
-        converters: lower
-        use_stopwords: true
-        stopwords: null
-        # Symbols for tokenization
-        # symbols: "\t\n\r\f\v .,?!\"'-:;()[]{}",
-        # Symbols to include in addition to 'symbols'
-        include_symbols: null
-        # Symbols to exclude from 'symbols'
-        exclude_symbols: null
-
-SpaCyTokenizer:
-    tokenizer:
-        class: spacy
-        window: 1
-        min_token_length: 2
-        converters: lower
-        use_stopwords: true
-        stopwords: null
-        # Phrase chunker, 'noun' uses nouns only, 'noun_chunks'
-        # uses basic noun chunking, 'pos_chunks' uses parts-of-speech
-        # for chunking, None uses window-based tokenization. If chunking
-        # is enabled then 'window', 'stopwords', and 'min_token_length'
-        # parameters are not used.
-        chunker: null
-        # chunker: nouns
-        # chunker: noun_chunks
-        # chunker: pos_chunks
-        lemmatizer: True
-        language: en
-
-NLTKTokenizer:
-    tokenizer:
-        class: nltk
-        window: 1
-        min_token_length: 2
-        converters: lower
-        use_stopwords: true
-        stopwords: null
-        sentencizer: punctuation
-        # sentencizer: line
-        tokenizer: treebank
-        # tokenizer: punctuation
-        # tokenizer: space
-        # tokenizer: whitespace
-        # Phrase chunker, 'noun' uses nouns only, 'noun_chunks'
-        # uses basic noun chunking, 'pos_chunks' uses parts-of-speech
-        # for chunking, None uses window-based tokenization. If chunking
-        # is enabled then 'window', 'stopwords', and 'min_token_length'
-        # parameters are not used.
-        chunker: null
-        # chunker: nouns
-        # chunker: noun_chunks
-        # chunker: pos_chunks
-        lemmatizer: snowball
-        # lemmatizer: null
-        # lemmatizer: ci
-        # lemmatizer: isri
-        # lemmatizer: lancaster
-        # lemmatizer: porter
-        # lemmatizer: rslps
-        # lemmatizer: wordnet
-        language: english
-
-Serializer:
-    serializer:
-        class: null
-        # class: json
-        # class: yaml
-        # class: string
-        # class: arrow
-        encoding: utf-8
-        # Normalization form (NFC, NFKC, NFD, NFKD).
-        form: NFKD
-
-StringSJSerializer:
-    serializer:
-        class: stringsj
-        delimiter: "|"
-        encoding: utf-8
-        # Normalization form (NFC, NFKC, NFD, NFKD).
-        form: NFKD
-
-PickleSerializer:
-    serializer:
-        class: pickle
-        encoding: utf-8
-        # Normalization form (NFC, NFKC, NFD, NFKD).
-        form: NFKD
-        protocol: 4
-
-Formatter:
-    formatter:
-        class: null
-        # class: csv
-        # class: json
-        # class: yaml
-        # class: xml
-        # class: pickle
-        # data:
-        output: annotations.txt
-
+# FACET() object
 FACET:
     class: facet
-    matcher: simstring
-    tokenizer: alphanumeric
-    formatter: null
-    use_proxy_install: False
+    # Matcher() object
+    matcher: ${{SimstringMatcher}}
+    # Tokenizer() object
+    tokenizer: ${{Tokenizer}}
+    # Formatter() object
+    formatter: ${{Formatter}}
+    # If set, install in-memory first, then copy to database
+    use_proxy_install: false
 
+# FACET() object
 UMLSFACET:
     class: umlsfacet
-    matcher: simstring
-    tokenizer: alphanumeric
-    formatter: null
-    use_proxy_install: False
-    conso_db: null
-    cuisty_db: null
+    # Database() object
+    conso_db: ${{MemoryDictDatabase}}
+    # Database() object
+    cuisty_db: ${{MemoryDictDatabase}}
+    # Matcher() object
+    matcher: ${{SimstringMatcher}}
+    # Tokenizer() object
+    tokenizer: ${{Tokenizer}}
+    # Formatter() object
+    formatter: ${{Formatter}}
+    # If set, install in-memory first, then copy to database
+    use_proxy_install: false
 
 ###############################################################################
 
-AutoMemory:
-    query: data/sample.txt
-    formatter: json
-    output: annotations.json
+# Matcher() object
+SimstringMatcher:
+    class: simstring
+    # Database() object
+    db: ${{MemoryDictDatabase}}
+    # Database() object
+    cache_db: ${{MemoryDictDatabase}}
+    alpha: 0.7
+    similarity: jaccard
+    # Ngram() object
+    ngram: ${{CharacterNgram}}
 
-SimpleMemory: {}
-
-SimpleFile:
-    matcher:
-        class: simstring
-        db:
-            class: dict
-            filename: db/testing
-            access_mode: n
-            use_pipeline: true
-
-SimpleRedis:
-    matcher:
-        class: simstring
-        db:
-            class: redis
-            index: 3
-            access_mode: n
-            use_pipeline: true
-
-SimpleRediSearch:
-    matcher:
-        class: redisearch
-        db:
-            host: localhost
-            port: 7001
-            index: test
-            access_mode: c
-            use_pipeline: true
-        cache_db: dict
-    tokenizer:
-        class: spacy
-        mode: pos_chunks
-
-SimpleRediSearchSimstring:
-    matcher:
-        class: redisearch-simstring
-        db:
-            host: localhost
-            port: 7001
-            index: facet
-            access_mode: n
-            use_pipeline: true
-        cache_db: dict
-
-SimpleRediSearchAC:
-    matcher:
-        class: redisearch-autocompleter
-        db:
-            host: localhost
-            port: 7001
-            n: 2
-            key: facet-ac
-            access_mode: n
-            use_pipeline: true
-        cache_db: dict
-
-SimpleSQLite:
-    matcher:
-        class: simstring
-        db:
-            class: sqlite
-            access_mode: c
-            uri: db/umls
-            table: test
-            use_pipeline: true
-
-SimpleMongo:
-    matcher:
-        class: mongo-simstring
-        db:
-            access_mode: n
-            use_pipeline: true
-
-SimpleElasticsearch:
-    matcher:
-        class: elasticsearch-simstring
-        db:
-            access_mode: n
-            use_pipeline: true
-            thread_count: 8
-
-RedisTokenizer:
-    matcher:
-        class: redisearch
-        db:
-            port: 7001
-            use_pipeline: true
-        similarity: levenshtein
-    tokenizer:
-        class: nltk #spacy
-        mode: noun_chunks
-        # window: 3
-        converters: lower
-        min_token_length: 2
-        use_stopwords: true
-
-
-FacetMemory:
-    class: facet
-    matcher:
-        class: simstring
-        db: dict
-        alpha: 0.7
-        similarity: jaccard
-        ngram: character
-    tokenizer: alphanumeric
-    formatter: json
-    install:
-        filename: data/umls/MRCONSO.RRF
-        delimiter: "|"
-        cols: 14
-
-
-FacetFile:
-    class: facet
-    matcher:
-        class: simstring
-        db:
-            class: dict
-            filename: db/simstring
-            use_pipeline: true
-        alpha: 0.7
-        similarity: jaccard
-        ngram: character
-    tokenizer: alphanumeric
-    formatter: json
-    use_proxy_install: true
-    install:
-        filename: data/umls/MRCONSO.RRF
-        delimiter: "|"
-        cols: 14
-
-
-FacetRedis:
-    class: facet
-    matcher:
-        class: simstring
-        db:
-            class: redis
-            host: localhost
-            port: 6379
-            index: 3
-            access_mode: c
-            use_pipeline: true
-        cache_db: null
-        alpha: 0.7
-        similarity: jaccard
-        ngram: character
-    tokenizer: alphanumeric
-    formatter: json
-    use_proxy_install: true
-    install:
-        filename: data/umls/MRCONSO.RRF
-        delimiter: "|"
-        cols: 14
-
-
-FacetSQL:
-    class: facet
-    matcher:
-        class: simstring
-        db:
-            class: sqlite
-            uri: db/simstring
-            table: facet
-            access_mode: c
-            serializer: pickle
-            check_same_thread: false
-        cache_db: null
-        alpha: 0.7
-        similarity: jaccard
-        ngram: character
-    tokenizer: alphanumeric
-    formatter: json
-    use_proxy_install: true
-    install:
-        filename: data/umls/MRCONSO.RRF
-        delimiter: "|"
-        cols: 14
-
-
-FacetES:
-    class: facet
-    matcher:
-        class: elasticsearch-simstring
-        db:
-            index: facet
-            hosts: localhost:9200
-            use_pipeline: true
-            access_mode: c
-        cache_db: null
-        alpha: 0.7
-        similarity: jaccard
-        ngram: character
-    tokenizer: alphanumeric
-    formatter: json
-    install:
-        filename: data/umls/MRCONSO.RRF
-        delimiter: "|"
-        cols: 14
-
-
-FacetMongo:
-    class: facet
-    matcher:
-        class: mongo-simstring
-        db:
-            database: facet
-            host: localhost
-            port: 27017
-            use_pipeline: true
-            access_mode: c
-        cache_db: null
-        alpha: 0.7
-        similarity: jaccard
-        ngram: character
-    tokenizer: alphanumeric
-    formatter: json
-    install:
-        filename: data/umls/MRCONSO.RRF
-        delimiter: "|"
-        cols: 14
-
-
-FacetESFuzzy:
-    class: facet
-    matcher:
-        class: elasticsearch-fuzzy
-        db:
-            index: facet
-            hosts: localhost:9200
-            use_pipeline: true
-            access_mode: c
-        cache_db: null
-    tokenizer: alphanumeric
-    formatter: json
-    install:
-        filename: data/umls/MRCONSO.RRF
-        delimiter: "|"
-        cols: 14
-
-
-UMLSMemory:
-    class: umlsfacet
-    conso_db: dict
-    cuisty_db: dict
-    matcher:
-        class: simstring
-        db: dict
-        alpha: 0.7
-        similarity: jaccard
-        ngram: character
-    tokenizer: alphanumeric
-    formatter: json
-    install: data/umls
-
-
-UMLSFile:
-    class: umlsfacet
-    conso_db:
-        class: dict
-        filename: db/conso
+# Matcher() object
+ElasticsearchSimstringMatcher:
+    class: elasticsearch-simstring
+    # 'db' represents parameters forwarded to ElasticsearchDatabase()
+    db:
+        index: test
+        settings:
+            number_of_shards: 1
+            number_of_replicas: 0
+            max_result_window: 10000
+        hosts: localhost:9200
+        access_mode: c
         use_pipeline: true
-    cuisty_db:
-        class: dict
-        filename: db/cuisty
-        use_pipeline: true
-    matcher:
-        class: simstring
-        db:
-            class: dict
-            filename: db/simstring
-            use_pipeline: true
-        alpha: 0.7
-        similarity: jaccard
-        ngram: character
-    tokenizer: alphanumeric
-    formatter: json
-    use_proxy_install: true
-    install: data/umls
+        connect: true
+        # Use bulk API
+        thread_count: 4
+        # Use streaming API
+        # stream: true
+        # Any additional key:value pairs are forwarded to elasticsearch.Elasticsearch()
+    # Database() object
+    cache_db: ${{MemoryDictDatabase}}
+    alpha: 0.7
+    similarity: jaccard
+    # Ngram() object
+    ngram: ${{CharacterNgram}}
 
-UMLSRediSearch:
-    class: umlsfacet
-    conso_db:
-        class: redis
+# Matcher() object
+MongoSimstringMatcher:
+    class: mongo-simstring
+    # 'db' represents parameters forwarded to MongoDatabase()
+    db:
+        database: test
+        collection: strings
+        host: localhost
+        port: 27017
+        access_mode: c
+        use_pipeline: true
+        connect: true
+        # Any additional key:value pairs are forwarded to pymongo.MongoClient()
+    # Database() object
+    cache_db: ${{MemoryDictDatabase}}
+    alpha: 0.7
+    similarity: jaccard
+    # Ngram() object
+    ngram: ${{CharacterNgram}}
+
+# Matcher() object
+RediSearchSimstringMatcher:
+    class: redisearch-simstring
+    # 'db' represents parameters forwarded to RediSearchDatabase()
+    db:
+        index: test
         host: localhost
         port: 6379
-        n: 0
         access_mode: c
-        serializer: pickle
         use_pipeline: true
-    cuisty_db:
-        class: redis
+        chunk_size: 10000
+        connect: true
+        # Any additional key:value pairs are forwarded to redis.Redis()
+
+# Matcher() object
+ElasticsearchFuzzyMatcher:
+    class: elasticsearch-fuzzy
+    # 'db' represents parameters forwarded to ElasticsearchDatabase()
+    db:
+        index: test
+        settings:
+            number_of_shards: 1
+            number_of_replicas: 0
+            max_result_window: 10000
+        hosts: localhost:9200
+        access_mode: c
+        use_pipeline: true
+        connect: true
+        # Use bulk API
+        thread_count: 4
+        # Use streaming API
+        # stream: true
+        # Any additional key:value pairs are forwarded to elasticsearch.Elasticsearch()
+    # Database() object
+    cache_db: ${{MemoryDictDatabase}}
+    # The following parameters are specific to Elasticsearch fuzzy matching
+    rank: true
+    exact_match: false
+    fuzziness: AUTO
+    prefix_length: 0
+    max_expansions: 50
+    transpositions: true
+
+# Matcher() object
+RediSearchMatcher:
+    class: redisearch-match
+    # 'db' represents parameters forwarded to RediSearchDatabase()
+    db:
+        index: test
         host: localhost
         port: 6379
-        n: 1
-        access_mode: c
-        serializer: pickle
-        use_pipeline: true
-    matcher:
-        class: redisearch
-        db:
-            host: localhost
-            port: 7001
-            index: test
-            access_mode: n
-            use_pipeline: true
-        cache_db: dict
-    tokenizer: alphanumeric
-    formatter: json
-    use_proxy_install: true
-    install: data/umls
-
-UMLSRedis:
-    class: umlsfacet
-    conso_db:
-        class: redis
-        host: localhost
-        port: 6379
-        index: 0
-        access_mode: c
-        serializer: pickle
-        use_pipeline: true
-    cuisty_db:
-        class: redis
-        host: localhost
-        port: 6379
-        index: 1
-        access_mode: c
-        serializer: pickle
-        use_pipeline: true
-    matcher:
-        class: simstring
-        db:
-            class: redis
-            host: localhost
-            port: 6379
-            index: 2
-            access_mode: c
-            serializer: pickle
-            use_pipeline: true
-        cache_db: null
-        alpha: 0.7
-        similarity: jaccard
-        ngram: character
-    tokenizer: alphanumeric
-    formatter: json
-    use_proxy_install: true
-    install: data/umls
-
-
-UMLSSQL:
-    class: umlsfacet
-    conso_db:
-        class: sqlite
-        uri: db/umls
-        table: conso
-        access_mode: c
-        serializer: pickle
-        check_same_thread: false
-    cuisty_db:
-        class: sqlite
-        uri: db/umls
-        table: cuisty
-        access_mode: c
-        serializer: pickle
-        check_same_thread: false
-    matcher:
-        class: simstring
-        db:
-            class: sqlite
-            uri: db/umls
-            table: simstring
-            access_mode: c
-            serializer: pickle
-            check_same_thread: false
-        cache_db: null
-        alpha: 0.7
-        similarity: jaccard
-        ngram: character
-    tokenizer: alphanumeric
-    formatter: json
-    use_proxy_install: true
-    install: data/umls
-
-
-UMLSESS:
-    class: umlsfacet
-    conso_db:
-        class: sqlite
-        filename: db/umls
-        table: conso
-        access_mode: c
-        serializer: pickle
-        check_same_thread: false
-    cuisty_db:
-        class: sqlite
-        filename: db/umls
-        table: cuisty
-        access_mode: c
-        serializer: pickle
-        check_same_thread: false
-    matcher:
-        class: elasticsearch-simstring
-        db:
-            index: umls
-            hosts: localhost:9200
-            use_pipeline: true
-            access_mode: c
-        cache_db: null
-        alpha: 0.7
-        similarity: jaccard
-        ngram: character
-    tokenizer: alphanumeric
-    formatter: json
-    install: data/umls
-
-
-UMLSESR:
-    class: umlsfacet
-    conso_db:
-        class: redis
-        host: localhost
-        port: 6379
-        index: 0
         access_mode: c
         use_pipeline: true
-    cuisty_db:
-        class: redis
-        host: localhost
-        port: 6379
-        index: 1
-        access_mode: c
-        use_pipeline: true
-    matcher:
-        class: elasticsearch-simstring
-        db:
-            index: umls
-            hosts: localhost:9200
-            use_pipeline: true
-            access_mode: c
-        cache_db: null
-        alpha: 0.7
-        similarity: jaccard
-        ngram: character
-    tokenizer: alphanumeric
-    formatter: json
-    install: data/umls
+        chunk_size: 10000
+        connect: true
+        # Any additional key:value pairs are forwarded to redis.Redis()
+    alpha: 0.7
+    similarity: jaccard
 
+###############################################################################
 
-UMLSMongo:
-    class: umlsfacet
-    conso_db:
-        class: sqlite
-        filename: db/umls
-        table: conso
-        access_mode: c
-        serializer: pickle
-        check_same_thread: false
-    cuisty_db:
-        class: sqlite
-        filename: db/umls
-        table: cuisty
-        access_mode: c
-        serializer: pickle
-        check_same_thread: false
-    matcher:
-        class: mongo-simstring
-        db:
-            database: umls
-            host: localhost
-            port: 27017
-            use_pipeline: true
-            access_mode: c
-        cache_db: null
-        alpha: 0.7
-        similarity: jaccard
-        ngram: character
-    tokenizer: alphanumeric
-    formatter: json
-    install: data/umls
+# Database() object
+FileDictDatabase:
+    class: dict
+    filename: db/testing
+    access_mode: c
+    use_pipeline: true
+    connect: true
+
+# Database() object
+MemoryDictDatabase:
+    class: dict
+    connect: true
+
+# Database() object
+RedisDatabase:
+    class: redis
+    # Database index
+    n: 0
+    host: localhost
+    port: 6379
+    access_mode: c
+    use_pipeline: true
+    connect: true
+    serializer: ${{PickleSerializer}}
+    # Any additional key:value pairs are forwarded to redis.Redis()
+
+# Database() object
+SQLiteDatabase:
+    class: sqlite
+    # uri':memory:' or filename
+    uri: ':memory:'
+    # uri: test
+    table: test
+    access_mode: c
+    use_pipeline: true
+    connect: true
+    serializer: ${{PickleSerializer}}
+    # Any additional key:value pairs are forwarded to sqlite3.connect()
+    check_same_thread: false
+
+# Database() object
+ElasticsearchDatabase:
+    class: elasticsearch
+    index: test
+    settings:
+        number_of_shards: 1
+        number_of_replicas: 0
+        max_result_window: 10000
+    hosts: localhost:9200
+    access_mode: c
+    use_pipeline: true
+    connect: true
+    # Use bulk API
+    thread_count: 4
+    # Use streaming API
+    # stream: true
+    # Any additional key:value pairs are forwarded to elasticsearch.Elasticsearch()
+
+# Database() object
+MongoDatabase:
+    class: mongo
+    database: test
+    collection: strings
+    host: localhost
+    port: 27017
+    access_mode: c
+    use_pipeline: true
+    connect: true
+    # Any additional key:value pairs are forwarded to pymongo.MongoClient()
+
+# Database() object
+RediSearchDatabase:
+    class: redisearch
+    index: test
+    host: localhost
+    port: 6379
+    access_mode: c
+    use_pipeline: true
+    chunk_size: 10000
+    connect: true
+    # Any additional key:value pairs are forwarded to redis.Redis()
+
+###############################################################################
+
+# Serializer() object
+Serializer:
+    # class: null
+    class: json
+    # class: yaml
+    # class: string
+    # class: arrow
+    encoding: utf-8
+    # Normalization form (NFC, NFKC, NFD, NFKD).
+    form: NFKD
+
+# Serializer() object
+StringSJSerializer:
+    class: stringsj
+    delimiter: "|"
+    encoding: utf-8
+    # Normalization form (NFC, NFKC, NFD, NFKD).
+    form: NFKD
+
+# Serializer() object
+PickleSerializer:
+    class: pickle
+    encoding: utf-8
+    # Normalization form (NFC, NFKC, NFD, NFKD).
+    form: NFKD
+    protocol: 4
+
+###############################################################################
+
+# Tokenizer() object
+# Sentencizes in newlines
+Tokenizer:
+    # class: null
+    # class: whitespace
+    class: alphanumeric
+    window: 1
+    min_token_length: 2
+    converters: lower
+    use_stopwords: true
+    stopwords: null
+
+# Tokenizer() object
+# Sentencizes in newlines
+SymbolTokenizer:
+    class: symbol
+    window: 1
+    min_token_length: 2
+    converters: lower
+    use_stopwords: true
+    stopwords: null
+    # Symbols for tokenization
+    # symbols: "\t\n\r\f\v .,?!\"'-:;()[]{}",
+    # Symbols to include in addition to 'symbols'
+    include_symbols: null
+    # Symbols to exclude from 'symbols'
+    exclude_symbols: null
+
+# Tokenizer() object
+SpaCyTokenizer:
+    class: spacy
+    window: 1
+    min_token_length: 2
+    converters: lower
+    use_stopwords: true
+    stopwords: null
+    # Phrase chunker, 'noun' uses nouns only, 'noun_chunks'
+    # uses basic noun chunking, 'pos_chunks' uses parts-of-speech
+    # for chunking, None uses window-based tokenization. If chunking
+    # is enabled then 'window', 'stopwords', and 'min_token_length'
+    # parameters are not used.
+    chunker: null
+    # chunker: nouns
+    # chunker: noun_chunks
+    # chunker: pos_chunks
+    lemmatizer: True
+    language: en
+
+# Tokenizer() object
+NLTKTokenizer:
+    class: nltk
+    window: 1
+    min_token_length: 2
+    converters: lower
+    use_stopwords: true
+    stopwords: null
+    sentencizer: punctuation
+    # sentencizer: line
+    tokenizer: treebank
+    # tokenizer: punctuation
+    # tokenizer: space
+    # tokenizer: whitespace
+    # Phrase chunker, 'noun' uses nouns only, 'noun_chunks'
+    # uses basic noun chunking, 'pos_chunks' uses parts-of-speech
+    # for chunking, None uses window-based tokenization. If chunking
+    # is enabled then 'window', 'stopwords', and 'min_token_length'
+    # parameters are not used.
+    chunker: null
+    # chunker: nouns
+    # chunker: noun_chunks
+    # chunker: pos_chunks
+    lemmatizer: snowball
+    # lemmatizer: null
+    # lemmatizer: ci
+    # lemmatizer: isri
+    # lemmatizer: lancaster
+    # lemmatizer: porter
+    # lemmatizer: rslps
+    # lemmatizer: wordnet
+    language: english
+
+###############################################################################
+
+# Ngram() object
+CharacterNgram:
+    class: character
+    n: 3
+    boundary_length: 0
+
+###############################################################################
+
+# Formatter() object
+Formatter:
+    # class: null
+    # class: csv
+    class: json
+    # class: yaml
+    # class: xml
+    # class: pickle

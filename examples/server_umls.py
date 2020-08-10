@@ -1,11 +1,11 @@
 import facet
 
 
-factory = facet.FacetFactory('config/umls.yaml:UMLSES_INSTALL')
+factory = facet.FacetFactory('config/umls_sqlite.yaml:Install')
 
 f = factory.create()
 
-# f.install('data/umls', nrows=100000)
+f.install('data/umls', nrows=40000)
 
 host = 'localhost'
 port = 4444

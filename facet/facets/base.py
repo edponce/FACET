@@ -141,12 +141,12 @@ class BaseFacet(ABC):
         >>> matches = Facet().match(['file1.txt', 'file2.txt', ...])
         >>> for terms in matches['file1.txt']:
         >>>     for term in terms:
-        >>>         print(term['concept'], term['cui'], term['semantic type'])
+        >>>         print(term)
 
         >>> matches = Facet().match([('filename1', 'text1'), (...), ...])
         >>> for terms in matches['filename1']:
         >>>     for term in terms:
-        >>>         print(term['concept'], term['cui'], term['semantic type'])
+        >>>         print(term)
         """
         formatter = (
             self._formatter

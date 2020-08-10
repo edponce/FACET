@@ -44,7 +44,7 @@ project = project_info.get('name')
 author = project_info.get('author')
 copyright = project_info.get('copyright')
 
-title = f"{project_info.get('title')} Documentation"
+title = project_info.get('title') + ' Documentation'
 description = project_info.get('description')
 
 # The version info for the project you're documenting, acts as replacement for

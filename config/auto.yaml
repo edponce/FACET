@@ -1,0 +1,6 @@
+AutoFACET:
+    class: facet
+    install: data/install/american-english
+    query: data/sample.txt
+    formatter: json
+    output: annoations.json

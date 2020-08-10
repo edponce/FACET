@@ -4,6 +4,7 @@ CHANGELOG.rst
 CONTRIBUTING.rst
 CREDITS.rst
 CODE_OF_CONDUCT.md
+include project.cfg
 include extras_requirements.txt
 include requirements.txt
 include environment.yml

@@ -1,60 +1,70 @@
-UMLSES_INSTALL:
+Install:
     class: umlsfacet
     conso_db:
         class: sqlite
-        filename: db/umls
+        uri: db/umls
         table: conso
         access_mode: c
-        serializer: json
-        check_same_thread: false
+        use_pipeline: true
+        connect: true
+        serializer: pickle
     cuisty_db:
         class: sqlite
-        filename: db/umls
+        uri: db/umls
         table: cuisty
         access_mode: c
-        serializer: json
-        check_same_thread: false
+        use_pipeline: true
+        connect: true
+        serializer: pickle
     matcher:
         class: elasticsearch-simstring
         db:
-            # Options for Elasticsearch()
             index: umls
-            hosts: localhost:9200
-            use_pipeline: true
-            access_mode: c
-            thread_count: 4
             settings:
                 number_of_shards: 1
                 number_of_replicas: 0
                 max_result_window: 10000
+            hosts: localhost:9200
+            access_mode: c
+            use_pipeline: true
+            connect: true
+            thread_count: 4
         ngram: character
+    install:
+        filename: data/umls
+        nrows: 38000
 
 
-UMLSES_SEARCH:
+Search:
     class: umlsfacet
     conso_db:
         class: sqlite
-        filename: db/umls
+        uri: db/umls
         table: conso
         access_mode: r
-        serializer: json
+        connect: true
+        serializer: pickle
+        check_same_thread: false
     cuisty_db:
         class: sqlite
-        filename: db/umls
+        uri: db/umls
         table: cuisty
         access_mode: r
-        serializer: json
+        connect: true
+        serializer: pickle
+        check_same_thread: false
     matcher:
         class: elasticsearch-simstring
         db:
-            # Options for Elasticsearch()
             index: umls
+            settings:
+                number_of_shards: 1
+                number_of_replicas: 0
+                max_result_window: 10000
             hosts: localhost:9200
             access_mode: r
-            settings:
-                number_of_shards: 1
-                number_of_replicas: 0
-                max_result_window: 10000
+            connect: true
+        cache_db: dict
         alpha: 0.7
         similarity: jaccard
         ngram: character

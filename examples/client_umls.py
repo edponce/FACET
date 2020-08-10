@@ -1,7 +1,7 @@
 import facet
 
 
-factory = facet.FacetFactory('config/umls.yaml:UMLSES_SEARCH')
+factory = facet.FacetFactory('config/umls_sqlite.yaml:Search')
 
 host = 'localhost'
 port = 4444

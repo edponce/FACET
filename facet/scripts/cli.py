@@ -434,7 +434,7 @@ def client(config, host, port, query, formatter, output, dump_config):
 
     with facet.network.SocketClient(
         (host, port),
-        target_class=facet.facets.get_facet(factory_config['class']),
+        target_class=facet.facets.facet_map[factory_config['class']],
     ) as f:
         if query:
             matches = f.match(query)

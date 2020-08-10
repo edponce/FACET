@@ -29,7 +29,6 @@ class RediSearchSimstring(BaseSimstring):
     Args:
         db (Dict[str, Any]): Options passed directly to
             'RediSearchDatabase()'.
-            index (str): RediSearch index name for storage.
 
     Kwargs: Options forwarded to 'BaseSimstring()'.
     """
@@ -109,7 +108,7 @@ class RediSearch(BaseMatcher):
     Kwargs: Options forwarded to 'BaseMatcher()'.
     """
 
-    NAME = 'redisearch'
+    NAME = 'redisearch-match'
 
     _FIELDS = (redisearch.TextField('term'),)
 

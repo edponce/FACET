@@ -34,8 +34,8 @@ Features
 * Easy to scale up, run locally, or containerize
 * Stores extracted annotations in serializable and/or human-readable formats
 
-.. .. figure:: doc/figures/FACET.png
-.. figure:: figures/FACET.png
+.. .. figure:: figures/FACET.png
+.. figure:: doc/figures/FACET.png
    :scale: 70 %
    :alt: FACET client/server scheme
 
@@ -50,34 +50,21 @@ Setup and Installation
 
 2. Install package::
 
-    $ # For conda environment
-    $ conda env create --file environment.yaml
-    $ conda activate facet
-    $
-    $ # Install FACET
-    $ pip install .[extra]
+    $ pip install .
 
-3. Configure FACET shell command::
+3. (Optional) Configure FACET shell command::
 
     $ source scripts/shell_completion.sh
 
 4. (Optional) Install spaCy language model, see `spaCy models`_::
 
-    $ python -m spacy download en
+    $ sh scripts/setup_spacy.sh
 
 .. _spaCy models: https://spacy.io/models/en
 
 5. (Optional) Install NLTK NLP components::
 
     $ python scripts/setup_nltk.py
-
-    or
-
-    >>> import nltk
-    >>> nltk.download('stopwords')
-    >>> nltk.download('punkt')
-    >>> nltk.download('averaged_perceptron_tagger')
-    >>> nltk.download('universal_tagset')
 
 6. (Optional) Install UMLS files:
 
@@ -98,12 +85,14 @@ Setup and Installation
 
     $ tox
 
-8. Generate documentation ::
+8. (Optional) Check command line interface ::
 
-    $ make -C doc/ html
-    $ <browser> doc/_build/html/index.html
+    $ python facet/scripts/cli.py --help
+    $ python facet/scripts/cli.py run --help
+    $ python facet/scripts/cli.py server --help
+    $ python facet/scripts/cli.py client --help
 
-9. Browse commands and help descriptions ::
+    or (if shell_completion.sh installed)
 
     $ facet --help
     $ facet run --help
@@ -122,16 +111,7 @@ command line tool, or a library.
     $ facet run --install data/install/american-english
     $ > cancer
     $ > alphametic
-    $ > help()               # View help info
-    $ > alpha()              # Get similarity threshold
-    $ > alpha = 0.5          # Set similarity threshold
-    $ > similarity()         # Get similarity metric
-    $ > similarity = cosine  # Set similarity metric
-    $ > formatter()          # Get format mode
-    $ > formatter = csv      # Set format mode
-    $ > cancer
-    $ > alphametic
-    $ > exit()               # Stop FACET
+    $ > exit()
 
 * Process file via command line ::
 
@@ -139,13 +119,16 @@ command line tool, or a library.
 
 * Run with a configuration file::
 
-    $ facet run --config config/factory.yaml:AutoMemory
+    $ facet run --config config/auto.yaml
     $ <viewer> annotations.json
 
 * Run as a web service ::
 
-    $ facet server --install data/install/american-english --port 4444
+    $ facet server --install data/install/american-english --host localhost --port 4444
     $ facet client --host localhost --port 4444 --formatter json
+    $ > acetate
+    $ > exit()
+    $ facet server-shutdown --host localhost --port 4444
 
 * Run programmatically using Python's API (see example scripts) ::
 
@@ -163,13 +146,6 @@ structure different database types can be used in the same installation.
 * Python dictionary (file backed) - fast performance, but increases main process storage. Persists after system shutdown.
 * Python SQLite3 (in-memory, file backed) - medium performance
 * Redis - medium performance.
-
-
-Redis
-^^^^^
-* Install Redis server/client packages in computer system::
-
-  $ apt install redis-server
 
 
 Performance
@@ -193,6 +169,7 @@ Total time                   665.79
 UMLS Related Tools
 ==================
 
+* QuickUMLS: https://github.com/Georgetown-IR-Lab/QuickUMLS
 * py-umls: https://github.com/chb/py-umls
 * UMLS Description:
 
@@ -206,5 +183,3 @@ Coming Soon
 Matchers with fuzzy string matching:
 
 * fuzzywuzzy
-* python-Levenshtein
-* snowball (stemmer)

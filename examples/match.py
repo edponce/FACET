@@ -10,7 +10,7 @@ tokenizer = facet.WhitespaceTokenizer()
 
 # Connect to database
 db1 = facet.RedisDatabase(n=0)
-# db2 = facet.RedisDatabase(n=1)
+db2 = facet.RedisDatabase(n=1)
 db3 = facet.RedisDatabase(n=2)
 # cdb = facet.RedisDatabase(n=3)
 cdb = None
@@ -26,7 +26,7 @@ ss = facet.Simstring(
 # Create FACET instance and match
 f = facet.UMLSFacet(
     conso_db=db1,
-    # cuisty_db=db2,
+    cuisty_db=db2,
     matcher=ss,
     tokenizer=tokenizer,
     formatter='json',

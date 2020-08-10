@@ -1,17 +1,37 @@
 import facet
 
 
-# tokenizer = None
 # tokenizer = facet.SimpleTokenizer()
 # tokenizer = facet.NLTKTokenizer()
 # tokenizer = facet.SpacyTokenizer()
 tokenizer = facet.WhitespaceTokenizer()
 
 
-# Connect to database
-db1 = facet.DictDatabase('db/conso')
-db2 = facet.DictDatabase('db/cuisty')
-db3 = facet.DictDatabase('db/simstring')
+# Connect to databases
+db1 = facet.SQLiteDatabase(
+    uri='db/umls',
+    table='conso',
+    access_mode='r',
+    use_pipeline=False,
+    connect=True,
+    serializer='pickle',
+)
+db2 = facet.SQLiteDatabase(
+    uri='db/umls',
+    table='cuisty',
+    access_mode='r',
+    use_pipeline=False,
+    connect=True,
+    serializer='pickle',
+)
+db3 = facet.SQLiteDatabase(
+    uri='db/umls',
+    table='simstring',
+    access_mode='r',
+    use_pipeline=False,
+    connect=True,
+    serializer='pickle',
+)
 
 # Create Simstring instance
 ss = facet.Simstring(

@@ -38,6 +38,7 @@ class ElasticsearchSimstring(BaseSimstring):
         'number_of_replicas': 0,
         'max_result_window': 10000,
         # disable for bulk processing, enable for real-time
+        # https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-update-settings.html
         # 'refresh_interval': -1,
     }
 

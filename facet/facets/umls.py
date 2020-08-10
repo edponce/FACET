@@ -176,7 +176,10 @@ class UMLSFacet(BaseFacet):
             print('Writing concepts and matcher data...')
             start = time.time()
             # Stores {Term:CUI} mapping, term: [CUI, ...]
-            self._dump_matcher_kv(conso.items(), db=self._conso_db)
+            # NOTE: File lock in SQLite database prevents using matcher_kv()
+            # self._dump_matcher_kv(conso.items(), db=self._conso_db)
+            self._dump_kv(conso.items(), db=self._conso_db)
+            self._dump_matcher(conso.keys())
             curr_time = time.time()
             print(f'Writing concepts and matcher data: {curr_time - start} s')
 
@@ -221,9 +224,10 @@ class UMLSFacet(BaseFacet):
 
             if self._conso_db is not None:
                 cui = self._conso_db.get(candidate)
-                ngram_match['CUI'] = cui
-                if cui is not None and self._cuisty_db is not None:
-                    ngram_match['semantic types'] = self._cuisty_db.get(cui)
+                if cui is not None:
+                    ngram_match['CUI'] = cui
+                    if self._cuisty_db is not None:
+                        ngram_match['STY'] = self._cuisty_db.get(cui)
             ngram_matches.append(ngram_match)
 
         return ngram_matches

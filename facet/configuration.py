@@ -1,6 +1,5 @@
 import os
 import re
-import sys
 import copy
 import yaml
 import json
@@ -184,8 +183,8 @@ rawCSVToken = (
 
 class Configuration:
 
-    def __init__(self):
-        self.regex = r'\${{([^}]+)}}'
+    def __init__(self, regex=r'\${{([^}]+)}}'):
+        self.regex = regex
 
     def expand_envvars(self, obj):
         """Recursively expand user and environment variables in common
@@ -242,6 +241,7 @@ class Configuration:
                         if isinstance(value, dict):
                             value = value[key]
                         else:
+                            # Assume value is an iterable and key the index
                             value = value[int(key)]
                     obj = copy.deepcopy(_interpolate(value))
             return obj
@@ -322,7 +322,7 @@ class Configuration:
             obj = re.sub(r'\n', ',', obj.strip())
 
             # Quote interpolation strings
-            obj = re.sub(r'["\']?(\${{[^}]+}})["\']?', r'"\1"', obj)
+            obj = re.sub(fr'["\']?({self.regex})["\']?', r'"\1"', obj)
 
             obj = self.parse_string(obj, **kwargs)
 
@@ -492,7 +492,6 @@ class Configuration:
             )
 
         if not config:
-            print('Warning: no configuration detected', file=sys.stderr)
             return {}
 
         # Normalize strings and types based on a grammar
