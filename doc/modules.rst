@@ -124,6 +124,9 @@ Serializer
 .. autoclass:: facet.PickleSerializer
     :members:
 
+.. autoclass:: facet.CloudpickleSerializer
+    :members:
+
 .. autoclass:: facet.StringSerializer
     :members:
 
@@ -167,6 +170,9 @@ Formatter
     :members:
 
 .. autoclass:: facet.PickleFormatter
+    :members:
+
+.. autoclass:: facet.CloudpickleFormatter
     :members:
 
 .. autoclass:: facet.CSVFormatter

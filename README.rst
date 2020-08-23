@@ -1,17 +1,3 @@
-.. .. image:: https://codecov.io/gh/kbrown42/quickerumls/branch/master/graph/badge.svg
-   :target: https://codecov.io/gh/edponce/quickerumls
-   :alt: Coverage Status
-
-.. .. image:: https://readthedocs.org/projects/quickerumls/badge/?version=latest
-   :target: https://quickerumls.readthedocs.io/en/latest/?badge=latest
-   :alt: Documentation Status
-
-.. .. image:: https://img.shields.io/badge/license-MIT-blue.svg
-   :target: https://github.com/edponce/smarttimers/blob/master/LICENSE
-   :alt: License
-
-|
-
 FACET - Framework for Annotation and Concept Extraction in Text
 ===============================================================
 
@@ -34,10 +20,17 @@ Features
 * Easy to scale up, run locally, or containerize
 * Stores extracted annotations in serializable and/or human-readable formats
 
-.. .. figure:: figures/FACET.png
 .. figure:: doc/figures/FACET.png
    :scale: 70 %
    :alt: FACET client/server scheme
+
+   **Ideal FACET Structure:** Schematic of FACET presenting its components and their interactions. Many components provide multiple alternatives for its processing. FACET supports the client/server paradigm, where clients ingest text streams and apply NLP to extract tokens of interest (stopwords and a parts-of-speech tagger are used to filter out “unimportant” tokens. The tokens are sent to the server which matches the tokens against a set of preinstalled canonical terms. Candidate terms can be used to extract additional attributes from preinstalled tables. The candidate terms along with their corresponding attributes are sent to the client. FACET provides multiple formats for representing the matched results.
+
+.. figure:: doc/figures/FACET_curr.png
+   :scale: 70 %
+   :alt: FACET client/server scheme
+
+   **Current FACET Architecture:** Schematic of FACET presenting its components and their interactions. Client/server communication is performed via remote procedure calls (RPC). Clients load data and send it to the server for NLP.
 
 
 Setup and Installation
@@ -148,8 +141,21 @@ structure different database types can be used in the same installation.
 * Redis - medium performance.
 
 
-Performance
+PERFORMANCE
 ===========
+
+**Note:** We need a quality metric to compare experiments and determine good parameters.
+
+* total N-gram count
+* distribution of N-gram size
+* N-grams skipped
+* N-grams used
+* N-grams matched
+* number of documents
+
+
+Installation
+------------
 
 UMLS 2018-AA with selected semantic types: 4,532,193 concepts
 Semantic types: 1,782,484
@@ -166,7 +172,31 @@ Total time                   665.79
 ============================ ===========
 
 
-UMLS Related Tools
+Processing Throughput
+---------------------
+
+Performance of processing a collection of 100 documents (SynthNotes).  
+
+**Bottleneck:** Profiling indicated the bottleneck was the number of calls to the Simstring database (1066595 calls to database).  
+
+**Solution:** Use bulk database accesses. This requires extending the databases API and modifying the matching algorithm to operate on bulk operations.  
+
+**Status:** This improvement is still under development, and preliminary results indicate that probably up to an order of magnitude in performance can be gained.
+
+
+========== ============ ===================== ============== ===========
+Tokenizer  Walltime (s) Throughput (doc/sec)  Single doc (s) Matches (n)
+========== ============ ===================== ============== ===========
+alphanum   18.6         5.3                   0.19           666803
+spaCy      24.1         4.1                   0.24           715276
+spaCy-n    20.5         4.8                   0.20           524782
+spaCy-n/c  52.2         1.9                   0.52           337012
+whitespace 15.0         6.6                   0.15           445806
+NLTK       12.5         8                     0.13           340211
+========== ============ ===================== ============== ===========
+
+
+UMLS RELATED TOOLS
 ==================
 
 * QuickUMLS: https://github.com/Georgetown-IR-Lab/QuickUMLS
@@ -177,9 +207,11 @@ UMLS Related Tools
   * https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-2001-108.pdf
 
 
-Coming Soon
+COMING SOON
 ===========
 
-Matchers with fuzzy string matching:
+* Bulk database accesses
+* New matchers string matching:
 
-* fuzzywuzzy
+  * fuzzywuzzy
+  * metaphone
