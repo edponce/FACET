@@ -26,6 +26,7 @@ from .formatter import (
     YAMLFormatter,
     JSONFormatter,
     PickleFormatter,
+    CloudpickleFormatter,
 )
 from .tokenizer import (
     NullTokenizer,
@@ -50,6 +51,7 @@ from .serializer import (
     YAMLSerializer,
     ArrowSerializer,
     PickleSerializer,
+    CloudpickleSerializer,
     StringSerializer,
     StringSJSerializer,
 )

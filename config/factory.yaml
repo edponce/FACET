@@ -294,6 +294,14 @@ PickleSerializer:
     form: NFKD
     protocol: 4
 
+# Serializer() object
+CloudpickleSerializer:
+    class: cloudpickle
+    encoding: utf-8
+    # Normalization form (NFC, NFKC, NFD, NFKD).
+    form: NFKD
+    protocol: 4
+
 ###############################################################################
 
 # Tokenizer() object
@@ -395,3 +403,4 @@ Formatter:
     # class: yaml
     # class: xml
     # class: pickle
+    # class: cloudpickle

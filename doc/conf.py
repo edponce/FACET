@@ -40,11 +40,11 @@ source_suffix = ['.rst']
 master_doc = 'index'
 
 # General information about the project.
-project = project_info.get('name')
+project = project_info.get('name', '')
 author = project_info.get('author')
 copyright = project_info.get('copyright')
 
-title = project_info.get('title') + ' Documentation'
+title = project + ' Documentation'
 description = project_info.get('description')
 
 # The version info for the project you're documenting, acts as replacement for

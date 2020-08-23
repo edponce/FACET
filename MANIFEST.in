@@ -10,6 +10,7 @@ include requirements.txt
 include tox.ini
 graft doc
 graft scripts
+graft docker
 graft config
 graft examples
 graft tests

@@ -2,7 +2,10 @@ from .base import BaseSerializer
 from .json import JSONSerializer
 from .yaml import YAMLSerializer
 from .arrow import ArrowSerializer
-from .pickle import PickleSerializer
+from .pickle import (
+    PickleSerializer,
+    CloudpickleSerializer,
+)
 from .string import (
     StringSerializer,
     StringSJSerializer,
@@ -16,6 +19,7 @@ serializer_map = {
     YAMLSerializer.NAME: YAMLSerializer,
     ArrowSerializer.NAME: ArrowSerializer,
     PickleSerializer.NAME: PickleSerializer,
+    CloudpickleSerializer.NAME: CloudpickleSerializer,
     StringSerializer.NAME: StringSerializer,
     StringSJSerializer.NAME: StringSJSerializer,
     NullSerializer.NAME: NullSerializer,

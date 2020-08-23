@@ -2,7 +2,10 @@ from .base import BaseFormatter
 from .json import JSONFormatter
 from .yaml import YAMLFormatter
 from .xml import XMLFormatter
-from .pickle import PickleFormatter
+from .pickle import (
+    PickleFormatter,
+    CloudpickleFormatter,
+)
 from .csv import CSVFormatter
 from .null import NullFormatter
 from typing import Union
@@ -13,6 +16,7 @@ formatter_map = {
     YAMLFormatter.NAME: YAMLFormatter,
     XMLFormatter.NAME: XMLFormatter,
     PickleFormatter.NAME: PickleFormatter,
+    CloudpickleFormatter.NAME: CloudpickleFormatter,
     CSVFormatter.NAME: CSVFormatter,
     NullFormatter.NAME: NullFormatter,
     None: NullFormatter,
